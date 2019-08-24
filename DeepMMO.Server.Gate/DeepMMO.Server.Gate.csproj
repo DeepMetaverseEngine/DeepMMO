@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net462</TargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <PropertyGroup>
+    <WarningsAsErrors>NU1605;CS1998;CS4014</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\DeepCore\DeepCore\DeepCore.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCrystal\DeepCrystal.csproj" />
+    <ProjectReference Include="..\DeepMMO.Server\DeepMMO.Server.csproj" />
+    <ProjectReference Include="..\DeepMMO\DeepMMO.csproj" />
+  </ItemGroup>
+
+</Project>

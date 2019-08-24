@@ -1,0 +1,189 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{D4B47FC6-A751-423B-BBC9-215ECED06342}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>DeepMMO.Client.BotTest</RootNamespace>
+    <AssemblyName>DeepMMO.Client.BotTest</AssemblyName>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>
+    </StartupObject>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="DeepEditor.Common, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\DeepPackages\Release\bin\net462\DeepEditor.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="DeepEditor.Plugin, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\DeepPackages\Release\bin\net462\DeepEditor.Plugin.dll</HintPath>
+    </Reference>
+    <Reference Include="ICSharpCode.SharpZipLib, Version=1.1.0.145, Culture=neutral, PublicKeyToken=1b03e6acf1164f73, processorArchitecture=MSIL">
+      <HintPath>..\packages\SharpZipLib.1.1.0\lib\net45\ICSharpCode.SharpZipLib.dll</HintPath>
+    </Reference>
+    <Reference Include="NPOI, Version=2.4.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
+      <HintPath>..\packages\NPOI.2.4.1\lib\net45\NPOI.dll</HintPath>
+    </Reference>
+    <Reference Include="NPOI.OOXML, Version=2.4.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
+      <HintPath>..\packages\NPOI.2.4.1\lib\net45\NPOI.OOXML.dll</HintPath>
+    </Reference>
+    <Reference Include="NPOI.OpenXml4Net, Version=2.4.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
+      <HintPath>..\packages\NPOI.2.4.1\lib\net45\NPOI.OpenXml4Net.dll</HintPath>
+    </Reference>
+    <Reference Include="NPOI.OpenXmlFormats, Version=2.4.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
+      <HintPath>..\packages\NPOI.2.4.1\lib\net45\NPOI.OpenXmlFormats.dll</HintPath>
+    </Reference>
+    <Reference Include="SourceGrid, Version=4.40.4580.29115, Culture=neutral, PublicKeyToken=df6f5e538749e85d, processorArchitecture=MSIL">
+      <HintPath>..\packages\SourceGrid.4.4.0\lib\net35\SourceGrid.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.CodeDom, Version=4.0.1.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.CodeDom.4.5.0\lib\net461\System.CodeDom.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Core" />
+    <Reference Include="System.Threading.Tasks.Dataflow, Version=4.5.24.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Tpl.Dataflow.4.5.24\lib\portable-net45+win8+wpa81\System.Threading.Tasks.Dataflow.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AddBotConfig.cs" />
+    <Compile Include="FormBotTest.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FormBotTest.Designer.cs">
+      <DependentUpon>FormBotTest.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FormLauncher.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FormLauncher.designer.cs">
+      <DependentUpon>FormLauncher.cs</DependentUpon>
+    </Compile>
+    <Compile Include="BotLauncher.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="BotConfig.cs" />
+    <Compile Include="Runner\BotRunner.Module.cs" />
+    <Compile Include="Runner\BotRunner.cs" />
+    <Compile Include="Runner\BotRunner.Login.cs" />
+    <Compile Include="BotFactory.cs" />
+    <Compile Include="Runner\Modules\BotModuleAutoBattle.cs" />
+    <EmbeddedResource Include="FormBotTest.resx">
+      <DependentUpon>FormBotTest.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FormLauncher.resx">
+      <DependentUpon>FormLauncher.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <None Include="packages.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.GameData\DeepCore.GameData.csproj">
+      <Project>{e7b8ca3c-ad08-45e3-84c7-c9753af510dc}</Project>
+      <Name>DeepCore.GameData</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Event.Lua\DeepCore.Event.Lua.csproj">
+      <Project>{dc64d2bf-145d-4c2d-b669-2a26eb39960b}</Project>
+      <Name>DeepCore.Event.Lua</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Event\DeepCore.Event.csproj">
+      <Project>{315b8780-b0c0-4c7d-9e7b-997015d4a189}</Project>
+      <Name>DeepCore.Event</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.GameHost.Server\DeepCore.GameHost.Server.csproj">
+      <Project>{def83172-0e4e-4ccc-8f42-0f053deb8f10}</Project>
+      <Name>DeepCore.GameHost.Server</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.GameHost\DeepCore.GameHost.csproj">
+      <Project>{3b3f61c0-36f8-42ee-9ec1-3d7d3298d671}</Project>
+      <Name>DeepCore.GameHost</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.GUI\DeepCore.GUI.csproj">
+      <Project>{2c79a0b5-0cef-45d3-8480-a4b6deb9452c}</Project>
+      <Name>DeepCore.GUI</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\DeepCore\DeepCore\DeepCore.csproj">
+      <Project>{99fb4093-b16e-4963-a861-9a07574bd9bc}</Project>
+      <Name>DeepCore</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\DeepMMO.Client.Win32\DeepMMO.Client.Win32.csproj">
+      <Project>{432fac96-898b-4aa9-bc11-796670f9a344}</Project>
+      <Name>DeepMMO.Client.Win32</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\DeepMMO.Client\DeepMMO.Client.csproj">
+      <Project>{2ba6f33d-a93c-4eef-9472-23d5dd5002b7}</Project>
+      <Name>DeepMMO.Client</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\DeepMMO\DeepMMO.csproj">
+      <Project>{90206eaa-10e2-4c76-a34a-a05f0d82dc3c}</Project>
+      <Name>DeepMMO</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

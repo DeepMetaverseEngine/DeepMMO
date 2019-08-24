@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net462</TargetFrameworks>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Modules\**" />
+    <EmbeddedResource Remove="Modules\**" />
+    <None Remove="Modules\**" />
+  </ItemGroup>
+  
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Game3D.Slave\DeepCore.Game3D.Slave.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Game3D\DeepCore.Game3D.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCore.GameData\DeepCore.GameData.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Event\DeepCore.Event.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCore\DeepCore.csproj" />
+    <ProjectReference Include="..\DeepMMO\DeepMMO.csproj" />
+  </ItemGroup>
+
+</Project>

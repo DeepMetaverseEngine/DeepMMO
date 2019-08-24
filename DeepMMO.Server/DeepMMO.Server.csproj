@@ -1,0 +1,51 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net462</TargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <PropertyGroup>
+    <WarningsAsErrors>NU1605;CS1998;CS4014</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Battle\**" />
+    <Compile Remove="Chat\**" />
+    <Compile Remove="Logger\**" />
+    <Compile Remove="Persistence\**" />
+    <EmbeddedResource Remove="Battle\**" />
+    <EmbeddedResource Remove="Chat\**" />
+    <EmbeddedResource Remove="Logger\**" />
+    <EmbeddedResource Remove="Persistence\**" />
+    <None Remove="Battle\**" />
+    <None Remove="Chat\**" />
+    <None Remove="Logger\**" />
+    <None Remove="Persistence\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="ServiceBase.cs" />
+    <Compile Remove="XLSLoader.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="build_orm.bat" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Game3D.Host\DeepCore.Game3D.Host.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCore.GameData\DeepCore.GameData.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Event.Lua\DeepCore.Event.Lua.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Event\DeepCore.Event.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCore\DeepCore.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCrystal\DeepCrystal.csproj" />
+    <ProjectReference Include="..\DeepMMO\DeepMMO.csproj" />
+  </ItemGroup>
+
+</Project>

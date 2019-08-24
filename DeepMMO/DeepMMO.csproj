@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net462</TargetFrameworks>
+  </PropertyGroup>
+
+  
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="LanguageManager.cs" />
+    <Compile Remove="Protocol\Client\0x38000.Chat.cs" />
+    <Compile Remove="RPGFactory.cs" />
+    <Compile Remove="RPGTemplateManager.cs" />
+    <Compile Remove="Template.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.GameData\DeepCore.GameData.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCore\DeepCore.csproj" />
+  </ItemGroup>
+
+
+</Project>

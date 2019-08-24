@@ -1,0 +1,47 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net462</TargetFrameworks>    
+	<NoWarn>1701;1702;1705</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <PropertyGroup>
+    <WarningsAsErrors>NU1605;CS1998;CS4014</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Model\Bag\**" />
+    <Compile Remove="Model\Package\**" />
+    <EmbeddedResource Remove="Model\Bag\**" />
+    <EmbeddedResource Remove="Model\Package\**" />
+    <None Remove="Model\Bag\**" />
+    <None Remove="Model\Package\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="LogicService.Area.cs" />
+    <Compile Remove="LogicService.Bag.cs" />
+    <Compile Remove="LogicService.Chat.cs" />
+    <Compile Remove="LogicService.Connect.cs" />
+    <Compile Remove="LogicService._.cs" />
+    <Compile Remove="Model\AvatarModule.cs" />
+    <Compile Remove="Model\BagModule.cs" />
+    <Compile Remove="Model\ChatModule.cs" />
+    <Compile Remove="Model\MailModule.cs" />
+    <Compile Remove="RolePersistenceOperator.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\DeepCore\DeepCore\DeepCore.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCrystal\DeepCrystal.csproj" />
+    <ProjectReference Include="..\DeepMMO.Server\DeepMMO.Server.csproj" />
+    <ProjectReference Include="..\DeepMMO\DeepMMO.csproj" />
+  </ItemGroup>
+
+</Project>
