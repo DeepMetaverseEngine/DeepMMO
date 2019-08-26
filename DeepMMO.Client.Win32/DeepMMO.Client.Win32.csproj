@@ -36,36 +36,6 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="DeepEditor.Common, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\DeepPackages\Release\bin\net462\DeepEditor.Common.dll</HintPath>
-    </Reference>
-    <Reference Include="DeepEditor.Plugin, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\DeepPackages\Release\bin\net462\DeepEditor.Plugin.dll</HintPath>
-    </Reference>
-    <Reference Include="ICSharpCode.SharpZipLib, Version=1.1.0.145, Culture=neutral, PublicKeyToken=1b03e6acf1164f73, processorArchitecture=MSIL">
-      <HintPath>..\packages\SharpZipLib.1.1.0\lib\net45\ICSharpCode.SharpZipLib.dll</HintPath>
-    </Reference>
-    <Reference Include="NPOI, Version=2.4.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
-      <HintPath>..\packages\NPOI.2.4.1\lib\net45\NPOI.dll</HintPath>
-    </Reference>
-    <Reference Include="NPOI.OOXML, Version=2.4.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
-      <HintPath>..\packages\NPOI.2.4.1\lib\net45\NPOI.OOXML.dll</HintPath>
-    </Reference>
-    <Reference Include="NPOI.OpenXml4Net, Version=2.4.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
-      <HintPath>..\packages\NPOI.2.4.1\lib\net45\NPOI.OpenXml4Net.dll</HintPath>
-    </Reference>
-    <Reference Include="NPOI.OpenXmlFormats, Version=2.4.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
-      <HintPath>..\packages\NPOI.2.4.1\lib\net45\NPOI.OpenXmlFormats.dll</HintPath>
-    </Reference>
-    <Reference Include="SourceGrid, Version=4.40.4580.29115, Culture=neutral, PublicKeyToken=df6f5e538749e85d, processorArchitecture=MSIL">
-      <HintPath>..\packages\SourceGrid.4.4.0\lib\net35\SourceGrid.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.CodeDom, Version=4.0.1.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.CodeDom.4.5.0\lib\net461\System.CodeDom.dll</HintPath>
-    </Reference>
     <Reference Include="System.Core" />
     <Reference Include="System.Threading.Tasks.Dataflow, Version=4.5.24.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Tpl.Dataflow.4.5.24\lib\portable-net45+win8+wpa81\System.Threading.Tasks.Dataflow.dll</HintPath>
@@ -161,6 +131,18 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Game3D.Host\DeepCore.Game3D.Host.csproj">
+      <Project>{ead31e15-1c7d-4894-980c-0ad7212553e3}</Project>
+      <Name>DeepCore.Game3D.Host</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Game3D.Slave\DeepCore.Game3D.Slave.csproj">
+      <Project>{f15d5b23-93c8-4da3-8063-7a89b9723107}</Project>
+      <Name>DeepCore.Game3D.Slave</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Game3D\DeepCore.Game3D.csproj">
+      <Project>{05062d77-dfd0-4f6a-bfb2-2ce15916d031}</Project>
+      <Name>DeepCore.Game3D</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\DeepCore\DeepCore.GameData\DeepCore.GameData.csproj">
       <Project>{e7b8ca3c-ad08-45e3-84c7-c9753af510dc}</Project>
       <Name>DeepCore.GameData</Name>
@@ -173,13 +155,17 @@
       <Project>{315b8780-b0c0-4c7d-9e7b-997015d4a189}</Project>
       <Name>DeepCore.Event</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\DeepCore\DeepCore.GameHost.Server\DeepCore.GameHost.Server.csproj">
-      <Project>{def83172-0e4e-4ccc-8f42-0f053deb8f10}</Project>
-      <Name>DeepCore.GameHost.Server</Name>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.SharpZipLib\DeepCore.SharpZipLib.csproj">
+      <Project>{9a12b90c-5ed0-4952-9c2e-b1c7b4cae1ba}</Project>
+      <Name>DeepCore.SharpZipLib</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\DeepCore\DeepCore.GameHost\DeepCore.GameHost.csproj">
-      <Project>{3b3f61c0-36f8-42ee-9ec1-3d7d3298d671}</Project>
-      <Name>DeepCore.GameHost</Name>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Template.MoonSharp\DeepCore.Template.MoonSharp.csproj">
+      <Project>{6ce44435-962c-4982-a4fc-6725ea79b3f5}</Project>
+      <Name>DeepCore.Template.MoonSharp</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Template.SLua\DeepCore.Template.SLua.csproj">
+      <Project>{22f38cec-b8cc-478c-bc74-616ede96474a}</Project>
+      <Name>DeepCore.Template.SLua</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\DeepCore\DeepCore\DeepCore.csproj">
       <Project>{99fb4093-b16e-4963-a861-9a07574bd9bc}</Project>
