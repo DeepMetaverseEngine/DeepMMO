@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{432FAC96-898B-4AA9-BC11-796670F9A344}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>DeepMMO.Client.Win32</RootNamespace>
     <AssemblyName>DeepMMO.Client.Win32</AssemblyName>
@@ -36,6 +36,7 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Threading.Tasks.Dataflow, Version=4.5.24.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Tpl.Dataflow.4.5.24\lib\portable-net45+win8+wpa81\System.Threading.Tasks.Dataflow.dll</HintPath>
@@ -59,6 +60,26 @@
     <Compile Include="Battle\PanelBattle.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="Bot\AddBotConfig.cs" />
+    <Compile Include="Bot\BotConfig.cs" />
+    <Compile Include="Bot\BotFactory.cs" />
+    <Compile Include="Bot\BotLauncher.cs" />
+    <Compile Include="Bot\FormBotTest.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Bot\FormBotTest.Designer.cs">
+      <DependentUpon>FormBotTest.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Bot\FormLauncher.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Bot\FormLauncher.designer.cs">
+      <DependentUpon>FormLauncher.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Bot\Runner\BotRunner.cs" />
+    <Compile Include="Bot\Runner\BotRunner.Login.cs" />
+    <Compile Include="Bot\Runner\BotRunner.Module.cs" />
+    <Compile Include="Bot\Runner\Modules\BotModuleAutoBattle.cs" />
     <Compile Include="FormGame.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -93,6 +114,12 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Battle\PanelBattle.resx">
       <DependentUpon>PanelBattle.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Bot\FormBotTest.resx">
+      <DependentUpon>FormBotTest.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Bot\FormLauncher.resx">
+      <DependentUpon>FormLauncher.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="FormGame.resx">
       <DependentUpon>FormGame.cs</DependentUpon>
@@ -171,6 +198,18 @@
       <Project>{99fb4093-b16e-4963-a861-9a07574bd9bc}</Project>
       <Name>DeepCore</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\DeepEditor\DeepEditor.Common\DeepEditor.Common.csproj">
+      <Project>{f3594e30-da84-4538-baa3-0959b86aa879}</Project>
+      <Name>DeepEditor.Common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\DeepEditor\DeepEditor.Main\DeepEditor.Main.csproj">
+      <Project>{3aedcc34-fbce-4955-a329-f5a832f292e6}</Project>
+      <Name>DeepEditor.Main</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\DeepEditor\DeepEditor.Plugin3D\DeepEditor.Plugin3D.csproj">
+      <Project>{B508D050-743E-4CE8-94FF-9AB010D35344}</Project>
+      <Name>DeepEditor.Plugin3D</Name>
+    </ProjectReference>
     <ProjectReference Include="..\DeepMMO.Client\DeepMMO.Client.csproj">
       <Project>{2ba6f33d-a93c-4eef-9472-23d5dd5002b7}</Project>
       <Name>DeepMMO.Client</Name>
@@ -181,7 +220,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Bot\" />
     <Folder Include="Contorols\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -1,10 +1,7 @@
 ﻿using DeepCore.GameData.Zone;
 using DeepCore.GameData.Zone.ZoneEditor;
-using DeepCore.GameSlave;
-using DeepCore.GameSlave.Client;
 using DeepCore.Protocol;
-using DeepEditor.Plugin.Win32.BattleClient;
-using DeepEditor.Plugin.Win32.Runtime;
+using DeepEditor.Plugin3D.BattleClient;
 using DeepMMO.Client.Battle;
 using System;
 using System.Drawing;
@@ -12,7 +9,7 @@ using System.Windows.Forms;
 
 namespace DeepMMO.Client.Win32.Battle
 {
-    public class PanelBattle : PanelAbstractClient
+    public class PanelBattle : PanelBattleView3D
     {
         public readonly GamePanelContainer container;
         public readonly RPGBattleClient battle;
