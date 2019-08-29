@@ -11,6 +11,7 @@ using CommonLang;
 using ZeusCommon.ZoneClient;
 using CommonAI.Zone;
 using CommonLang.Reflection;
+using DeepCore.Game3D.Slave.Layer;
 
 namespace ZeusBotTest.Runner
 {
@@ -55,7 +56,7 @@ namespace ZeusBotTest.Runner
             layer.MessageReceived += Layer_MessageReceived;
         }
 
-        private void Layer_MessageReceived(ZoneLayer layer, CommonLang.Protocol.IMessage msg)
+        private void Layer_MessageReceived(LayerZone layer, IMessage msg)
         {
             if (msg is GameOverEvent)
             {

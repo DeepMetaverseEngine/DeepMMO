@@ -1,17 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using DeepCore.Game3D.Slave;
 using DeepCore.GameData;
-using DeepCore.GameData.Zone;
-using DeepCore.GameData.Zone.ZoneEditor;
-using DeepCore.GameData.ZoneClient;
-using DeepCore.IO;
 using DeepCore.Reflection;
 using DeepMMO.Client.BotTest.Runner;
 using DeepMMO.Data;
-using DeepCore.GameSlave;
+using System;
+using System.Collections.Generic;
 
 namespace DeepMMO.Client.BotTest
 {
@@ -24,7 +17,7 @@ namespace DeepMMO.Client.BotTest
             BotModule.InitRunnerModules();
         }
 
-        public abstract ClientZoneFactory ZoneFactory { get; }
+        public abstract ZoneSlaveFactory ZoneFactory { get; }
         public abstract ZoneDataFactory DataFactory { get; }
         public abstract RPGClientTemplateManager ClientTemplates { get; }
         public abstract RPGClientBattleManager BattleManager { get; }

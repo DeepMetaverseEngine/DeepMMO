@@ -494,7 +494,7 @@ namespace DeepMMO.Client.BotTest
             {
                 Events.Clear();
             }
-            using (var list = ListObjectPool<string>.AllocAutoRelease())
+            using (var list = CollectionObjectPool<string>.AllocList())
             {
                 this.Runner.PopLogs(list);
                 foreach (var e in list)

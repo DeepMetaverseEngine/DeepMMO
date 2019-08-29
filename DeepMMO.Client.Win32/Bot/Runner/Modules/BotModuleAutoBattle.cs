@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DeepCore;
+using DeepCore.Game3D.Slave;
+using DeepCore.Game3D.Slave.Layer;
 using DeepCore.Reflection;
 
 namespace DeepMMO.Client.BotTest.Runner.Modules
@@ -17,7 +19,7 @@ namespace DeepMMO.Client.BotTest.Runner.Modules
             base.Client.OnZoneActorEntered += Client_OnZoneActorEntered;
         }
 
-        private void Client_OnZoneActorEntered(DeepCore.GameSlave.ZoneActor obj)
+        private void Client_OnZoneActorEntered(LayerPlayer obj)
         {
             obj.SendUnitGuard(base.IsEnable);
             obj.Parent.AddTimePeriodicMS(Config.RandomMoveIntervalMS, OnMoveTick);
@@ -42,10 +44,18 @@ namespace DeepMMO.Client.BotTest.Runner.Modules
                 obj.SendUnitGuard(base.IsEnable);
                 if (base.IsEnable)
                 {
-                    var pos = obj.Parent.PathFinderTerrain.FindNearRandomMoveableNode(random, obj.X, obj.Y, Config.RandomMoveDistance, false);
-                    if (pos != null)
+                    if (obj.Parent.Terrain3D is VoxelClientTerrain3D vt)
                     {
-                        obj.SendUnitAttackMoveTo(pos.x, pos.y, 0, false);
+                        var pos = obj.Position;
+                        if (vt.World.Terrain.TryGetVoxelLayerByObject(ref pos, out var cell, out var layer))
+                        {
+                            int size = Math.Max(1, (int)(Config.RandomMoveDistance / vt.World.Terrain.GridCellSize));
+                            var tp = vt.World.Terrain.FindNearRandomMoveableNode(random, layer, size);
+                            if (pos != null)
+                            {
+                                obj.SendUnitAttackMoveTo(tp.GetUpwardCenterPos(), false);
+                            }
+                        }
                     }
                 }
             }

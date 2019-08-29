@@ -72,6 +72,26 @@
     <Compile Include="Battle\GamePanelContainer.Designer.cs">
       <DependentUpon>GamePanelContainer.cs</DependentUpon>
     </Compile>
+    <Compile Include="Bot\AddBotConfig.cs" />
+    <Compile Include="Bot\BotConfig.cs" />
+    <Compile Include="Bot\BotFactory.cs" />
+    <Compile Include="Bot\BotLauncher.cs" />
+    <Compile Include="Bot\FormBotTest.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Bot\FormBotTest.Designer.cs">
+      <DependentUpon>FormBotTest.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Bot\FormLauncher.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Bot\FormLauncher.designer.cs">
+      <DependentUpon>FormLauncher.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Bot\Runner\BotRunner.cs" />
+    <Compile Include="Bot\Runner\BotRunner.Login.cs" />
+    <Compile Include="Bot\Runner\BotRunner.Module.cs" />
+    <Compile Include="Bot\Runner\Modules\BotModuleAutoBattle.cs" />
     <Compile Include="FormGame.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -103,6 +123,12 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Battle\GamePanelContainer.resx">
       <DependentUpon>GamePanelContainer.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Bot\FormBotTest.resx">
+      <DependentUpon>FormBotTest.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Bot\FormLauncher.resx">
+      <DependentUpon>FormLauncher.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="FormGame.resx">
       <DependentUpon>FormGame.cs</DependentUpon>
