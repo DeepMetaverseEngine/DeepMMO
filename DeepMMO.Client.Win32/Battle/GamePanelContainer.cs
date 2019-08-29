@@ -12,7 +12,7 @@ namespace DeepMMO.Client.Win32.Battle
     public partial class GamePanelContainer : UserControl, FormSessionTracer.ISession
     {
         public RPGClient client { get; private set; }
-        public PanelBattle battle_view { get; private set; }
+        public GamePanel battle_view { get; private set; }
         public FormSessionTracer SessionView { get; private set; }
 
         public GamePanelContainer()
@@ -58,7 +58,7 @@ namespace DeepMMO.Client.Win32.Battle
         {
             if (battle_view != null)
             {
-                battle_view.updateBattle(intervalMS);
+                //battle_view.updateBattle(intervalMS);
                 this.lbl_ZoneUUID.Text = battle_view.ToString();
             }
         }
@@ -153,14 +153,14 @@ namespace DeepMMO.Client.Win32.Battle
                 battle_view.Dispose();
                 battle_view = null;
             }
-            this.battle_view = new PanelBattle(this, obj);
+            this.battle_view = new GamePanel(this, obj);
             this.battle_view.Dock = DockStyle.Fill;
-            this.battle_view.DisplayLayer_OnRenderHUD += Battle_view_DisplayLayer_OnRenderHUD;
+            this.battle_view.BattleView.OnDrawHUD += BattleView_OnDrawHUD; ;
             this.ResumeLayout(false);
             this.panel1.Controls.Add(battle_view);
         }
 
-        protected virtual void Battle_view_DisplayLayer_OnRenderHUD(IGraphics g)
+        private void BattleView_OnDrawHUD(DeepEditor.Common.G3D.GLView v, Graphics g)
         {
             g.DrawString("NetPing=" + client.GameClient.CurrentPing, DefaultFont, Brushes.White, new Point(10, 200));
         }

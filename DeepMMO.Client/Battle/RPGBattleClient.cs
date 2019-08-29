@@ -21,7 +21,7 @@ namespace DeepMMO.Client.Battle
         private TimeInterval<int> ping_interval = new TimeInterval<int>(3000);
         private TimeInterval<int> post_interval;
         private PackAction post_queue = new PackAction();
-
+        public RPGClient Client { get => client; }
         public override KickedByServerNotifyB2C KickMessage { get { return null; } }
         public override bool IsNet { get { return true; } }
         public override long RecvPackages { get { return recv_package; } }
