@@ -91,7 +91,7 @@ namespace DeepMMO.Server.Area
                 s2c_RoleUnitTemplateID = enter.roleUnitTemplateID,
                 s2c_SceneLineIndex = enter.expectLineIndex,
                 s2c_GuildUUID = enter.guildUUID,
-                s2c_ZoneUpdateIntervalMS = ZoneNode.ZoneNode.GetConfig().GAME_UPDATE_INTERVAL_MS,
+                s2c_ZoneUpdateIntervalMS = ZoneNode.ZoneNode.UpdateIntervalMS,
                 s2c_Ext = enter.ext,
             });
             this.remote_session?.Invoke(new SessionBindAreaNotify()
