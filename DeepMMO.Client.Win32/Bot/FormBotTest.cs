@@ -462,9 +462,9 @@ namespace DeepMMO.Client.BotTest
             if (BotLauncher.NoBattleView == false)
             {
                 this.BattleView = new BotGamePanelContainer(bot);
+                this.BattleView.AutoUpdateBattleClient = false;
                 this.BattleView.Init(this.Client);
                 this.BattleView.Dock = DockStyle.Fill;
-                this.BattleView.BattlePanel.BattleView.AutoUpdateBattleClient = false;
             }
             this.Tag = bot;
             var colums = bot.Columns;
