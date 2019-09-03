@@ -11,8 +11,8 @@ namespace DeepMMO.Client.Win32.Battle
 {
     public partial class GamePanelContainer : UserControl, FormSessionTracer.ISession
     {
-        public RPGClient client { get; private set; }
-        public GamePanel battle_view { get; private set; }
+        public RPGClient Client { get; private set; }
+        public GamePanel BattlePanel { get; private set; }
         public FormSessionTracer SessionView { get; private set; }
 
         public GamePanelContainer()
@@ -22,11 +22,11 @@ namespace DeepMMO.Client.Win32.Battle
         }
         public void Init(RPGClient client)
         {
-            this.client = client;
-            this.client.OnZoneChanged += Client_OnZoneChanged;
-            this.client.OnZoneLeaved += Client_OnZoneLeaved;
-            this.client.OnGameDisconnected += Client_OnGameDisconnected1;
-            this.client.OnError += Client_OnError;
+            this.Client = client;
+            this.Client.OnZoneChanged += Client_OnZoneChanged;
+            this.Client.OnZoneLeaved += Client_OnZoneLeaved;
+            this.Client.OnGameDisconnected += Client_OnGameDisconnected1;
+            this.Client.OnError += Client_OnError;
 
             this.SessionView = new FormSessionTracer(this);
             this.SessionView.ShowInTaskbar = false;
@@ -42,39 +42,39 @@ namespace DeepMMO.Client.Win32.Battle
 
         long FormSessionTracer.ISession.TotalRecvBytes
         {
-            get { return this.client.GameClient.TotalRecvBytes; }
+            get { return this.Client.GameClient.TotalRecvBytes; }
         }
         long FormSessionTracer.ISession.TotalSentBytes
         {
-            get { return this.client.GameClient.TotalSentBytes; }
+            get { return this.Client.GameClient.TotalSentBytes; }
         }
         string FormSessionTracer.ISession.Title
         {
-            get { return string.Format("GameClient-{0} : Time={1}", client.GameClient.Name, DateTime.Now - client.GameClient.ConnectTime); }
+            get { return string.Format("GameClient-{0} : Time={1}", Client.GameClient.Name, DateTime.Now - Client.GameClient.ConnectTime); }
         }
 
         //------------------------------------------------------------------------------------------------------
         public void UpdateBattle(int intervalMS)
         {
-            if (battle_view != null)
+            if (BattlePanel != null)
             {
                 //battle_view.updateBattle(intervalMS);
-                this.lbl_ZoneUUID.Text = battle_view.ToString();
+                this.lbl_ZoneUUID.Text = BattlePanel.ToString();
             }
         }
         //------------------------------------------------------------------------------------------------------
         public void do_login()
         {
-            client.GameClient.Disconnect();
-            if (new FormLogin(client).ShowDialog(this) == DialogResult.OK)
+            Client.GameClient.Disconnect();
+            if (new FormLogin(Client).ShowDialog(this) == DialogResult.OK)
             {
-                if (new FormRoles(client).ShowDialog(this) == DialogResult.OK)
+                if (new FormRoles(Client).ShowDialog(this) == DialogResult.OK)
                 {
                     btn_Login.Enabled = false;
                 }
                 else
                 {
-                    client.GameClient.Disconnect();
+                    Client.GameClient.Disconnect();
                     btn_Login.Enabled = true;
                 }
             }
@@ -85,11 +85,11 @@ namespace DeepMMO.Client.Win32.Battle
         }
         public void do_logout()
         {
-            this.client.GameClient.Request<ClientExitGameResponse>(new ClientExitGameRequest(), (err2, rsp2) =>
+            this.Client.GameClient.Request<ClientExitGameResponse>(new ClientExitGameRequest(), (err2, rsp2) =>
             {
                 if (Response.CheckSuccess(rsp2))
                 {
-                    client.GameClient.Disconnect();
+                    Client.GameClient.Disconnect();
                 }
                 else
                 {
@@ -99,14 +99,14 @@ namespace DeepMMO.Client.Win32.Battle
         }
         public void do_reconnect()
         {
-            client.GameClient.Disconnect();
-            client.Connect_Connect((rsp1) =>
+            Client.GameClient.Disconnect();
+            Client.Connect_Connect((rsp1) =>
             {
                 if (Response.CheckSuccess(rsp1))
                 {
-                    this.client.GameClient.Request<ClientEnterGameResponse>(new ClientEnterGameRequest()
+                    this.Client.GameClient.Request<ClientEnterGameResponse>(new ClientEnterGameRequest()
                     {
-                        c2s_roleUUID = client.LastRoleData.uuid
+                        c2s_roleUUID = Client.LastRoleData.uuid
                     },
                     (err2, rsp2) =>
                     {
@@ -147,32 +147,32 @@ namespace DeepMMO.Client.Win32.Battle
         protected virtual void Client_OnZoneChanged(DeepMMO.Client.Battle.RPGBattleClient obj)
         {
             this.SuspendLayout();
-            if (battle_view != null)
+            if (BattlePanel != null)
             {
-                this.panel1.Controls.Remove(this.battle_view);
-                battle_view.Dispose();
-                battle_view = null;
+                this.panel1.Controls.Remove(this.BattlePanel);
+                BattlePanel.Dispose();
+                BattlePanel = null;
             }
-            this.battle_view = new GamePanel(this, obj);
-            this.battle_view.Dock = DockStyle.Fill;
-            this.battle_view.BattleView.OnDrawHUD += BattleView_OnDrawHUD; ;
+            this.BattlePanel = new GamePanel(this, obj);
+            this.BattlePanel.Dock = DockStyle.Fill;
+            this.BattlePanel.BattleView.OnDrawHUD += BattleView_OnDrawHUD; ;
             this.ResumeLayout(false);
-            this.panel1.Controls.Add(battle_view);
+            this.panel1.Controls.Add(BattlePanel);
         }
 
         private void BattleView_OnDrawHUD(DeepEditor.Common.G3D.GLView v, Graphics g)
         {
-            g.DrawString("NetPing=" + client.GameClient.CurrentPing, DefaultFont, Brushes.White, new Point(10, 200));
+            g.DrawString("NetPing=" + Client.GameClient.CurrentPing, DefaultFont, Brushes.White, new Point(10, 200));
         }
 
         protected virtual void Client_OnZoneLeaved(DeepMMO.Client.Battle.RPGBattleClient obj)
         {
             this.SuspendLayout();
-            if (battle_view != null)
+            if (BattlePanel != null)
             {
-                this.panel1.Controls.Remove(this.battle_view);
-                battle_view.Dispose();
-                battle_view = null;
+                this.panel1.Controls.Remove(this.BattlePanel);
+                BattlePanel.Dispose();
+                BattlePanel = null;
             }
             this.ResumeLayout(false);
         }
@@ -182,7 +182,7 @@ namespace DeepMMO.Client.Win32.Battle
         private void GamePanelContainer_Disposed(object sender, EventArgs e)
         {
             this.SessionView.Dispose();
-            this.client.Dispose();
+            this.Client.Dispose();
         }
         #endregion
         //------------------------------------------------------------------------------------------------------

@@ -86,7 +86,7 @@ namespace DeepMMO.Client.BotTest
         }
         private void timer_30_Tick(object sender, EventArgs e)
         {
-            if (base.Visible)
+           // if (base.Visible)
             {
                 long curTime = DeepCore.CUtils.CurrentTimeMS;
                 if (last_update_time == 0)
@@ -458,16 +458,13 @@ namespace DeepMMO.Client.BotTest
             this.Client = bot.Client;
             this.Runner = bot;
             this.Events = new StringBuilder();
+            this.Runner.Client.IsAutoUpdateBattle = true;
             if (BotLauncher.NoBattleView == false)
             {
-                this.Runner.Client.IsAutoUpdateBattle = false;
                 this.BattleView = new BotGamePanelContainer(bot);
                 this.BattleView.Init(this.Client);
                 this.BattleView.Dock = DockStyle.Fill;
-            }
-            else
-            {
-                this.Runner.Client.IsAutoUpdateBattle = true;
+                this.BattleView.BattlePanel.BattleView.AutoUpdateBattleClient = false;
             }
             this.Tag = bot;
             var colums = bot.Columns;
