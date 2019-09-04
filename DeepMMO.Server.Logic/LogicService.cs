@@ -207,8 +207,8 @@ namespace DeepMMO.Server.Logic
             if (ORM_TEST)
             {
                 var watch_exe = CUtils.TickTimeMS;
-                var exe = new SyncTaskExecutor();
-                var trans = DBAdapter.CreateExecutableObjectTransaction(exe);
+                //var exe = new SyncTaskExecutor();
+                var trans = DBAdapter.CreateExecutableObjectTransaction(this);
                 using (var list = CollectionObjectPool<ILogicModule>.AllocList(modules))
                 {
                     foreach (var module in list)
@@ -228,15 +228,12 @@ namespace DeepMMO.Server.Logic
                         }
                     }
                 }
-#if DEBUG
-                var tdb = ORMFactory.Instance.DefaultAdapter;
-                var test = new TestTransaction(CFiles.CurrentSubDir("/test_orm/"), this.roleID, trans, tdb, exe);
+                var test = new TestTransaction(CFiles.CurrentSubDir("/test_orm/"), this.roleID, trans, ORMFactory.Instance.DefaultAdapter, this);
                 trans.ExecuteAsync().ContinueWith(t =>
                 {
                     Statistics.LogTime($"{GetType().Name} : OnModulesSaveDataAsync", CUtils.TickTimeMS - watch_exe);
                 }).Wait();
                 test.CheckAsync().Wait();
-#endif
             }
             else
             {
