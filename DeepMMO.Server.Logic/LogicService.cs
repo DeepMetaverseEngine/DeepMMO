@@ -229,11 +229,11 @@ namespace DeepMMO.Server.Logic
                     }
                 }
                 var test = new TestTransaction(CFiles.CurrentSubDir("/test_orm/"), this.roleID, trans, ORMFactory.Instance.DefaultAdapter, this);
-                trans.ExecuteAsync().ContinueWith(t =>
+                await trans.ExecuteAsync().ContinueWith(t =>
                 {
                     Statistics.LogTime($"{GetType().Name} : OnModulesSaveDataAsync", CUtils.TickTimeMS - watch_exe);
-                }).Wait();
-                test.CheckAsync().Wait();
+                });
+                await test.CheckAsync();
             }
             else
             {
