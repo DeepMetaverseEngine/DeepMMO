@@ -233,7 +233,7 @@ namespace DeepMMO.Server.Logic
                 {
                     Statistics.LogTime($"{GetType().Name} : OnModulesSaveDataAsync", CUtils.TickTimeMS - watch_exe);
                 });
-                await test.CheckAsync();
+                await test.CheckAsync(true);
             }
             else
             {
