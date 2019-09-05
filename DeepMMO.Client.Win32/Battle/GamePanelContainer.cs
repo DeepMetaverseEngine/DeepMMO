@@ -14,7 +14,7 @@ namespace DeepMMO.Client.Win32.Battle
         public RPGClient Client { get; private set; }
         public GamePanel BattlePanel { get; private set; }
         public FormSessionTracer SessionView { get; private set; }
-        public bool AutoUpdateBattleClient { get; set; }
+        public bool AutoUpdateBattleClient { get; set; } = true;
         public GamePanelContainer()
         {
             InitializeComponent();
