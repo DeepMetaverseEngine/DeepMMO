@@ -18,11 +18,10 @@ namespace DeepMMO.Server.Logic.Model
         public IRemoteService areaManager { get; private set; }
         public IRemoteService currentArea { get; protected set; }
         public string currentAreaName { get { return currentArea != null ? currentArea.Address.ServiceName : null; } }
-        private List<ZoneInfoSnap> mLastZoneInfoSnaps;
-        private bool mZoneInfoDirtyFlag = true;
 
-
-        private DateTime LastGetZoneInfoTimeStamp;
+        protected List<ZoneInfoSnap> mLastZoneInfoSnaps;
+        protected bool mZoneInfoDirtyFlag = true;
+        protected DateTime LastGetZoneInfoTimeStamp;
 
         public AreaModule(LogicService service) : base(service)
         {
