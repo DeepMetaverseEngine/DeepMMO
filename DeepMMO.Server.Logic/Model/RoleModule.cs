@@ -160,5 +160,10 @@ namespace DeepMMO.Server.Logic.Model
             return ((ServerRoleData)roleMapping.Data);
         }
 
+        // 死亡掉装备耐久度
+        public virtual float GetDeadLoseDurablerate()
+        {
+            return 0.03f;
+        }
     }
 }
