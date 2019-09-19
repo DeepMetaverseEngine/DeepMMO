@@ -265,9 +265,13 @@ namespace DeepMMO.Server.Area
             }
             else
             {
-                node.ZoneNode.QueueSceneTask((z) =>
+                node.ZoneNode.QueueSceneTask((z, err) =>
                 {
-                    if (mHandleClientMessage != null)
+                    if (err != null)
+                    {
+                        log.Error(err.Message, err);
+                    }
+                    else if (mHandleClientMessage != null)
                     {
                         mHandleClientMessage.Invoke(action);
                     }
