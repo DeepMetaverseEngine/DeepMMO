@@ -126,8 +126,36 @@ namespace DeepMMO.Server.Area
                 });
             }
         }
-        public virtual async Task<RoleLeaveZoneResponse> DoPlayerLeaveAsync(AreaZonePlayer player, RoleLeaveZoneRequest leave)
-        {
+        public virtual Task<RoleLeaveZoneResponse> DoPlayerLeaveAsync(AreaZonePlayer player, RoleLeaveZoneRequest leave)
+        { 
+            
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<RoleLeaveZoneResponse>();
+            this.node.PlayerLeave(player,
+                (c) =>
+                {
+                    tcs.TrySetResult(new RoleLeaveZoneResponse()
+                    {
+                        lastScenePos = new Data.ZonePosition()
+                        {
+                            x = c.Actor.X,
+                            y = c.Actor.Y,
+                            z = c.Actor.Z,
+                        },
+                        curHP = c.Actor.CurrentHP,
+                        curMP = c.Actor.CurrentMP,
+                    });
+                },
+                (e) =>
+                {
+                    tcs.TrySetResult(new RoleLeaveZoneResponse()
+                    {
+                        s2c_code = RoleLeaveZoneResponse.CODE_ERROR,
+                        s2c_msg = e.Message,
+                    });
+                });
+            
+            return tcs.Task;
+            /*
             try
             {
                 var client = await this.node.PlayerLeaveAsync(player);
@@ -151,6 +179,7 @@ namespace DeepMMO.Server.Area
                     s2c_msg = err.Message,
                 });
             }
+            */
         }
 
         public virtual void DoPlayerDisconnect(AreaZonePlayer player)
@@ -169,30 +198,55 @@ namespace DeepMMO.Server.Area
             return this.node.QueueSceneTaskAsync(z => { return 1; });
         }
 
-        public virtual RoleEnterZoneResponse DoPlayerEnterReplace(AreaZonePlayer player, RoleEnterZoneRequest enter)
+        public virtual Task<RoleEnterZoneResponse> DoPlayerEnterReplace(AreaZonePlayer player, RoleEnterZoneRequest enter)
         {
-            var client = this.node.GetPlayerClient(player.RoleUUID);
-            float px = 0, py = 0, pz = 0;
-            if (client != null)
-            {
-                px = client.Actor.X;
-                py = client.Actor.Y;
-                pz = client.Actor.Z;
-            }
+          return node.QueuePlayerTaskAsync<RoleEnterZoneResponse>(player.RoleUUID, (instancePlayer) =>
+           {
+               return (new RoleEnterZoneResponse()
+               {
+                   mapTemplateID = this.MapTemplateID,
+                   zoneUUID = this.ZoneUUID,
+                   zoneTemplateID = this.ZoneTemplateID,
+                   roleBattleData = enter.roleData,
+                   roleDisplayName = enter.roleDisplayName,
+                   roleUnitTemplateID = enter.roleUnitTemplateID,
+                   roleScenePos = new ZonePosition() {x = instancePlayer.X, 
+                                                      y = instancePlayer.Y, 
+                                                      z = instancePlayer.Z},
+                   
+                   areaName = service.SelfAddress.ServiceName,
+                   areaNode = service.SelfAddress.ServiceNode,
+                   guildUUID = enter.guildUUID,
+                   s2c_code = RoleEnterZoneResponse.CODE_OK_REPLACE
+               });
+           });
 
-            return (new RoleEnterZoneResponse()
-            {
-                mapTemplateID = this.MapTemplateID,
-                zoneUUID = this.ZoneUUID,
-                zoneTemplateID = this.ZoneTemplateID,
-                roleBattleData = enter.roleData,
-                roleDisplayName = enter.roleDisplayName,
-                roleUnitTemplateID = enter.roleUnitTemplateID,
-                roleScenePos = new ZonePosition() { x = px, y = py, z = pz},
-                areaName = service.SelfAddress.ServiceName,
-                areaNode = service.SelfAddress.ServiceNode,
-                guildUUID = enter.guildUUID
-            });
+          
+          // var client = this.node.GetPlayerClient(player.RoleUUID);
+           /*
+           float px = 0, py = 0, pz = 0;
+           if (client != null)
+           {
+               px = client.Actor.X;
+               py = client.Actor.Y;
+               pz = client.Actor.Z;
+           }
+
+           return (new RoleEnterZoneResponse()
+           {
+               mapTemplateID = this.MapTemplateID,
+               zoneUUID = this.ZoneUUID,
+               zoneTemplateID = this.ZoneTemplateID,
+               roleBattleData = enter.roleData,
+               roleDisplayName = enter.roleDisplayName,
+               roleUnitTemplateID = enter.roleUnitTemplateID,
+               roleScenePos = new ZonePosition() { x = px, y = py, z = pz},
+               areaName = service.SelfAddress.ServiceName,
+               areaNode = service.SelfAddress.ServiceNode,
+               guildUUID = enter.guildUUID,
+               s2c_code = RoleEnterZoneResponse.CODE_OK_REPLACE;
+           });
+           */
         }
         #endregion
         //--------------------------------------------------------------------------------------------------------------------------------

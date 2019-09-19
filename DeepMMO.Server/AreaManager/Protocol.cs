@@ -290,7 +290,7 @@ namespace DeepMMO.Server.AreaManager
     [ProtocolRoute("AreaManager", "*")]
     public class GetAllRoleResponse : Response
     {
-        public HashMap<string, string> uuidMap;
+        public HashMap<string, OnlinePlayerData> uuidMap;
     }
 
     [ProtocolRoute("*", "AreaManager")]

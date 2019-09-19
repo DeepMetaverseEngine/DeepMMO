@@ -273,9 +273,7 @@ namespace DeepMMO.Server.Area
                 }
                 if (this.players.TryGetOrCreate(enter.roleUUID, out var player, (uuid) => this.CreateZonePlayer(node, enter)))
                 {
-                    var rsp = node.DoPlayerEnterReplace(player, enter);
-                    rsp.s2c_code = RoleEnterZoneResponse.CODE_OK_REPLACE;
-                    return rsp;
+                    return await node.DoPlayerEnterReplace(player, enter);;
                 }
                 else
                 {

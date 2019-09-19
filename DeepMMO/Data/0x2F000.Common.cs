@@ -75,6 +75,16 @@ namespace DeepMMO.Data
         public string uuid;
     }
 
+    /// <summary>
+    /// 在线玩家信息
+    /// </summary>
+    [MessageType(Constants.DATA_START + 3)]
+    public class OnlinePlayerData : ISerializable
+    {
+        public string name;
+        public string serverGroupId;
+    }
+
     public class EventStoreData : IObjectMapping
     {
         [PersistField]

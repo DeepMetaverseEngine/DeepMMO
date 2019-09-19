@@ -127,11 +127,15 @@ namespace DeepMMO.Server.AreaManager
         public virtual void logic_rpc_Handle(GetAllRoleRequest req, OnRpcReturn<GetAllRoleResponse> cb)
         {
             RoleInfo[] roleList = GetAllRoles();
-            HashMap<string,string> uuidMap = new HashMap<string, string>();
+            HashMap<string,OnlinePlayerData> uuidMap = new HashMap<string, OnlinePlayerData>();
             for (int i = 0; i < roleList.Length; ++i)
             {
                 var rold = roleList[i];
-                uuidMap.Add(rold.uuid, rold.enter.roleDisplayName);
+                uuidMap.Add(rold.uuid, new OnlinePlayerData()
+                {
+                    name = rold.enter.roleDisplayName,
+                    serverGroupId = rold.enter.servergroupID
+                });
             }
             cb(new GetAllRoleResponse() { uuidMap = uuidMap });
         }
