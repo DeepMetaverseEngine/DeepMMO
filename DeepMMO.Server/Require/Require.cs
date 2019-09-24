@@ -106,6 +106,54 @@ namespace DeepMMO.Server.Require
             return true;
         }
 
+        public bool CheckRequireExceptNullHander(RequireData data, out string reason)
+        {
+            reason = null;
+            if (data == null || data.Key == null || data.Maxval == null || data.Minval == null)
+                return true;
+
+            string[] key = data.Key;
+            int[] min = data.Minval;
+            int[] max = data.Maxval;
+            string[] text = data.Text;
+
+            CheckHandler handler;
+            string prefix = null;
+            string k = null;
+            for (int i = 0; i < key.Length; i++)
+            {
+                try
+                {
+                    k = key[i];
+                    if (string.IsNullOrEmpty(k) || k == "0")
+                        continue;
+
+                    prefix = k.Substring(0, 1);
+                    k = k.Substring(1);
+                    handler = map.Get(prefix);
+
+                    if (handler == null)
+                        continue;
+
+                    var tuple = handler.Invoke(k, min[i], max[i]);
+
+                    if (tuple.Item1 == false)
+                    {
+                        if (text != null && i < text.Length)
+                            reason = text[i];
+                        return false;
+                    }
+                }
+                catch (Exception)
+                {
+                    string info = string.Format("checkRequire Error key={0},min={1},max={2},reason{3}",
+                                                key[i], min[i], max[i]);
+                    throw new Exception(info);
+                }
+            }
+            return true;
+        }
+
 
         public async Task<RequireResult> CheckRequireAsync(RequireData data)
         {
