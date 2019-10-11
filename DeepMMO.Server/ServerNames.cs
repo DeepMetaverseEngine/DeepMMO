@@ -48,7 +48,7 @@ namespace DeepMMO.Server
         public static RemoteAddress TeamCenterService = new RemoteAddress("TeamCenterService", null, AreaServiceType);
         public static RemoteAddress AuctionService = new RemoteAddress("AuctionService", null, AuctionServiceType);
         public static RemoteAddress MasterRaceService = new RemoteAddress("MasterRaceService", null, MasterRaceServiceType);
-        public static RemoteAddress GlobalService = new RemoteAddress("GlobalService", null, GlobalServiceType);
+        public static RemoteAddress GlobalService = new RemoteAddress("GlobalService:<Number>", null, GlobalServiceType);
 
         public static RemoteAddress CreateChannelServiceAddress(string channelName)
         {
