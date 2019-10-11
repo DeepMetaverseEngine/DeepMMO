@@ -75,9 +75,9 @@ namespace DeepMMO.Server
             return new RemoteAddress("Logic:" + roleID, logicNode, LogicService.ServiceType);
         }
 
-        public static RemoteAddress GetGlobalServiceAddress(string GID)
+        public static RemoteAddress GetGlobalServiceAddress(string GID, string node = null)
         {
-            return new RemoteAddress(GlobalService.ServiceType + ":" + GID, null, GlobalService.ServiceType);
+            return new RemoteAddress(GlobalService.ServiceType + ":" + GID, node, GlobalService.ServiceType);
         }
     }
 }
