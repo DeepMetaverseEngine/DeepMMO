@@ -12,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using DeepCore.GameEvent.Message;
+using DeepCore.Net;
 using DeepMMO.Protocol.Client;
 using DeepMMO.Server.GameEvent;
 
@@ -183,6 +184,31 @@ namespace DeepMMO.Server.AreaManager
 
             cb(rsp);
         }
+
+        [RpcHandler(typeof(GetRolePositionRequest), typeof(GetRolePositionResponse), ServerNames.LogicServiceType)]
+        public virtual async Task<GetRolePositionResponse> logic_rpc_Handle(GetRolePositionRequest req)
+        {
+            if (roles.ContainsKey(req.roleUUID) == false)
+            {
+                return new GetRolePositionResponse()
+                {
+                    s2c_code = GetRolePositionResponse.CODE_ROLE_NOT_EXIST
+                };
+            }
+
+            var role = roles.Get(req.roleUUID);
+            var zone = role.zone;
+            if (zone == null)
+            {
+                return (new GetRolePositionResponse() { s2c_code = GetRolePositionResponse.CODE_ZONE_NOT_EXIST });
+            }
+
+            var resp = await zone.area.service.CallAsync<GetRolePositionResponse>(req);
+            resp.line = zone.lineIndex;
+            resp.zoneId = zone.map_data.id;
+            return resp;
+        }
+        
         #endregion
         //------------------------------------------------------------------------------------------------------------------------------------
         #region ZoneManager

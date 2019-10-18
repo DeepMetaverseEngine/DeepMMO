@@ -323,4 +323,25 @@ namespace DeepMMO.Server.AreaManager
     {
         public List<ZoneInfoSnap> snaps;
     }
+    
+    [ProtocolRoute("Logic", "AreaManager")]
+    public class GetRolePositionRequest : Request
+    {
+//        public string zoneUUID;
+        public string roleUUID;
+    }
+
+    [ProtocolRoute("AreaManager", "Logic")]
+    public class GetRolePositionResponse : Response
+    {
+        public int zoneId;
+        public float x;
+        public float y;
+        public int line;
+        
+        [MessageCode("场景不存在")]
+        public const int CODE_ZONE_NOT_EXIST = CODE_ERROR + 1;
+        [MessageCode("角色不存在")]
+        public const int CODE_ROLE_NOT_EXIST = CODE_ERROR + 2;
+    }
 }
