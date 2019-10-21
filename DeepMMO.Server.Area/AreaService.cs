@@ -328,20 +328,17 @@ namespace DeepMMO.Server.Area
         }
 
         [RpcHandler(typeof(GetRolePositionRequest), typeof(GetRolePositionResponse), ServerNames.AreaManagerType)]
-        public void area_manager_rpc_GetRolePosition(GetRolePositionRequest req, OnRpcReturn<GetRolePositionResponse> cb)
+        public async Task<GetRolePositionResponse> area_manager_rpc_GetRolePosition(GetRolePositionRequest req)
         {
             var resp = new GetRolePositionResponse();
             var role = players.Get(req.roleUUID);
             if (role == null)
             {
                 resp.s2c_code = GetRolePositionResponse.CODE_ROLE_NOT_EXIST;
-                cb(resp);
+                return resp;
             }
 
-            resp.s2c_code = Response.CODE_OK;
-            resp.x = role.Actor.X;
-            resp.y = role.Actor.Y;
-            cb(resp);
+            return await role.ZoneNode.DoGetPlayerPosition(role, req);
         }
 
         //-----------------------------------------------------------------------------------------------------------------------------

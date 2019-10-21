@@ -35,7 +35,7 @@ namespace DeepMMO.Server.Area
         public string RoleUUID { get { return enter.roleUUID; } }
         public string RoleSessionName { get { return enter.roleSessionName; } }
         public string ZoneUUID { get { return node.ZoneUUID; } }
-        public InstancePlayer Actor { get { return mBinding.Value.Actor; } }
+        protected InstancePlayer Actor { get { return mBinding.Value.Actor; } }
 
         public AreaZonePlayer(AreaService svc, AreaZoneNode node, RoleEnterZoneRequest enter)
         {

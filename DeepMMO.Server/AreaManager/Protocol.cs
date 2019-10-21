@@ -337,6 +337,7 @@ namespace DeepMMO.Server.AreaManager
         public int zoneId;
         public float x;
         public float y;
+        public float z;
         public int line;
         
         [MessageCode("场景不存在")]

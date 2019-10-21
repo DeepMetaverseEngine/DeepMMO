@@ -182,6 +182,21 @@ namespace DeepMMO.Server.Area
             */
         }
 
+        public Task<GetRolePositionResponse> DoGetPlayerPosition(AreaZonePlayer player, GetRolePositionRequest req)
+        {
+            return node.QueuePlayerTaskAsync<GetRolePositionResponse>(player.RoleUUID, (instancePlayer) =>
+            {
+                return (new GetRolePositionResponse()
+                {
+                    x = instancePlayer.X,
+                    y = instancePlayer.Y,
+                    z = instancePlayer.Z,
+                    s2c_code = GetRolePositionResponse.CODE_OK
+                });
+            });
+
+        }
+
         public virtual void DoPlayerDisconnect(AreaZonePlayer player)
         {
             player.SessionDisconnect();
