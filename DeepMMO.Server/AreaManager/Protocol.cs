@@ -335,6 +335,7 @@ namespace DeepMMO.Server.AreaManager
     public class GetRolePositionResponse : Response
     {
         public int zoneId;
+        public string zoneUUID;
         public float x;
         public float y;
         public float z;

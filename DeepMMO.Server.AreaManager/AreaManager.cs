@@ -206,6 +206,7 @@ namespace DeepMMO.Server.AreaManager
             var resp = await zone.area.service.CallAsync<GetRolePositionResponse>(req);
             resp.line = zone.lineIndex;
             resp.zoneId = zone.map_data.id;
+            resp.zoneUUID = zone.uuid;
             return resp;
         }
         
