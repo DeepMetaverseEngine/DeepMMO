@@ -127,8 +127,8 @@ namespace DeepMMO.Server.Area
             }
         }
         public virtual Task<RoleLeaveZoneResponse> DoPlayerLeaveAsync(AreaZonePlayer player, RoleLeaveZoneRequest leave)
-        { 
-            
+        {
+
             var tcs = new System.Threading.Tasks.TaskCompletionSource<RoleLeaveZoneResponse>();
             this.node.PlayerLeave(player,
                 (c) =>
@@ -153,7 +153,7 @@ namespace DeepMMO.Server.Area
                         s2c_msg = e.Message,
                     });
                 });
-            
+
             return tcs.Task;
             /*
             try
@@ -215,53 +215,56 @@ namespace DeepMMO.Server.Area
 
         public virtual Task<RoleEnterZoneResponse> DoPlayerEnterReplace(AreaZonePlayer player, RoleEnterZoneRequest enter)
         {
-          return node.QueuePlayerTaskAsync<RoleEnterZoneResponse>(player.RoleUUID, (instancePlayer) =>
-           {
-               return (new RoleEnterZoneResponse()
-               {
-                   mapTemplateID = this.MapTemplateID,
-                   zoneUUID = this.ZoneUUID,
-                   zoneTemplateID = this.ZoneTemplateID,
-                   roleBattleData = enter.roleData,
-                   roleDisplayName = enter.roleDisplayName,
-                   roleUnitTemplateID = enter.roleUnitTemplateID,
-                   roleScenePos = new ZonePosition() {x = instancePlayer.X, 
-                                                      y = instancePlayer.Y, 
-                                                      z = instancePlayer.Z},
-                   
-                   areaName = service.SelfAddress.ServiceName,
-                   areaNode = service.SelfAddress.ServiceNode,
-                   guildUUID = enter.guildUUID,
-                   s2c_code = RoleEnterZoneResponse.CODE_OK_REPLACE
-               });
-           });
+            return node.QueuePlayerTaskAsync<RoleEnterZoneResponse>(player.RoleUUID, (instancePlayer) =>
+             {
+                 return (new RoleEnterZoneResponse()
+                 {
+                     mapTemplateID = this.MapTemplateID,
+                     zoneUUID = this.ZoneUUID,
+                     zoneTemplateID = this.ZoneTemplateID,
+                     roleBattleData = enter.roleData,
+                     roleDisplayName = enter.roleDisplayName,
+                     roleUnitTemplateID = enter.roleUnitTemplateID,
+                     roleScenePos = new ZonePosition()
+                     {
+                         x = instancePlayer.X,
+                         y = instancePlayer.Y,
+                         z = instancePlayer.Z
+                     },
 
-          
-          // var client = this.node.GetPlayerClient(player.RoleUUID);
-           /*
-           float px = 0, py = 0, pz = 0;
-           if (client != null)
-           {
-               px = client.Actor.X;
-               py = client.Actor.Y;
-               pz = client.Actor.Z;
-           }
+                     areaName = service.SelfAddress.ServiceName,
+                     areaNode = service.SelfAddress.ServiceNode,
+                     guildUUID = enter.guildUUID,
+                     s2c_code = RoleEnterZoneResponse.CODE_OK_REPLACE
+                 });
+             });
 
-           return (new RoleEnterZoneResponse()
-           {
-               mapTemplateID = this.MapTemplateID,
-               zoneUUID = this.ZoneUUID,
-               zoneTemplateID = this.ZoneTemplateID,
-               roleBattleData = enter.roleData,
-               roleDisplayName = enter.roleDisplayName,
-               roleUnitTemplateID = enter.roleUnitTemplateID,
-               roleScenePos = new ZonePosition() { x = px, y = py, z = pz},
-               areaName = service.SelfAddress.ServiceName,
-               areaNode = service.SelfAddress.ServiceNode,
-               guildUUID = enter.guildUUID,
-               s2c_code = RoleEnterZoneResponse.CODE_OK_REPLACE;
-           });
-           */
+
+            // var client = this.node.GetPlayerClient(player.RoleUUID);
+            /*
+            float px = 0, py = 0, pz = 0;
+            if (client != null)
+            {
+                px = client.Actor.X;
+                py = client.Actor.Y;
+                pz = client.Actor.Z;
+            }
+
+            return (new RoleEnterZoneResponse()
+            {
+                mapTemplateID = this.MapTemplateID,
+                zoneUUID = this.ZoneUUID,
+                zoneTemplateID = this.ZoneTemplateID,
+                roleBattleData = enter.roleData,
+                roleDisplayName = enter.roleDisplayName,
+                roleUnitTemplateID = enter.roleUnitTemplateID,
+                roleScenePos = new ZonePosition() { x = px, y = py, z = pz},
+                areaName = service.SelfAddress.ServiceName,
+                areaNode = service.SelfAddress.ServiceNode,
+                guildUUID = enter.guildUUID,
+                s2c_code = RoleEnterZoneResponse.CODE_OK_REPLACE;
+            });
+            */
         }
         #endregion
         //--------------------------------------------------------------------------------------------------------------------------------
@@ -331,7 +334,14 @@ namespace DeepMMO.Server.Area
         private DateTime keepPlayerLastTick = DateTime.Now;
         private TimeSpan keepPlayerExpire;
         private bool zoneGameOver = false;
-
+        /// <summary>
+        /// 检测是否需要维持场景，否则，则销毁场景
+        /// </summary>
+        /// <returns></returns>
+        protected virtual bool CheckNeedKeepPlayer(EditorScene z)
+        {
+            return z.AllPlayersCount > 0 || HasAddPlayer == false || (!zoneGameOver && !IsExpire());
+        }
         protected virtual void OnNodeStarted(EditorScene z)
         {
             z.OnUnitDead += Z_OnUnitDead;
@@ -343,7 +353,7 @@ namespace DeepMMO.Server.Area
                 keepPlayerExpire = TimeSpan.FromSeconds(RPGServerManager.Instance.Config.timer_sec_ZoneKeepPlayerTimeout);
                 z.AddTimePeriodicMS((int)keepPlayerExpire.TotalMilliseconds, (t) =>
                 {
-                    if (z.AllPlayersCount > 0 || HasAddPlayer == false || (!zoneGameOver && !IsExpire()))
+                    if (CheckNeedKeepPlayer(z))
                     {
                         keepPlayerLastTick = DateTime.Now;
                     }
