@@ -29,6 +29,8 @@ namespace DeepMMO.Server.Area
         public int ZoneTemplateID { get { return map_temp.zone_template_id; } }
         public string GuildUUID => create.guildUUID;
         public string RoomKey => create.roomKey;
+        public string ServerID => create.serverID;
+        public string ServerGroupID => create.serverGroupID;
         public ZoneNode ZoneNode { get { return node; } }
         protected bool HasAddPlayer = false;
         protected DateTime mExpireTime;
