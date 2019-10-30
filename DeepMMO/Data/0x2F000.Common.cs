@@ -6,16 +6,22 @@ using DeepCore.ORM;
 /// </summary>
 namespace DeepMMO.Data
 {
+    [PersistType]
     /// <summary>
     /// 表示一个场景的位置，实际坐标或者FlagName
     /// </summary>
     [MessageType(Constants.DATA_START + 1)]
-    public class ZonePosition : ISerializable
+    public class ZonePosition : ISerializable, IObjectMapping
     {
+        [PersistField]
         public string flagName;
+        [PersistField]
         public float x = -1;
+        [PersistField]
         public float y = -1;
+        [PersistField]
         public float z = -1;
+
         public DeepCore.Geometry.Vector3? Pos
         {
             get
