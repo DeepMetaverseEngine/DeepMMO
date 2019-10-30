@@ -106,6 +106,7 @@ namespace DeepMMO.Server
                 log.Info("# 从地图配置表重新构建场景传送点");
                 log.Info("********************************************************");
                 FillSceneTransport();
+                SceneGrapAstar = new MapSceneGrapAstar(RPGServerTemplateManager.Instance.AllMapTemplates);
             }
             {
                 log.Info("********************************************************");
@@ -130,7 +131,7 @@ namespace DeepMMO.Server
         /// <summary>
         /// 从地图配置表，重新构建场景传送点
         /// </summary>
-        private void FillSceneTransport()
+        protected virtual void FillSceneTransport()
         {
             foreach (var map in RPGServerTemplateManager.Instance.AllMapTemplates)
             {
@@ -145,7 +146,6 @@ namespace DeepMMO.Server
                     log.ErrorFormat("Map Zone Template Not Exist : map={0} zone={1}", map, map.zone_template_id);
                 }
             }
-            SceneGrapAstar = new MapSceneGrapAstar(RPGServerTemplateManager.Instance.AllMapTemplates);
         }
         /// <summary>
         /// 从地图配置表，重新构建场景传送点
