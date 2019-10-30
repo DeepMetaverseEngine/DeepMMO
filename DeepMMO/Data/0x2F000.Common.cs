@@ -11,7 +11,7 @@ namespace DeepMMO.Data
     /// 表示一个场景的位置，实际坐标或者FlagName
     /// </summary>
     [MessageType(Constants.DATA_START + 1)]
-    public class ZonePosition : ISerializable, IObjectMapping
+    public class ZonePosition : ISerializable,IStructMapping
     {
         [PersistField]
         public string flagName;

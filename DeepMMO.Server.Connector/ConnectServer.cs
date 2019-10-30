@@ -22,7 +22,8 @@ namespace DeepMMO.Server.Connect
     public class ConnectServer : IService
     {
         public static IOStreamPool ClientCodec { get; private set; }
-        public static bool KickOnError { get; private set; }
+        public static bool TraceRoute { get; set; } = true;
+        private static bool KickOnError { get; set; }
         public string acceptor_host { get; private set; }
         public int acceptor_port { get; private set; }
         public Logger log { get; private set; }
@@ -446,6 +447,7 @@ namespace DeepMMO.Server.Connect
                         {
                             throw new Exception("Bad Message Route : " + message.Route);
                         }
+                        Trace(" <-- Recv : {1} : {0}", route_codec, sendID);
                         //--------------------------------------------------------------------------
                         // protocol check //
                         //if (!route_codec.MessageType.IsInterfaceOf(typeof(INetProtocolC2S)))
@@ -463,6 +465,7 @@ namespace DeepMMO.Server.Connect
                                 {
                                     if (rsp.HasRoute)
                                     {
+                                        Trace(" --> Send : {1} : {0}", rsp, sendID);
                                         session.SendResponse(rsp, sendID);
                                     }
                                     else if (err != null)
@@ -536,6 +539,7 @@ namespace DeepMMO.Server.Connect
             }
             public void SocketSend(BinaryMessage bin, uint sendID)
             {
+                Trace(" --> Send : {1} : {0}", bin, sendID);
                 connect.Execute(() =>
                 {
                     socket.SendResponse(bin, sendID);
@@ -543,14 +547,43 @@ namespace DeepMMO.Server.Connect
             }
             public void SocketSend(BinaryMessage bin)
             {
+                Trace(" --> Send : {1} : {0}", bin, 0);
                 connect.Execute(() =>
                 {
                     socket.Send(bin);
                 });
             }
-
+            public  void Trace(string message, TypeCodec codec, uint sendID)
+            {
+                if (TraceRoute)
+                {
+                    log.Info(string.Format(message, codec.MessageType.FullName, sendID));
+                }
+            }
+            public void Trace(string message, ISerializable msg, uint sendID)
+            {
+                if (TraceRoute)
+                {
+                    log.Info(string.Format(message, msg.GetType().FullName, sendID));
+                }
+            }
+            public void Trace(string message, BinaryMessage msg, uint sendID)
+            {
+                if (TraceRoute)
+                {
+                    var route_codec = ConnectServer.ClientCodec.Factory.GetCodec(msg.Route);
+                    if (route_codec == null)
+                    {
+                        throw new Exception("Bad Message Route : " + msg.Route);
+                    }
+                    Trace(message, route_codec, sendID);
+                }
+            }
+           
         }
         #endregion
+
+      
     }
 
     //--------------------------------------------------------------------------------------------------------------------------------------------
