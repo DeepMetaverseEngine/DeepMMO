@@ -181,7 +181,7 @@ namespace DeepMMO.Server
                     continue;
                 }
                 var to_flag = to_zone.Regions.Find(region => { return region.Name == link.to_flag_name; });
-                if (from_flag == null)
+                if (to_flag == null)
                 {
                     log.ErrorFormat("Transport Target Flag Not Found : FromMap={0} ToMap={1} ToScene={2} >>>ToFlag={2}<<<", from_map, to_map, to_zone, link.to_flag_name);
                     continue;
