@@ -17,7 +17,7 @@ namespace DeepMMO.Protocol
     public interface INetProtocolS2C { }
     public interface INetProtocolC2S { }
     public interface INetProtocolBotIgnore { }
-
+    //---------------------------------------------------------------------------------------------
     /// <summary>
     /// 请求
     /// </summary>
@@ -54,6 +54,7 @@ namespace DeepMMO.Protocol
         {
             get { return s2c_code >= 200 && s2c_code <= 299; }
         }
+
         public override string ToString()
         {
             return string.Format("{0}: {1} : {2}", GetType().Name, s2c_code, s2c_msg);
@@ -76,4 +77,7 @@ namespace DeepMMO.Protocol
     {
     }
 
+    //---------------------------------------------------------------------------------------------
+
+    //---------------------------------------------------------------------------------------------
 }

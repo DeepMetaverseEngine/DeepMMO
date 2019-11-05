@@ -51,7 +51,7 @@ namespace DeepMMO.Attributes
         {
             this.Message = msg;
         }
-        public MessageCodeAttribute(string msg, string[] args)
+        public MessageCodeAttribute(string msg, params string[] args)
         {
             this.Message = msg;
             this.Args = args;
