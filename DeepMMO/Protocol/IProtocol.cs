@@ -46,6 +46,10 @@ namespace DeepMMO.Protocol
         /// 返回信息（优先网络消息，如果网络消息为空，则从MessageCode中找）
         /// </summary>
         public string s2c_msg;
+        /// <summary>
+        /// 内部消息，用于一个系统的反馈，传递给原始请求
+        /// </summary>
+        public Response InnerResponse;
 
         /// <summary>
         /// 请求是否成功
