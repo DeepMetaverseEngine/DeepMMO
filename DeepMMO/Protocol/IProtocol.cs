@@ -71,6 +71,8 @@ namespace DeepMMO.Protocol
         {
             if (s2c_msg == null)
                 s2c_msg = MessageCodeManager.Instance.GetCodeMessage(this);
+            if (s2c_msg == null && InnerResponse != null)
+                s2c_msg = InnerResponse.s2c_msg;
         }
     }
 
