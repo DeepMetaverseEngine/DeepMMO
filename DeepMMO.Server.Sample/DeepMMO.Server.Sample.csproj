@@ -11,7 +11,7 @@
     <Optimize>true</Optimize>
   </PropertyGroup>
   <PropertyGroup>
-    <WarningsAsErrors>NU1605;CS1998;CS4014</WarningsAsErrors>
+    <WarningsAsErrors>NU1605;CS1998;CS4014;AsyncFixer03</WarningsAsErrors>
   </PropertyGroup>
 
 
