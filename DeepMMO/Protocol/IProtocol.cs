@@ -70,9 +70,23 @@ namespace DeepMMO.Protocol
         public virtual void EndRead()
         {
             if (s2c_msg == null)
-                s2c_msg = MessageCodeManager.Instance.GetCodeMessage(this);
-            if (s2c_msg == null && InnerResponse != null)
-                s2c_msg = InnerResponse.s2c_msg;
+            {
+                if (s2c_code == CODE_OK || s2c_code == CODE_ERROR)
+                {
+                    if (InnerResponse != null)
+                    {
+                        s2c_msg = InnerResponse.s2c_msg;
+                    }
+                }
+                if (s2c_msg == null)
+                {
+                    s2c_msg = MessageCodeManager.Instance.GetCodeMessage(this);
+                }
+                if (s2c_msg == null && InnerResponse != null)
+                {
+                    s2c_msg = InnerResponse.s2c_msg;
+                }
+            }
         }
     }
 
