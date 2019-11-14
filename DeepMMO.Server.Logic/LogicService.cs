@@ -382,6 +382,16 @@ namespace DeepMMO.Server.Logic
             var task = areaModule.RequestTransportAsync(tp);
         }
 
+        /// <summary>
+        /// Area通知逻辑服无缝切场景
+        /// </summary>
+        /// <param name="tp"></param>
+        [RpcHandler(typeof(RoleCrossMapNotify), ServerNames.AreaServiceType)]
+        public void area_rpc_Handle(RoleCrossMapNotify notify)
+        {
+            areaModule.RequestCrossMapAsync(notify).NoWait();
+        }
+        
         [RpcHandler(typeof(AreaGameOverNotify), ServerNames.AreaServiceType)]
         public void area_rpc_Handle(AreaGameOverNotify notify)
         {

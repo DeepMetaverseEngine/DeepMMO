@@ -9,6 +9,7 @@ using DeepMMO.Server.AreaManager;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using DeepCore;
 
 namespace DeepMMO.Server.Logic.Model
 {
@@ -139,6 +140,33 @@ namespace DeepMMO.Server.Logic.Model
 
             return enter_result;
         }
+
+        public virtual async Task<Response> RequestCrossMapAsync(RoleCrossMapNotify notify)
+        {
+            var leave_result = await RequestLeaveZoneAsync();
+
+            if (leave_result == null || Response.CheckSuccess(leave_result) == false)
+            {
+                return leave_result;
+            }
+
+            var enter_result = await this.RequestEnterZoneAsync(new RoleEnterZoneRequest()
+            {
+                servergroupID = service.serverGroupID,
+                serverID = service.serverID,
+                expectMapTemplateID = notify.NextSceneID,
+                roleScenePos = new ZonePosition()
+                {
+                    x = notify.NextScenePos.x,
+                    y = notify.NextScenePos.y,
+                    z = notify.NextScenePos.z
+                },
+                teamID = GetTeamID(),
+            });
+
+            return enter_result;
+        }
+        
 
         public async Task<List<ZoneInfoSnap>> RequestGetZonesSnapInfoAsync(int mapID)
         {

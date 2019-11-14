@@ -133,6 +133,11 @@ namespace DeepMMO.Server.Area
             });
         }
 
+        protected virtual void Actor_OnCrossScene(InstancePlayer player,int nextSceneID)
+        {
+            
+        }
+        
         #endregion
         //---------------------------------------------------------------------------------------------
         #region Attributes
@@ -362,6 +367,7 @@ namespace DeepMMO.Server.Area
             pause_client = false;
             mBinding.Value = binding;
             binding.Actor.OnTransportScene += Actor_OnTransportScene;
+            binding.Actor.OnCrossScene += Actor_OnCrossScene;
         }
 
         void IZoneNodePlayer.OnPlayerDisconnect(ZoneNode.PlayerClient binding)

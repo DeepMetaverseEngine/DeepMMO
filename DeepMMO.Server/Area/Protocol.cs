@@ -2,6 +2,8 @@
 using DeepMMO.Attributes;
 using DeepMMO.Protocol;
 using System.Collections.Generic;
+using DeepCore.Geometry;
+using DeepMMO.Data;
 
 namespace DeepMMO.Server.Area
 {
@@ -106,5 +108,15 @@ namespace DeepMMO.Server.Area
         public List<AwardItem> Awards;
     }
 
+    /// <summary>
+    /// 角色穿越地图通知(无缝切图)
+    /// </summary>
+    [ProtocolRoute("Area", "Logic")]
+    public class RoleCrossMapNotify : Notify
+    {
+        public int NextSceneID;
+        public ZonePosition NextScenePos;
+    }
+    
     //---------------------------------------------------------------------------------
 }
