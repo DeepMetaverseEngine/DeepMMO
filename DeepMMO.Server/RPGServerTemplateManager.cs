@@ -276,6 +276,13 @@ namespace DeepMMO.Server
             return null;
         }
 
+        public virtual List<string> GetAllServerGroupID()
+        {
+            using (serverListLock.EnterRead())
+            {
+                return new List<string>(groupList.Keys);
+            }
+        }
         /// <summary>
         /// 
         /// </summary>
