@@ -557,14 +557,14 @@ namespace DeepMMO.Server.Connect
             {
                 if (TraceRoute)
                 {
-                    log.Info(string.Format(message, codec.MessageType.FullName, sendID));
+                    log.Trace(string.Format(message, codec.MessageType.FullName, sendID));
                 }
             }
             public void Trace(string message, ISerializable msg, uint sendID)
             {
                 if (TraceRoute)
                 {
-                    log.Info(string.Format(message, msg.GetType().FullName, sendID));
+                    log.Trace(string.Format(message, msg.GetType().FullName, sendID));
                 }
             }
             public void Trace(string message, BinaryMessage msg, uint sendID)
