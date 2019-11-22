@@ -22,8 +22,8 @@ namespace DeepMMO.Server.Connect
     {
         public readonly Logger log;
         public readonly string accountID;
-        private readonly TypeCodec client_battle_action_codec;
-        private readonly TypeCodec session_battle_action_codec;
+        public readonly TypeCodec client_battle_action_codec;
+        public readonly TypeCodec session_battle_action_codec;
 
         protected ConnectServer.ViewSession session { get; private set; }
         protected ClientEnterServerRequest enter { get; private set; }
@@ -32,14 +32,14 @@ namespace DeepMMO.Server.Connect
         protected ClientEnterGameRequest enter_game { get; private set; }
         public string Channel { get; private set; }
 
-        private IDisposable heartbeat_timer;
-        private DateTime last_heartbeat = DateTime.Now;
-        private string sessionToken;
-        private MappingReference<AccountData> accountSave;
-        private QueryMappingReference<RoleSnap> queryRoleSnap;
-        private MappingReference<AccountRoleSnap> accountRoleSnapSave;
-        private QueryMappingReference<RoleDataStatusSnap> queryRoleDataStatusSnap;
-        private bool mDisconnected = true;
+        protected IDisposable heartbeat_timer;
+        protected DateTime last_heartbeat = DateTime.Now;
+        protected string sessionToken;
+        protected MappingReference<AccountData> accountSave;
+        protected QueryMappingReference<RoleSnap> queryRoleSnap;
+        protected MappingReference<AccountRoleSnap> accountRoleSnapSave;
+        protected QueryMappingReference<RoleDataStatusSnap> queryRoleDataStatusSnap;
+        protected bool mDisconnected = true;
 
         public override ServiceProperties Properties
         {
