@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using DeepCore.GameEvent;
 using DeepCore.GameEvent.Message;
+using DeepCore.Game3D.Host.Instance;
 
 namespace DeepMMO.Server.Area
 {
@@ -273,7 +274,7 @@ namespace DeepMMO.Server.Area
                 }
                 if (this.players.TryGetOrCreate(enter.roleUUID, out var player, (uuid) => this.CreateZonePlayer(node, enter)))
                 {
-                    return await node.DoPlayerEnterReplace(player, enter);;
+                    return await node.DoPlayerEnterReplace(player, enter); ;
                 }
                 else
                 {
@@ -532,7 +533,68 @@ namespace DeepMMO.Server.Area
             //             }
             return false;
         }
-
+        /// <summary>
+        /// 异步执行战斗场景内交互代码
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="zoneUUID"></param>
+        /// <param name="func"></param>
+        /// <returns></returns>
+        public Task<T> QueueZoneTaskAsync<T>(string zoneUUID, Func<InstanceZone, T> func)
+        {
+            if (zoneNodes.TryGetValue(zoneUUID, out var node))
+            {
+                return node.ZoneNode.QueueSceneTaskAsync<T>(func);
+            }
+            return Task.FromResult<T>(func(null));
+        }
+        /// <summary>
+        /// 异步执行战斗场景内交互代码
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="roleUUID"></param>
+        /// <param name="func"></param>
+        /// <returns></returns>
+        public Task<T> QueuePlayerTaskAsync<T>(string roleUUID, Func<InstancePlayer, T> func)
+        {
+            if (roleUUID != null && players.TryGetValue(roleUUID, out var player))
+            {
+                var node = player.ZoneNode;
+                return node.ZoneNode.QueuePlayerTaskAsync<T>(roleUUID, func);
+            }
+            return Task.FromResult<T>(func(null));
+        }
+        /// <summary>
+        /// 异步执行战斗场景内交互代码
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="zoneUUID"></param>
+        /// <param name="func"></param>
+        /// <returns></returns>
+        public Task<T> QueueZoneTaskAsync<T>(string zoneUUID, Func<AreaZoneNode, InstanceZone, T> func)
+        {
+            if (zoneNodes.TryGetValue(zoneUUID, out var node))
+            {
+                return node.ZoneNode.QueueSceneTaskAsync<T>(z => func(node, z));
+            }
+            return Task.FromResult<T>(func(null, null));
+        }
+        /// <summary>
+        /// 异步执行战斗场景内交互代码
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="roleUUID"></param>
+        /// <param name="func"></param>
+        /// <returns></returns>
+        public Task<T> QueuePlayerTaskAsync<T>(string roleUUID, Func<AreaZonePlayer, InstancePlayer, T> func)
+        {
+            if (roleUUID != null && players.TryGetValue(roleUUID, out var player))
+            {
+                var node = player.ZoneNode;
+                return node.ZoneNode.QueuePlayerTaskAsync<T>(roleUUID, p => func(player, p));
+            }
+            return Task.FromResult<T>(func(null, null));
+        }
 
         #endregion
         //-----------------------------------------------------------------------------------------------------------------------------
