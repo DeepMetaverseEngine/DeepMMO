@@ -213,7 +213,7 @@ namespace DeepMMO.Server.AreaManager
         /// 最后存在场景坐标
         /// </summary>
         public ZonePosition lastScenePos;
-
+        public ISerializable expandData;
         public ISerializable LeaveZoneSaveData;
 
         public int curHP;
