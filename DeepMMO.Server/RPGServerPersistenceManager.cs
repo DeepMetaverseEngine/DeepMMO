@@ -226,6 +226,13 @@ namespace DeepMMO.Server
             return snapData;
         }
 
+        public virtual async Task DeleteRoleDataAsync(string c2s_role_uuid, ITaskExecutor svc)
+        {
+            var snapMapping = new MappingReference<RoleSnap>(TYPE_ROLE_SNAP_DATA, c2s_role_uuid, svc);
+            var roleSnap =   await snapMapping.LoadDataAsync();
+            // TODO 
+        }
+
         public virtual async Task<AccountData> GetOrCreateAccountDataAsync(MappingReference<AccountData> saveAcc, string accountName, string accountToken)
         {
             if (await saveAcc.EnterLockAsync(out var token))

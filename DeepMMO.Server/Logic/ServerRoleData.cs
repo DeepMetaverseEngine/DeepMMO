@@ -77,6 +77,11 @@ namespace DeepMMO.Server.Logic
         [PersistField]
         public ZonePosition last_zone_pos;
         /// <summary>
+        /// 最后存在场景存储数据，用于跨场景存储一些状态，比如BUFF
+        /// </summary>
+        [PersistField]
+        public ISerializable last_zone_saved;
+        /// <summary>
         /// 最近一次公共场景实例ID.
         /// </summary>
         [PersistField]

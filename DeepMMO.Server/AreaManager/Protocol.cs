@@ -131,6 +131,7 @@ namespace DeepMMO.Server.AreaManager
         public int roleUnitTemplateID;
         public string roleDisplayName;
         public ZonePosition roleScenePos;
+        public ISerializable LastZoneSaveData;
         public ISerializable roleData;
 
         public string teamID;
@@ -213,7 +214,7 @@ namespace DeepMMO.Server.AreaManager
         /// </summary>
         public ZonePosition lastScenePos;
 
-        public ISerializable expandData;
+        public ISerializable LeaveZoneSaveData;
 
         public int curHP;
         public int curMP;

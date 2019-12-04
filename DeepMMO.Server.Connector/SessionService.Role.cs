@@ -85,7 +85,7 @@ namespace DeepMMO.Server.Connect
                 //网络协议接口日志//
                 //log.Log(ret);
                 //BI创角记录.
-                RPGServerPersistenceManager.Instance.SaveBICreateRoleInfo(log, roleData,Channel);
+                RPGServerPersistenceManager.Instance.SaveBICreateRoleInfo(log, roleData, Channel);
                 return ret;
             }
             catch (Exception err)
@@ -183,12 +183,7 @@ namespace DeepMMO.Server.Connect
                     {
                         accountRoleSnapSave.SetMappingField(nameof(AccountRoleSnap.roleIDMap), roleIDMap);
                         await accountRoleSnapSave.FlushAsync();
-                        //ILogBI接口日志//
-                        //                         log.Log(new ClientDeleteRoleLog()
-                        //                         {
-                        //                             account = this.accountID,
-                        //                             c2s_role_uuid = req.c2s_role_uuid
-                        //                         });
+                        await RPGServerPersistenceManager.Instance.DeleteRoleDataAsync(req.c2s_role_uuid, this);
                         return (new ClientDeleteRoleResponse());
                     }
                     else

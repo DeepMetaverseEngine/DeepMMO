@@ -82,45 +82,53 @@ namespace DeepMMO.Server.Area
 
         public virtual async Task<RoleEnterZoneResponse> DoPlayerEnterAsync(AreaZonePlayer player, RoleEnterZoneRequest enter)
         {
+            if (await player.OnEnterAsync() == false)
+            {
+                log.Error("Can Not Find Session Or Logic : " + enter.roleSessionName + " : " + enter.roleUUID);
+            }
             try
             {
-                //去除判断，由areamgr统一管理.
-                //if (zoneGameOver)
-                //{
-                //    return new RoleEnterZoneResponse() { s2c_code = RoleEnterZoneResponse.CODE_ZONE_CLOSED };
-                //}
-                if (await player.OnEnterAsync() == false)
-                {
-                    log.Error("Can Not Find Session Or Logic : " + enter.roleSessionName + " : " + enter.roleUUID);
-                }
                 player.SessionReconnect();
-                var client = await this.node.PlayerEnterAsync(player, ToAddUnit(enter));
-                if (HasAddPlayer == false)
+                var tcs = new System.Threading.Tasks.TaskCompletionSource<RoleEnterZoneResponse>();
+                this.node.PlayerEnter(player, ToAddUnit(enter), client =>
                 {
-                    HasAddPlayer = true;
-                }
-                client.Actor.SetAttribute(nameof(AreaZonePlayer.RoleSessionName), player.RoleSessionName);
-                return (new RoleEnterZoneResponse()
-                {
-                    mapTemplateID = this.MapTemplateID,
-                    zoneUUID = this.ZoneUUID,
-                    zoneTemplateID = this.ZoneTemplateID,
-                    roleBattleData = enter.roleData,
-                    roleDisplayName = enter.roleDisplayName,
-                    roleUnitTemplateID = enter.roleUnitTemplateID,
-                    roleScenePos = new ZonePosition()
+                    if (HasAddPlayer == false)
                     {
-                        x = client.Actor.X,
-                        y = client.Actor.Y,
-                        z = client.Actor.Z
-                    },
-                    areaName = service.SelfAddress.ServiceName,
-                    areaNode = service.SelfAddress.ServiceNode,
-                    guildUUID = enter.guildUUID
+                        HasAddPlayer = true;
+                    }
+                    client.Actor.SetAttribute(nameof(AreaZonePlayer.RoleSessionName), player.RoleSessionName);
+                    tcs.TrySetResult(new RoleEnterZoneResponse()
+                    {
+                        s2c_code = RoleEnterZoneResponse.CODE_OK,
+                        mapTemplateID = this.MapTemplateID,
+                        zoneUUID = this.ZoneUUID,
+                        zoneTemplateID = this.ZoneTemplateID,
+                        roleBattleData = enter.roleData,
+                        roleDisplayName = enter.roleDisplayName,
+                        roleUnitTemplateID = enter.roleUnitTemplateID,
+                        roleScenePos = new ZonePosition()
+                        {
+                            x = client.Actor.X,
+                            y = client.Actor.Y,
+                            z = client.Actor.Z
+                        },
+                        areaName = service.SelfAddress.ServiceName,
+                        areaNode = service.SelfAddress.ServiceNode,
+                        guildUUID = enter.guildUUID,
+                    });
+                }, err=> 
+                {
+                    tcs.TrySetResult(new RoleEnterZoneResponse()
+                    {
+                        s2c_code = RoleEnterZoneResponse.CODE_ERROR,
+                        s2c_msg = err.Message,
+                    });
                 });
+                return await tcs.Task;
             }
             catch (Exception err)
             {
+                log.Error(err);
                 return (new RoleEnterZoneResponse()
                 {
                     s2c_code = RoleEnterZoneResponse.CODE_ERROR,
@@ -130,7 +138,6 @@ namespace DeepMMO.Server.Area
         }
         public virtual Task<RoleLeaveZoneResponse> DoPlayerLeaveAsync(AreaZonePlayer player, RoleLeaveZoneRequest leave)
         {
-
             var tcs = new System.Threading.Tasks.TaskCompletionSource<RoleLeaveZoneResponse>();
             this.node.PlayerLeave(player,
                 (c) =>
@@ -145,6 +152,7 @@ namespace DeepMMO.Server.Area
                         },
                         curHP = c.Actor.CurrentHP,
                         curMP = c.Actor.CurrentMP,
+                        LeaveZoneSaveData = c.LastZoneSaveData,
                     });
                 },
                 (e) =>
@@ -155,33 +163,7 @@ namespace DeepMMO.Server.Area
                         s2c_msg = e.Message,
                     });
                 });
-
             return tcs.Task;
-            /*
-            try
-            {
-                var client = await this.node.PlayerLeaveAsync(player);
-                return (new RoleLeaveZoneResponse()
-                {
-                    lastScenePos = new Data.ZonePosition()
-                    {
-                        x = client.Actor.X,
-                        y = client.Actor.Y,
-                        z = client.Actor.Z,
-                    },
-                    curHP = client.Actor.CurrentHP,
-                    curMP = client.Actor.CurrentMP,
-                });
-            }
-            catch (Exception err)
-            {
-                return (new RoleLeaveZoneResponse()
-                {
-                    s2c_code = RoleLeaveZoneResponse.CODE_ERROR,
-                    s2c_msg = err.Message,
-                });
-            }
-            */
         }
 
         public Task<GetRolePositionResponse> DoGetPlayerPosition(AreaZonePlayer player, GetRolePositionRequest req)
@@ -314,7 +296,8 @@ namespace DeepMMO.Server.Area
                 arg = enter,
                 //中立单位0，怪物1，玩家2.
                 force = enter.roleForce > 0 ? (byte)enter.roleForce : (byte)2,
-                editor_name = enter.roleDisplayName
+                editor_name = enter.roleDisplayName,
+                last_zone_save_data = enter.LastZoneSaveData,
             };
             return add;
         }

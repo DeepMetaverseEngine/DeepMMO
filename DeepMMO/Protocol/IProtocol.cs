@@ -75,6 +75,7 @@ namespace DeepMMO.Protocol
                 {
                     if (InnerResponse != null)
                     {
+                        InnerResponse.EndRead();
                         s2c_msg = InnerResponse.s2c_msg;
                     }
                 }

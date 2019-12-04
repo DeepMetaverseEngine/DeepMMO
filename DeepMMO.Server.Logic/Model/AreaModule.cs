@@ -82,6 +82,7 @@ namespace DeepMMO.Server.Logic.Model
             req.roleDisplayName = rd.name;
             req.roleUnitTemplateID = rd.unit_template_id;
             req.roleData = ToRoleBattleData(req);//< ---战斗相关数据
+            req.LastZoneSaveData = rd.last_zone_saved;
             req.lastPublicMapID = rd.last_public_mapID;
             req.lastPublicMapUUID = rd.last_public_area_uuid;
             req.lastPublicPos = rd.last_public_map_pos;
@@ -113,7 +114,6 @@ namespace DeepMMO.Server.Logic.Model
             if (result != null && RoleLeaveZoneResponse.CheckSuccess(result))
             {
                 this.service.roleModule.SaveLeaveZoneInfo(result);
-                //TODO;
                 OnLeaveZone?.Invoke(request, result);
             }
             return result;
@@ -134,7 +134,6 @@ namespace DeepMMO.Server.Logic.Model
                 serverID = service.serverID,
                 expectMapTemplateID = tp.nextMapID,
                 roleScenePos = new ZonePosition() { flagName = tp.nextZoneFlagName },
-
                 teamID = GetTeamID(),
             });
 

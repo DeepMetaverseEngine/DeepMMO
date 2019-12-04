@@ -133,9 +133,12 @@ namespace DeepMMO.Server.Logic.Model
 
         public virtual void SaveLeaveZoneInfo(RoleLeaveZoneResponse pos)
         {
+            this.roleMapping.SetField(nameof(ServerRoleData.last_zone_saved), pos.LeaveZoneSaveData);
             this.roleMapping.SetField(nameof(ServerRoleData.last_zone_pos), pos.lastScenePos);
             if (IsPublicMap(LastMapID))
+            {
                 this.roleMapping.SetField(nameof(ServerRoleData.last_public_map_pos), pos.lastScenePos);
+            }
         }
 
         public virtual ClientRoleData ToClientRoleData()
