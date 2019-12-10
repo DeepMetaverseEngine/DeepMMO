@@ -137,7 +137,7 @@ namespace DeepMMO.Client.Win32.Battle
         }
         protected virtual void Client_OnError(Exception err)
         {
-            MessageBox.Show(err.Message + Environment.NewLine + err.StackTrace, "Error");
+            err.ShowMessageBox();
         }
         protected virtual void Client_OnGameDisconnected1(DeepCore.FuckPomeloClient.PomeloClient arg1, DeepCore.FuckPomeloClient.CloseReason arg2)
         {
