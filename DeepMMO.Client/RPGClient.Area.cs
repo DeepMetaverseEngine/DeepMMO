@@ -8,10 +8,16 @@ namespace DeepMMO.Client
     public partial class RPGClient
     {
         protected RPGBattleClient current_battle;
+        protected RPGBattleClient next_battle;
 
         public RPGBattleClient CurrentBattle
         {
             get { return current_battle; }
+        }
+
+        public RPGBattleClient NextBattle
+        {
+            get { return next_battle; }
         }
         public int CurrentBattlePing
         {
@@ -26,6 +32,7 @@ namespace DeepMMO.Client
             get { return current_battle != null ? current_battle.Actor : null; }
         }
 
+        public bool IsDelayReleaseBattleClient { get; set; }
         protected virtual void Area_Init()
         {
             this.game_client.Listen<ClientEnterZoneNotify>(Area_OnClientEnterZoneNotify);
@@ -35,7 +42,11 @@ namespace DeepMMO.Client
 
         protected virtual void Area_OnClientBattleEvent(ClientBattleEvent notify)
         {
-            if (current_battle != null)
+            if (next_battle != null)
+            {
+                next_battle.OnReceived(notify);
+            }
+            else if (current_battle != null)
             {
                 current_battle.OnReceived(notify);
             }
@@ -46,11 +57,24 @@ namespace DeepMMO.Client
         }
         protected virtual void Area_OnClientEnterZoneNotify(ClientEnterZoneNotify notify)
         {
-            if (current_battle != null) { current_battle.Dispose(); }
+            if (!IsDelayReleaseBattleClient && current_battle != null)
+            {
+                current_battle.Dispose();
+                current_battle = null;
+            }
             log.Info("ClientEnterZoneNotify : " + notify);
-            current_battle = CreateBattle(notify);
-            current_battle.Layer.ActorAdded += Layer_ActorAdded;
-            if (event_OnZoneChanged != null) event_OnZoneChanged(current_battle);
+            var battle = CreateBattle(notify);
+            battle.Layer.ActorAdded += Layer_ActorAdded;
+            
+            if (current_battle == null || !IsDelayReleaseBattleClient)
+            {
+                current_battle = battle;
+            }
+            else
+            {
+                next_battle = battle;
+            }
+			if (event_OnZoneChanged != null) event_OnZoneChanged(battle);
         }
         protected virtual void Area_OnClientLeaveZoneNotify(ClientLeaveZoneNotify notify)
         {
@@ -60,6 +84,15 @@ namespace DeepMMO.Client
         }
         protected virtual void Layer_ActorAdded(LayerZone layer, LayerPlayer actor)
         {
+            if (next_battle != null)
+            {
+                if (current_battle != null)
+                {
+                    current_battle.Dispose();
+                }
+                current_battle = next_battle;
+                next_battle = null;
+            }
             if (event_OnZoneActorEntered != null)
                 event_OnZoneActorEntered(actor);
         }

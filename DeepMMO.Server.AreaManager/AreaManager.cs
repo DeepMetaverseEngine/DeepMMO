@@ -315,7 +315,7 @@ namespace DeepMMO.Server.AreaManager
                 }
                 ZoneInfo zone = null;
                 //优先判断公会场景//
-                if (req.guildUUID != null)
+                if (!string.IsNullOrEmpty(req.guildUUID))
                 {
                     ZoneInfo guildZone = GetGuildZone(req.guildUUID);
                     if (guildZone != null)
