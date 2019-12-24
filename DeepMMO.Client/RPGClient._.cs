@@ -50,6 +50,7 @@ namespace DeepMMO.Client
 
             this.game_client.NetHandleResponseImmediately += Game_client_AsyncHandleResponseImmediately;
             this.game_client.NetHandleBodyImmediately += Game_client_AsyncHandleBodyImmediately;
+            this.game_client.OnRequestEnd += Game_client_OnRequestEnd1;
             this.game_client.NetError += Game_client_AsyncError;
             this.gate_client.NetError += Gate_client_AsyncError;
             this.ping_codec = codec.GetCodec(typeof(ClientPing));
@@ -59,7 +60,6 @@ namespace DeepMMO.Client
             this.Area_Init();
             this.OnCreateModules();
         }
-
         protected virtual void OnCreateModules()
         {
             AddModule(new EventModule(this));
@@ -83,11 +83,19 @@ namespace DeepMMO.Client
         }
         private void Game_client_AsyncHandleBodyImmediately(object message)
         {
-            if (message is Response response)
+            //             if (message is Response response)
+            //             {
+            //                 response.EndRead();
+            //             }
+        }
+        private void Game_client_OnRequestEnd1(string route, PomeloException error, ISerializable response, object option)
+        {
+            if (response is Response rsp)
             {
-                response.EndRead();
+                rsp.EndRead();
             }
         }
+
 
         //----------------------------------------------------------------------------------------------------------
         #region Modules
