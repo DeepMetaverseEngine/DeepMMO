@@ -50,8 +50,7 @@ namespace DeepMMO.Server
         protected RPGServerTemplateManager()
         {
             instance = this;
-            log = LoggerFactory.GetLogger(GetType().Name);
-            TemplateLoader.Instance.SetLogger(log);
+            log = new LazyLogger(GetType().Name);
         }
         public virtual void Init()
         {
