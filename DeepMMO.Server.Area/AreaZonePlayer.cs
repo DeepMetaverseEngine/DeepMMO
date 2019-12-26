@@ -57,7 +57,7 @@ namespace DeepMMO.Server.Area
         internal async Task<bool> OnEnterAsync()
         {
             this.remote_session = await service.Provider.GetAsync(new RemoteAddress(enter.roleSessionName, enter.roleSessionNode));
-            this.remote_logic = await service.Provider.GetAsync(ServerNames.GetLogicServiceAddress(enter.roleUUID, enter.roleLogicNode));
+            this.remote_logic = await service.Provider.GetAsync(new RemoteAddress(enter.roleLogicName, enter.roleLogicNode));
             return remote_session != null && remote_logic != null;
         }
         public virtual void SessionDisconnect()

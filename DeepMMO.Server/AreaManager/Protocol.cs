@@ -126,6 +126,7 @@ namespace DeepMMO.Server.AreaManager
         public string roleUUID;
         public string roleSessionName;
         public string roleSessionNode;
+        public string roleLogicName;
         public string roleLogicNode;
         public int roleForce;
         public int roleUnitTemplateID;

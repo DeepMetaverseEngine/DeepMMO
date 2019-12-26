@@ -78,6 +78,7 @@ namespace DeepMMO.Server.Logic.Model
             req.roleUUID = service.roleID;
             req.roleSessionName = service.sessionName;
             req.roleSessionNode = service.sessionNode;
+            req.roleLogicName = service.SelfAddress.ServiceName;
             req.roleLogicNode = service.SelfAddress.ServiceNode;
             req.roleDisplayName = rd.name;
             req.roleUnitTemplateID = rd.unit_template_id;
