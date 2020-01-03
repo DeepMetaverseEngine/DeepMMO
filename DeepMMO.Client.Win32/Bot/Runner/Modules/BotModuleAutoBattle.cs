@@ -51,7 +51,7 @@ namespace DeepMMO.Client.BotTest.Runner.Modules
                         {
                             int size = Math.Max(1, (int)(Config.RandomMoveDistance / vt.World.Terrain.GridCellSize));
                             var tp = vt.World.Terrain.FindNearRandomMoveableNode(random, layer, size);
-                            if (pos != null)
+                            //if (pos != null)
                             {
                                 obj.SendUnitAttackMoveTo(tp.GetUpwardCenterPos(), false);
                             }
