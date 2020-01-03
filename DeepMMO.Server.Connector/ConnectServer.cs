@@ -22,7 +22,7 @@ namespace DeepMMO.Server.Connect
     public class ConnectServer : IService
     {
         public static IOStreamPool ClientCodec { get; private set; }
-        public static bool TraceRoute { get; set; } = true;
+        public static bool TraceRoute { get; set; } = false;
         private static bool KickOnError { get; set; }
         public string acceptor_host { get; private set; }
         public int acceptor_port { get; private set; }

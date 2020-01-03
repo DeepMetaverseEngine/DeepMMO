@@ -59,25 +59,25 @@ namespace DeepMMO.Server.AreaManager
         //------------------------------------------------------------------------------------------------------------------------------------
         #region RPC
 
-        [RpcHandler(typeof(CreateZoneNodeRequest), typeof(CreateZoneNodeResponse), ServerNames.LogicServiceType)]
+        [RpcHandler(typeof(CreateZoneNodeRequest), typeof(CreateZoneNodeResponse))]
         public virtual Task<CreateZoneNodeResponse> logic_rpc_Handle(CreateZoneNodeRequest create)
         {
             //log.Info(create);
             return CreateZone(create);
         }
-        [RpcHandler(typeof(DestoryZoneNodeRequest), typeof(DestoryZoneNodeResponse), ServerNames.LogicServiceType)]
+        [RpcHandler(typeof(DestoryZoneNodeRequest), typeof(DestoryZoneNodeResponse))]
         public virtual Task<DestoryZoneNodeResponse> logic_rpc_Handle(DestoryZoneNodeRequest stop)
         {
             //log.Info(stop);
             return DestoryZone(stop);
         }
-        [RpcHandler(typeof(RoleEnterZoneRequest), typeof(RoleEnterZoneResponse), ServerNames.LogicServiceType)]
+        [RpcHandler(typeof(RoleEnterZoneRequest), typeof(RoleEnterZoneResponse))]
         public virtual Task<RoleEnterZoneResponse> logic_rpc_Handle(RoleEnterZoneRequest req)
         {
             //log.Info(req);
             return RoleEnter(req);
         }
-        [RpcHandler(typeof(RoleLeaveZoneRequest), typeof(RoleLeaveZoneResponse), ServerNames.LogicServiceType)]
+        [RpcHandler(typeof(RoleLeaveZoneRequest), typeof(RoleLeaveZoneResponse))]
         public virtual Task<RoleLeaveZoneResponse> logic_rpc_Handle(RoleLeaveZoneRequest req)
         {
             //log.Info(req);
@@ -140,6 +140,7 @@ namespace DeepMMO.Server.AreaManager
             }
             cb(new GetAllRoleResponse() { uuidMap = uuidMap });
         }
+
         [RpcHandler(typeof(QueryZoneAreaNameRequest), typeof(QueryZoneAreaNameResponse))]
         public Task<QueryZoneAreaNameResponse> logic_rpc_Handle(QueryZoneAreaNameRequest req)
         {
@@ -185,7 +186,7 @@ namespace DeepMMO.Server.AreaManager
             cb(rsp);
         }
 
-        [RpcHandler(typeof(GetRolePositionRequest), typeof(GetRolePositionResponse), ServerNames.LogicServiceType)]
+        [RpcHandler(typeof(GetRolePositionRequest), typeof(GetRolePositionResponse))]
         public virtual async Task<GetRolePositionResponse> logic_rpc_Handle(GetRolePositionRequest req)
         {
             if (roles.ContainsKey(req.roleUUID) == false)

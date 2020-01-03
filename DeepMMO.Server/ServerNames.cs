@@ -26,10 +26,14 @@ namespace DeepMMO.Server
         public static RemoteAddress LogicService = new RemoteAddress("Logic:<RoleID>", null, LogicServiceType);
         public static RemoteAddress RankingService = new RemoteAddress("RankingService", null, RankingServiceType);
 
+        public const string SessionPrefix = "Session:";
+        public const string ConnectPrefix = "Connect:";        
+        public const string LogicPrefix = "Logic:";
+        public const string AreaPrefix = "Area:";
 
         public static RemoteAddress CreateSessionServiceAddress(string accountID, RemoteAddress connectServer)
         {
-            return new RemoteAddress("Session:" + accountID, connectServer.ServiceNode, SessionService.ServiceType);
+            return new RemoteAddress(SessionPrefix + accountID, connectServer.ServiceNode, SessionService.ServiceType);
         }
 
         /// <summary>
@@ -39,7 +43,7 @@ namespace DeepMMO.Server
         /// <returns></returns>
         public static RemoteAddress GetLogicServiceAddress(string roleID, string logicNode = null)
         {
-            return new RemoteAddress("Logic:" + roleID, logicNode, LogicService.ServiceType);
+            return new RemoteAddress(LogicPrefix + roleID, logicNode, LogicService.ServiceType);
         }
 
     }

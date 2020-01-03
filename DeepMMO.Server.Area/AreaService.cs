@@ -119,7 +119,7 @@ namespace DeepMMO.Server.Area
         /// <summary>
         /// Client -> Session -> Area
         /// </summary>
-        [RpcHandler(typeof(SessionBattleAction), true, ServerNames.SessionServiceType)]
+        [RpcHandler(typeof(SessionBattleAction), true)]
         public virtual void client_rpc_Handle(BinaryMessage action)
         {
             try
@@ -348,7 +348,7 @@ namespace DeepMMO.Server.Area
         /// 玩家数据改变
         /// </summary>
         /// <param name="changed"></param>
-        [RpcHandler(typeof(RoleDataChangedNotify), ServerNames.LogicServiceType)]
+        [RpcHandler(typeof(RoleDataChangedNotify))]
         public void logic_rpc_PlayerNetStateChanged(RoleDataChangedNotify changed)
         {
             AreaZonePlayer player;
@@ -370,7 +370,7 @@ namespace DeepMMO.Server.Area
         /// 玩家断开连接
         /// </summary>
         /// <param name="disconnect"></param>
-        [RpcHandler(typeof(SessionDisconnectNotify), ServerNames.LogicServiceType)]
+        [RpcHandler(typeof(SessionDisconnectNotify))]
         public void logic_rpc_Handle(SessionDisconnectNotify disconnect)
         {
             AreaZonePlayer player;
@@ -391,7 +391,7 @@ namespace DeepMMO.Server.Area
         /// 玩家重新连接
         /// </summary>
         /// <param name="disconnect"></param>
-        [RpcHandler(typeof(SessionReconnectNotify), ServerNames.LogicServiceType)]
+        [RpcHandler(typeof(SessionReconnectNotify))]
         public void logic_rpc_Handle(SessionReconnectNotify reconnect)
         {
             AreaZonePlayer player;
@@ -409,7 +409,7 @@ namespace DeepMMO.Server.Area
             }
         }
 
-        [RpcHandler(typeof(SessionBeginLeaveRequest), typeof(SessionBeginLeaveResponse), ServerNames.LogicServiceType)]
+        [RpcHandler(typeof(SessionBeginLeaveRequest), typeof(SessionBeginLeaveResponse))]
         public async Task<SessionBeginLeaveResponse> logic_rpc_Handle(SessionBeginLeaveRequest leave)
         {
             try
