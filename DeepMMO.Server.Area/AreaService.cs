@@ -274,7 +274,18 @@ namespace DeepMMO.Server.Area
                 }
                 if (this.players.TryGetOrCreate(enter.roleUUID, out var player, (uuid) => this.CreateZonePlayer(node, enter)))
                 {
-                    return await node.DoPlayerEnterReplace(player, enter); ;
+                    if (player.ZoneNode == node)
+                    {
+                        return await node.DoPlayerEnterReplace(player, enter);
+                    }
+                    else
+                    {
+                        return new RoleEnterZoneResponse()
+                        {
+                            s2c_code = RoleEnterZoneResponse.CODE_ZONE_NOT_EXIST,
+                            s2c_msg = $"PlayerEnter: ZoneNotExistException: roleID={enter.roleUUID} zone={enter.expectZoneUUID}"
+                        };
+                    }
                 }
                 else
                 {
