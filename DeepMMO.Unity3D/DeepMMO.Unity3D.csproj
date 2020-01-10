@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net462</TargetFrameworks>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DefineConstants>TRACE;UNITY_STANDALONE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(TargetFramework)'=='net462'">
+    <Compile Remove="Platform\Win32\System.Drawing.Common\**" />
+    <EmbeddedResource Remove="Platform\Win32\System.Drawing.Common\**" />
+    <None Remove="Platform\Win32\System.Drawing.Common\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="UnityEditor">
+      <HintPath>lib\UnityEditor.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEditor.UI">
+      <HintPath>lib\UnityEditor.UI.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>lib\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>lib\UnityEngine.UI.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Game3D.Slave\DeepCore.Game3D.Slave.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCore.Unity3D\DeepCore.Unity3D.csproj" />
+    <ProjectReference Include="..\..\DeepCore\DeepCore\DeepCore.csproj" />
+    <ProjectReference Include="..\DeepMMO.Client\DeepMMO.Client.csproj" />
+    <ProjectReference Include="..\DeepMMO\DeepMMO.csproj" />
+  </ItemGroup>
+</Project>

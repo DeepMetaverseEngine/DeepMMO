@@ -86,7 +86,7 @@ namespace DeepMMO.Client.BotTest
         }
         private void timer_30_Tick(object sender, EventArgs e)
         {
-           // if (base.Visible)
+            // if (base.Visible)
             {
                 long curTime = DeepCore.CUtils.CurrentTimeMS;
                 if (last_update_time == 0)
@@ -300,8 +300,9 @@ namespace DeepMMO.Client.BotTest
                 servers_optionals.AddRange(servers);
                 servers_optionals.Converter = new Func<System.Reflection.MemberInfo, object, object>((field, value) =>
                 {
-                    var server = value as Data.ServerInfo;
-                    return server.id;
+                    if (value is Data.ServerInfo server)
+                        return server.id;
+                    return value;
                 });
                 add.index = lastIndex;
                 if (keep == false)

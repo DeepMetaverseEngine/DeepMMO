@@ -28,12 +28,7 @@ namespace DeepMMO.Client.BotTest.Runner
                 do_get_role_list(on_get_role_list);
             }
         }
-        protected virtual RoleTemplateData get_random_role_template()
-        {
-            var prolist = RPGClientTemplateManager.Instance.AllRoleTemplates;
-            var pro = random.GetRandomInArray(prolist);
-            return pro;
-        }
+
         //---------------------------------------------------------------------------------------------------------------------------
         protected virtual void do_get_role_list(Action<PomeloException, ClientGetRolesResponse> cb)
         {
@@ -59,34 +54,33 @@ namespace DeepMMO.Client.BotTest.Runner
         //---------------------------------------------------------------------------------------------------------------------------
         protected virtual void do_get_random_name(Action<PomeloException, ClientGetRandomNameResponse> cb)
         {
-            var pro = get_random_role_template();
-            if (pro != null)
+            var prolist = RPGClientTemplateManager.Instance.AllRoleTemplates;
+            var pro = random.GetRandomInArray(prolist);
+            this.client.GameClient.Request<ClientGetRandomNameResponse>(new ClientGetRandomNameRequest()
             {
-                this.client.GameClient.Request<ClientGetRandomNameResponse>(new ClientGetRandomNameRequest()
-                {
-                    c2s_role_template_id = pro.id
-                }, cb);
-            }
+                c2s_role_gender = (byte)(random.Next() % 2),
+                c2s_role_template_id = pro != null ? pro.id : 0,
+            }, cb);
         }
         protected virtual void on_get_random_name(PomeloException err, ClientGetRandomNameResponse rsp)
         {
             log_response(rsp, err);
             if (Response.CheckSuccess(rsp))
             {
-                var pro = get_random_role_template();
-                do_create_role(rsp.s2c_name, pro.id, on_create_role);
+                do_create_role(rsp.s2c_name, on_create_role);
             }
         }
         //---------------------------------------------------------------------------------------------------------------------------
-        protected virtual void do_create_role(string roleName, int proId, Action<PomeloException, ClientCreateRoleResponse> cb)
+        protected virtual void do_create_role(string roleName, Action<PomeloException, ClientCreateRoleResponse> cb)
         {
-            var pro = get_random_role_template();
+            var prolist = RPGClientTemplateManager.Instance.AllRoleTemplates;
+            var pro = random.GetRandomInArray(prolist);
             if (pro != null)
             {
                 this.client.GameClient.Request<ClientCreateRoleResponse>(new ClientCreateRoleRequest()
                 {
                     c2s_name = roleName,
-                    c2s_template_id = proId
+                    c2s_template_id = pro.unit_template_id,
                 }, cb);
             }
         }
@@ -103,27 +97,23 @@ namespace DeepMMO.Client.BotTest.Runner
                 if (rn != null)
                 {
                     var name = rn.s2c_name + this.random.Next(100).ToString();
-                    var pro = get_random_role_template();
-                    do_create_role(name, pro.id, on_create_role);
+                    do_create_role(name, on_create_role);
                 }
                 else
                 {
                     var name = this.account + this.random.Next(100).ToString();
-                    var pro = get_random_role_template();
-                    do_create_role(name, pro.id, on_create_role);
+                    do_create_role(name, on_create_role);
                 }
             }
             else if (rsp.s2c_code == ClientCreateRoleResponse.CODE_BLACK_NAME)
             {
                 var name = this.account + this.random.Next(100).ToString();
-                var pro = get_random_role_template();
-                do_create_role(name, pro.id, on_create_role);
+                do_create_role(name, on_create_role);
             }
             else
             {
                 var name = client.GameClient.GetLastResponse<ClientGetRandomNameResponse>();
-                var pro = get_random_role_template();
-                do_create_role(name.s2c_name, pro.id, on_create_role);
+                do_create_role(name.s2c_name, on_create_role);
             }
         }
         //---------------------------------------------------------------------------------------------------------------------------
