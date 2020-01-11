@@ -87,31 +87,42 @@ namespace DeepMMO.Server.Logic
         protected override async Task OnStartAsync()
         {
             var stopwatch = Stopwatch.StartNew();
-            this.session = await base.Provider.GetAsync(new RemoteAddress(sessionName, sessionNode));
-            this.OnCreateModules();
-            await this.OnModulesStartAsync();
-            await this.OnModulesStartedAsync();
-            this.EventMgr = EventManagerFactory.Instance.CreateEventManager("Player", roleID);
-            if (EventMgr != null)
+            try
             {
-                EventMgr.PutObject("Service", this);
-                EventMgr.Start();
-                mEventTimer = Provider.CreateTimer(OnEventManagerTick, this, TimeSpan.FromSeconds(0), TimeSpan.FromMilliseconds(300));
+                this.session = await base.Provider.GetAsync(new RemoteAddress(sessionName, sessionNode));
+                this.OnCreateModules();
+                await this.OnModulesStartAsync();
+                await this.OnModulesStartedAsync();
+                this.EventMgr = EventManagerFactory.Instance.CreateEventManager("Player", roleID);
+                if (EventMgr != null)
+                {
+                    EventMgr.PutObject("Service", this);
+                    EventMgr.Start();
+                    mEventTimer = Provider.CreateTimer(OnEventManagerTick, this, TimeSpan.FromSeconds(0), TimeSpan.FromMilliseconds(300));
+                }
+                {
+                    //定期存数据.
+                    int interval = RPGServerManager.Instance.Config.timer_minute_SaveDataTimer;
+                    interval = Math.Max(5, interval);
+                    interval += (int)(interval * 0.25 * new Random().NextDouble());
+                    this.mSaveDataTimer = Provider.CreateTimer(OnFlushDataTick, this,
+                        TimeSpan.FromMinutes(interval),
+                        TimeSpan.FromMinutes(interval));
+                }
+                if (stopwatch.ElapsedMilliseconds > LOAD_EXPECT_TIME_LIMIT)
+                {
+                    log.Warn("LogicService : OnStartAsync Use Time = " + stopwatch.Elapsed);
+                }
             }
+            catch (Exception hzdsb)
             {
-                //定期存数据.
-                int interval = RPGServerManager.Instance.Config.timer_minute_SaveDataTimer;
-                interval = Math.Max(5, interval);
-                interval += (int)(interval * 0.25 * new Random().NextDouble());
-                this.mSaveDataTimer = Provider.CreateTimer(OnFlushDataTick, this,
-                    TimeSpan.FromMinutes(interval),
-                    TimeSpan.FromMinutes(interval));
+                hzdsb.PrintStackTrace();
             }
-            if (stopwatch.ElapsedMilliseconds > LOAD_EXPECT_TIME_LIMIT)
+            finally
             {
-                log.Warn("LogicService : OnStartAsync Use Time = " + stopwatch.Elapsed);
+                stopwatch.Stop();
+
             }
-            stopwatch.Stop();
         }
 
 
@@ -391,7 +402,7 @@ namespace DeepMMO.Server.Logic
         {
             areaModule.RequestCrossMapAsync(notify).NoWait();
         }
-        
+
         [RpcHandler(typeof(AreaGameOverNotify), ServerNames.AreaServiceType)]
         public void area_rpc_Handle(AreaGameOverNotify notify)
         {
