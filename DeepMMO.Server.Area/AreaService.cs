@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using DeepCore.GameEvent;
 using DeepCore.GameEvent.Message;
 using DeepCore.Game3D.Host.Instance;
+using System.Collections.Concurrent;
 
 namespace DeepMMO.Server.Area
 {
@@ -213,8 +214,7 @@ namespace DeepMMO.Server.Area
         {
             try
             {
-                var node = this.zoneNodes.RemoveByKey(stop.zoneUUID);
-                if (node != null)
+                if (this.zoneNodes.TryRemove(stop.zoneUUID, out var node))
                 {
                     //删除场景实例的所有玩家              
                     node.ZoneNode.ForEachPlayers((p) =>
@@ -224,7 +224,7 @@ namespace DeepMMO.Server.Area
                             using (var player = p.Client as AreaZonePlayer)
                             {
                                 log.Error("DestoryZoneNode Have Player : " + player.RoleUUID);
-                                players.Remove(player.RoleUUID);
+                                players.TryRemove(player.RoleUUID, out var pp);
                             }
                         }
                         catch (Exception err)
@@ -309,27 +309,29 @@ namespace DeepMMO.Server.Area
         {
             try
             {
-                var player = this.players.RemoveByKey(leave.roleID);
-                if (player == null)
+                if (this.players.TryRemove(leave.roleID, out var player))
+                {
+                    using (player)
+                    {
+                        AreaZoneNode node = player.ZoneNode;
+                        if (node == null)
+                        {
+                            return (new RoleLeaveZoneResponse()
+                            {
+                                s2c_code = RoleLeaveZoneResponse.CODE_ROLE_NOT_EXIST,
+                                s2c_msg = $"PlayerLeave: ZoneNotExistException: roleID={leave.roleID} zone={player.ZoneUUID}"
+                            });
+                        }
+                        return await node.DoPlayerLeaveAsync(player, leave);
+                    }
+                }
+                else
                 {
                     return (new RoleLeaveZoneResponse()
                     {
                         s2c_code = RoleLeaveZoneResponse.CODE_ROLE_NOT_EXIST,
                         s2c_msg = $"PlayerLeave: PlayerNotExistException: roleID=roleID={leave.roleID} zone={leave.zoneUUID}"
                     });
-                }
-                using (player)
-                {
-                    AreaZoneNode node = player.ZoneNode;
-                    if (node == null)
-                    {
-                        return (new RoleLeaveZoneResponse()
-                        {
-                            s2c_code = RoleLeaveZoneResponse.CODE_ROLE_NOT_EXIST,
-                            s2c_msg = $"PlayerLeave: ZoneNotExistException: roleID={leave.roleID} zone={player.ZoneUUID}"
-                        });
-                    }
-                    return await node.DoPlayerLeaveAsync(player, leave);
                 }
             }
             catch (Exception e)
@@ -343,14 +345,15 @@ namespace DeepMMO.Server.Area
         public async Task<GetRolePositionResponse> area_manager_rpc_GetRolePosition(GetRolePositionRequest req)
         {
             var resp = new GetRolePositionResponse();
-            var role = players.Get(req.roleUUID);
-            if (role == null)
+            if (players.TryGetValue(req.roleUUID, out var role))
+            {
+                return await role.ZoneNode.DoGetPlayerPosition(role, req);
+            }
+            else
             {
                 resp.s2c_code = GetRolePositionResponse.CODE_ROLE_NOT_EXIST;
                 return resp;
             }
-
-            return await role.ZoneNode.DoGetPlayerPosition(role, req);
         }
 
         //-----------------------------------------------------------------------------------------------------------------------------
@@ -450,8 +453,8 @@ namespace DeepMMO.Server.Area
         //-----------------------------------------------------------------------------------------------------------------------------
         #region __ZoneAndPlayer__
         //--------------------------------------------------------------------------------------------------------------------------------
-        private HashMap<string, AreaZoneNode> zoneNodes = new HashMap<string, AreaZoneNode>();
-        private HashMap<string, AreaZonePlayer> players = new HashMap<string, AreaZonePlayer>();
+        private ConcurrentDictionary<string, AreaZoneNode> zoneNodes = new ConcurrentDictionary<string, AreaZoneNode>();
+        private ConcurrentDictionary<string, AreaZonePlayer> players = new ConcurrentDictionary<string, AreaZonePlayer>();
 
         public int PlayerCount
         {
