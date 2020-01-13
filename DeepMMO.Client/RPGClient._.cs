@@ -40,7 +40,7 @@ namespace DeepMMO.Client
         {
             this.CurrentPing = 0;
             this.IsAutoUpdateBattle = false;
-            this.ConnectTimeOut = 5000;
+            this.ConnectTimeOut = 15000;
 
             this.log = LoggerFactory.GetLogger(GetType().Name);
             this.codec = codec;
