@@ -25,8 +25,6 @@ namespace DeepMMO.Server.Logic
 {
     public partial class LogicService : IService
     {
-
-        public static bool ORM_TEST = false;
         public static int SAVE_EXPECT_TIME_LIMIT = 200;
         public static int LOAD_EXPECT_TIME_LIMIT = 200;
         public static TimeStatisticsRecoder Statistics { get; private set; } =
@@ -215,7 +213,7 @@ namespace DeepMMO.Server.Logic
         {
             var stopwatch = Stopwatch.StartNew();
             OnBeforeSaveData?.Invoke();
-            if (ORM_TEST)
+            if (ORMFactory.IsTest)
             {
                 var watch_exe = CUtils.TickTimeMS;
                 //var exe = new SyncTaskExecutor();
@@ -244,7 +242,7 @@ namespace DeepMMO.Server.Logic
                 {
                     Statistics.LogTime($"{GetType().Name} : OnModulesSaveDataAsync", CUtils.TickTimeMS - watch_exe);
                 });
-                await test.CheckAsync(true);
+                await test.CheckAsync(false);
             }
             else
             {

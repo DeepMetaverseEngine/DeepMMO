@@ -211,7 +211,7 @@ namespace DeepMMO.Unity3D.Terrain
         {
             var _unitypos = pos.ConvertToUnityPos(TerrainHeight);
             var downhit = Physics.Raycast(_unitypos + UnityEngine.Vector3.up * Height, UnityEngine.Vector3.down,out RaycastHit hitInfo, 400, layMasks);
-            if (downhit != null)
+            if (downhit)
             {
                 var zonepos = BattleUtils.UnityPos2ZonePos(TotalHeight,hitInfo.point);
                 upward = zonepos.Z;
@@ -258,6 +258,7 @@ namespace DeepMMO.Unity3D.Terrain
                 return null;
             }
            
+            
             var haspos = m_System.GetClosestPointOnNavMesh(srctounitypos,FindPathDistance);
             if (haspos.Item1)
             {
@@ -269,41 +270,65 @@ namespace DeepMMO.Unity3D.Terrain
             }
             List<UnityEngine.Vector3> NavPathPoints = new List<UnityEngine.Vector3>();
             var m_SmoothPath = RcdtcsUnityUtils.ComputeSmoothPath(m_System.m_navQuery, srctounitypos, dsttounitypos);
-            if (m_SmoothPath != null && m_SmoothPath.m_smoothPath != null && m_SmoothPath.m_nsmoothPath > 1&& m_SmoothPath.m_smoothPath.Length > 3)
+            if (m_SmoothPath != null && m_SmoothPath.m_smoothPath != null && m_SmoothPath.m_nsmoothPath >= 1 && m_SmoothPath.m_smoothPath.Length > 3)
             {
-                var path = m_SmoothPath.m_smoothPath;
-                for (int i = 1; i < m_SmoothPath.m_nsmoothPath;++i) {
-                    int v = i * 3;
-                    var a = new UnityEngine.Vector3( path[v-3], path[v-2], path[v-1]);
-                    //var b = new UnityEngine.Vector3( path[v+0], path[v+1], path[v+2]);
+                if (m_SmoothPath.m_nsmoothPath == 1)
+                {
+                    var path = m_SmoothPath.m_smoothPath;
+                    var a = new UnityEngine.Vector3( path[0], path[1], path[2]);
                     NavPathPoints.Add(a);
                 }
-                var lastPoint = NavPathPoints[NavPathPoints.Count - 1];
-                float distance =  UnityEngine.Vector3.Distance(lastPoint,dsttounitypos);
-                if (distance>=0.5f)
+                else
                 {
-                    var hasendpos = m_System.GetClosestPointOnNavMesh(dsttounitypos,FindPathDistance);
-                    if (hasendpos.Item1)
-                    {    
-                        var ray = new Ray(lastPoint, dsttounitypos - lastPoint);
-                        var hits = Physics.RaycastAll(ray, distance);
-                        bool hasobstacle = false;
-                        if (hits != null)
-                        {
-                            foreach (var hit in hits)
+                    var path = m_SmoothPath.m_smoothPath;
+                    for (int i = 1; i < m_SmoothPath.m_nsmoothPath;++i) {
+                        int v = i * 3;
+                        var a = new UnityEngine.Vector3( path[v-3], path[v-2], path[v-1]);
+                        //var b = new UnityEngine.Vector3( path[v+0], path[v+1], path[v+2]);
+                        NavPathPoints.Add(a);
+                    }
+                    var lastPoint = NavPathPoints[NavPathPoints.Count - 1];
+                    float distance =  UnityEngine.Vector3.Distance(lastPoint,dsttounitypos);
+                    if (distance>=0.5f && distance <= FindPathDistance)
+                    {
+                        var hasendpos = m_System.GetClosestPointOnNavMesh(dsttounitypos,FindPathDistance);
+                        if (hasendpos.Item1)
+                        {    
+                            var ray = new Ray(lastPoint, dsttounitypos - lastPoint);
+                            var hits = Physics.RaycastAll(ray, distance);
+                            bool hasobstacle = false;
+                            if (hits != null)
                             {
-                                if (hit.transform != null && !isPlayerLayer(hit.transform.gameObject))
+                                foreach (var hit in hits)
                                 {
-                                    hasobstacle = true;
-                                    break;
+                                    if (hit.transform != null && !isPlayerLayer(hit.transform.gameObject))
+                                    {
+                                        hasobstacle = true;
+                                        break;
+                                    }
                                 }
                             }
-                        }
                         
-                        if(!hasobstacle)
-                            NavPathPoints.Add(hasendpos.Item2);
+                            if(!hasobstacle)
+                                NavPathPoints.Add(hasendpos.Item2);
+                            else
+                            {
+                                return null;
+                            }
+                        
+                        }
+                        else
+                        {
+                            return null;
+                        }
+                    }
+
+                    else if (distance > FindPathDistance)
+                    {
+                        return null;
                     }
                 }
+                
                
                 return NavMeshClientWayPoint.CreateFromVoxel(GenNavMeshWayPoint(NavPathPoints)); 
                 

@@ -9,6 +9,7 @@ using DeepMMO.Server.AreaManager;
 using System;
 using DeepCore.Game3D.Host;
 using DeepCore.Game3D.Host.ZoneServer;
+using DeepCore.Game3D.Voxel;
 
 namespace DeepMMO.Server
 {
@@ -19,6 +20,7 @@ namespace DeepMMO.Server
         private static readonly object lock_init = new object();
         private static bool init_done = false;
         private static RPGServerBattleManager instance;
+        public static bool CACHE_ALL_VOXEL = true;
         public static bool IsInitDone { get { return init_done; } }
         public static RPGServerBattleManager Instance
         {
@@ -61,63 +63,97 @@ namespace DeepMMO.Server
         }
         public virtual void Init()
         {
-            EditorTemplates.RUNTIME_IN_SERVER = true;
-            RPGServerTemplateManager.Instance.ToString();
-            if (ZoneFactory == null)
+            try
             {
+
+                EditorTemplates.RUNTIME_IN_SERVER = true;
+                RPGServerTemplateManager.Instance.ToString();
+                if (ZoneFactory == null)
+                {
+                    log.Info("********************************************************");
+                    log.Info("# 初始化战斗编辑器扩展 ");
+                    log.Info("********************************************************");
+                    DataFactory = ReflectionUtil.CreateInterface<ZoneDataFactory>(GlobalConfig.ZoneDataFactory);
+                    ZoneFactory = ReflectionUtil.CreateInterface<ZoneHostFactory>(GlobalConfig.InstanceZoneFactory, GlobalConfig.GameEditorRoot);
+                    log.Info(" 战斗编辑器插件 : " + ZoneFactory);
+                }
+                if (NodeConfig == null)
+                {
+                    log.Info("********************************************************");
+                    log.Info("# 加载配置文件");
+                    log.Info("********************************************************");
+                    NodeConfig = ZoneFactory.GetServerConfig();
+                    var node_cfg = GlobalConfig.ZoneNodeConfig;
+                    if (node_cfg != null)
+                    {
+                        log.Info(node_cfg.ToString());
+                        node_cfg.LoadFields(NodeConfig);
+                    }
+                }
+                if (DataRoot == null)
+                {
+
+                    log.Info("********************************************************");
+                    log.Info("# 加载模板数据");
+                    log.Info("********************************************************");
+                    try
+                    {
+                        DataRoot = DataFactory.CreateEditorTemplates(GlobalConfig.BattleDataRoot);
+                        DataRoot.Verbose = true;
+                        DataRoot.LoadAllTemplates();
+                        DataRoot.CacheAllScenes();
+                        Templates = DataRoot.Templates;
+                    }
+                    catch (Exception err)
+                    {
+                        throw new Exception("EditorTemplates init error : " + err.Message + "\n" + err.StackTrace, err);
+                    }
+
+                    if (CACHE_ALL_VOXEL)
+                    {
+                        log.Info("********************************************************");
+                        log.Info("# 缓存体素");
+                        log.Info("********************************************************");
+                        foreach (var sd in DataRoot.CacheAllScenes())
+                        {
+                            try
+                            {
+                                var path = GlobalConfig.GameEditorRoot + sd.VoxelFileName;
+                                if (VoxelWorldManager.Instance.TryGetOrCreateVoxelWorld(path, out var wd) == false)
+                                {
+                                    log.Info("Cache voxel data : " + sd.VoxelFileName);
+                                }
+                            }
+                            catch (Exception err)
+                            {
+                                log.Error(string.Format("Load Voxel Error : >>>{0}<<< : {1} ", sd, sd.VoxelFileName));
+                            }
+                        }
+                    }
+
+                    log.Info("********************************************************");
+                    log.Info("# 从地图配置表重新构建场景传送点");
+                    log.Info("********************************************************");
+                    FillSceneTransport();
+                    SceneGrapAstar = new MapSceneGrapAstar(RPGServerTemplateManager.Instance.AllMapTemplates);
+
+                }
+                {
+                    log.Info("********************************************************");
+                    log.Info("# 战斗编解码器");
+                    log.Info("********************************************************");
+                    if (DataFactory.MessageCodec is MessageFactoryGenerator)
+                    {
+                        log.Info(DataFactory.MessageCodec);
+                    }
+                }
                 log.Info("********************************************************");
-                log.Info("# 初始化战斗编辑器扩展 ");
-                log.Info("********************************************************");
-                DataFactory = ReflectionUtil.CreateInterface<ZoneDataFactory>(GlobalConfig.ZoneDataFactory);
-                ZoneFactory = ReflectionUtil.CreateInterface<ZoneHostFactory>(GlobalConfig.InstanceZoneFactory, GlobalConfig.GameEditorRoot);
-                log.Info(" 战斗编辑器插件 : " + ZoneFactory);
             }
-            if (NodeConfig == null)
+            catch
             {
-                log.Info("********************************************************");
-                log.Info("# 加载配置文件");
-                log.Info("********************************************************");
-                NodeConfig = ZoneFactory.GetServerConfig();
-                var node_cfg = GlobalConfig.ZoneNodeConfig;
-                if (node_cfg != null)
-                {
-                    log.Info(node_cfg.ToString());
-                    node_cfg.LoadFields(NodeConfig);
-                }
+                log.Error("检查战斗编辑器是否重新保存");
+                throw;
             }
-            if (DataRoot == null)
-            {
-                log.Info("********************************************************");
-                log.Info("# 加载模板数据");
-                log.Info("********************************************************");
-                try
-                {
-                    DataRoot = DataFactory.CreateEditorTemplates(GlobalConfig.BattleDataRoot);
-                    DataRoot.Verbose = true;
-                    DataRoot.LoadAllTemplates();
-                    DataRoot.CacheAllScenes();
-                    Templates = DataRoot.Templates;
-                }
-                catch (Exception err)
-                {
-                    throw new Exception("EditorTemplates init error : " + err.Message + "\n" + err.StackTrace, err);
-                }
-                log.Info("********************************************************");
-                log.Info("# 从地图配置表重新构建场景传送点");
-                log.Info("********************************************************");
-                FillSceneTransport();
-                SceneGrapAstar = new MapSceneGrapAstar(RPGServerTemplateManager.Instance.AllMapTemplates);
-            }
-            {
-                log.Info("********************************************************");
-                log.Info("# 战斗编解码器");
-                log.Info("********************************************************");
-                if (DataFactory.MessageCodec is MessageFactoryGenerator)
-                {
-                    log.Info(DataFactory.MessageCodec);
-                }
-            }
-            log.Info("********************************************************");
         }
 
         public virtual SceneData GetSceneAsCache(int mapID)
@@ -154,7 +190,7 @@ namespace DeepMMO.Server
         /// <param name="from_map"></param>
         protected virtual void FillSceneTransport(SceneData from_sd, MapTemplateData from_map)
         {
-            if(from_map.connect == null)
+            if (from_map.connect == null)
             {
                 log.ErrorFormat("from_map connect = null : FromMap={0}", from_map.name);
                 return;

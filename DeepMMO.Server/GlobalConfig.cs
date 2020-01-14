@@ -14,7 +14,10 @@ namespace DeepMMO.Server
         //         public const string ZoneNodeFactoryKey = "ZoneNodeFactory";
         //         public const string DataRootKey = "DataRoot";
 
-
+        public static bool EnableServerTest
+        {
+            get { return IService.GlobalConfig.GetAs<bool>(nameof(EnableServerTest)); }
+        }
         public static string RealmID
         {
             get { return IService.GlobalConfig.Get(nameof(RealmID)); }
@@ -82,7 +85,7 @@ namespace DeepMMO.Server
 
         public static string TemplateDataRoot
         {
-            get { return ServerDataRoot+ "/templates_lua/"; }
+            get { return ServerDataRoot + "/templates_lua/"; }
         }
         public static string EventScriptRoot
         {

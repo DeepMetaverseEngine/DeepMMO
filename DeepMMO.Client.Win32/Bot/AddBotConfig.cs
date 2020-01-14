@@ -110,7 +110,7 @@ namespace DeepMMO.Client.BotTest
     }
     //-------------------------------------------------------------------------------------
 
-    public class BotModuleConfig
+    public class BotModulesConfig
     {
         [Desc("Modules")]
         [Expandable()]

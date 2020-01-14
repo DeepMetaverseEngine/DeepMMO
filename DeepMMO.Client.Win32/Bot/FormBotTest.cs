@@ -384,7 +384,7 @@ namespace DeepMMO.Client.BotTest
                 var saved = XmlUtil.LoadXML(Application.StartupPath + "/bot_modules.save");
                 if (saved != null)
                 {
-                    var cfg = XmlUtil.XmlToObject<BotModuleConfig>(saved);
+                    var cfg = XmlUtil.XmlToObject<BotModulesConfig>(saved);
                     foreach (var me in cfg.Modules)
                     {
                         var mt = ReflectionUtil.GetType(me.Key);
@@ -414,7 +414,7 @@ namespace DeepMMO.Client.BotTest
         }
         private void SaveBotModules()
         {
-            BotModuleConfig cfg = new BotModuleConfig();
+            BotModulesConfig cfg = new BotModulesConfig();
             foreach (var mt in BotFactory.Instance.GetModuleTypes())
             {
                 cfg.Modules.Add(mt.FullName, BotModule.GetModuleEnable(mt));
