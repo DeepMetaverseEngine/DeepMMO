@@ -348,4 +348,11 @@ namespace DeepMMO.Server.AreaManager
         [MessageCode("角色不存在")]
         public const int CODE_ROLE_NOT_EXIST = CODE_ERROR + 2;
     }
+
+    [ProtocolRoute("Logic", "AreaManager")]
+    public class RoleNameChangedNotify : Notify
+    {
+        public string roleId;
+        public string newName;
+    }
 }

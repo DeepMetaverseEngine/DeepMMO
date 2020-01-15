@@ -122,6 +122,18 @@ namespace DeepMMO.Server.AreaManager
             //log.Info("AreaMgr recive " + stop + " " + stop.zoneUUID);
             DestoryZone(stop);
         }
+
+        //--------------------------------------------------
+
+        [RpcHandler(typeof(RoleNameChangedNotify))]
+        public virtual void logic_rpc_Handle(RoleNameChangedNotify ntf)
+        {
+            var role = GetRole(ntf.roleId);
+            if(role != null)
+            {
+                role.enter.roleDisplayName = ntf.newName;
+            }
+        }
         //------------------------------------------------------------------------------------------------------------------------------------
 
         [RpcHandler(typeof(GetAllRoleRequest), typeof(GetAllRoleResponse))]

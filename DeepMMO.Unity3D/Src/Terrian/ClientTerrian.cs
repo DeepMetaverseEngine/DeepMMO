@@ -286,36 +286,44 @@ namespace DeepMMO.Unity3D.Terrain
                         var a = new UnityEngine.Vector3( path[v-3], path[v-2], path[v-1]);
                         //var b = new UnityEngine.Vector3( path[v+0], path[v+1], path[v+2]);
                         NavPathPoints.Add(a);
+                        if (i == m_SmoothPath.m_nsmoothPath - 1)
+                        {
+                            a = new UnityEngine.Vector3( path[v+0], path[v+1], path[v+2]);
+                            NavPathPoints.Add(a);
+                        }
                     }
                     var lastPoint = NavPathPoints[NavPathPoints.Count - 1];
-                    float distance =  UnityEngine.Vector3.Distance(lastPoint,dsttounitypos);
-                    if (distance>=0.5f && distance <= FindPathDistance)
+                   
+                    
+                    var lpVec2 = new UnityEngine.Vector2(lastPoint.x,lastPoint.z);
+                    var dstVec2 = new UnityEngine.Vector2(dsttounitypos.x,dsttounitypos.z);
+                    float distance =  UnityEngine.Vector2.Distance(lpVec2,dstVec2);
+                    //寻路修正 高度单独处理修正
+                    if (distance>=0.5f && Mathf.Abs(lastPoint.y - dsttounitypos.y) < 1f && distance <= FindPathDistance)
                     {
-                        var hasendpos = m_System.GetClosestPointOnNavMesh(dsttounitypos,FindPathDistance);
-                        if (hasendpos.Item1)
-                        {    
-                            var ray = new Ray(lastPoint, dsttounitypos - lastPoint);
-                            var hits = Physics.RaycastAll(ray, distance);
-                            bool hasobstacle = false;
-                            if (hits != null)
+                        var point1 = lastPoint;
+                        var point2 = dsttounitypos;
+                        point1.y -= 0.5f;
+                        point2.y -= 0.5f;
+                        var ray = new Ray(point1, point2 - point1);
+                        var hits = Physics.RaycastAll(ray, distance);
+                        bool hasobstacle = false;
+                        if (hits != null)
+                        {
+                            foreach (var hit in hits)
                             {
-                                foreach (var hit in hits)
+                                if (hit.transform != null && !isPlayerLayer(hit.transform.gameObject))
                                 {
-                                    if (hit.transform != null && !isPlayerLayer(hit.transform.gameObject))
-                                    {
-                                        hasobstacle = true;
-                                        break;
-                                    }
+                                    hasobstacle = true;
+                                    break;
                                 }
                             }
-                        
                             if(!hasobstacle)
-                                NavPathPoints.Add(hasendpos.Item2);
+                                NavPathPoints.Add(dsttounitypos);
                             else
                             {
                                 return null;
                             }
-                        
                         }
                         else
                         {

@@ -86,7 +86,7 @@ namespace DeepMMO.Client.BotTest
         }
         private void timer_30_Tick(object sender, EventArgs e)
         {
-            // if (base.Visible)
+            //if (base.Visible)
             {
                 long curTime = DeepCore.CUtils.CurrentTimeMS;
                 if (last_update_time == 0)
@@ -352,7 +352,10 @@ namespace DeepMMO.Client.BotTest
                                 {
                                     await Task.Delay(config.AddBotIntervalMS);
                                 }
-                                e.Runner.Start();
+                                this.Invoke(new Action(()=> 
+                                {
+                                    e.Runner.Start();
+                                }));
                             }
                         }).ConfigureAwait(true);
                     }
@@ -455,64 +458,73 @@ namespace DeepMMO.Client.BotTest
         public BotListViewItem(string name, int index, AddBotConfig add, BotConfig cfg)
             : base(name)
         {
-            var bot = BotFactory.Instance.CreateBotRunner(cfg, add, name);
-            this.Client = bot.Client;
-            this.Runner = bot;
-            this.Events = new StringBuilder();
-            this.Runner.Client.IsAutoUpdateBattle = true;
-            if (BotLauncher.NoBattleView == false)
+            lock (this)
             {
-                this.BattleView = new BotGamePanelContainer(bot);
-                this.BattleView.AutoUpdateBattleClient = false;
-                this.BattleView.Init(this.Client);
-                this.BattleView.Dock = DockStyle.Fill;
-            }
-            this.Tag = bot;
-            var colums = bot.Columns;
-            for (int i = 1; i < colums.Length; i++)
-            {
-                this.SubItems.Add(colums[i]);
+                var bot = BotFactory.Instance.CreateBotRunner(cfg, add, name);
+                this.Client = bot.Client;
+                this.Runner = bot;
+                this.Events = new StringBuilder();
+                this.Runner.Client.IsAutoUpdateBattle = true;
+                if (BotLauncher.NoBattleView == false)
+                {
+                    this.BattleView = new BotGamePanelContainer(bot);
+                    this.BattleView.AutoUpdateBattleClient = false;
+                    this.BattleView.Init(this.Client);
+                    this.BattleView.Dock = DockStyle.Fill;
+                }
+                this.Tag = bot;
+                var colums = bot.Columns;
+                for (int i = 1; i < colums.Length; i++)
+                {
+                    this.SubItems.Add(colums[i]);
+                }
             }
         }
         public void Update(int intervalMS)
         {
-            if (BattleView != null)
+            lock (this)
             {
-                Runner.Update(intervalMS);
-                BattleView.UpdateBattle(intervalMS);
-            }
-            else
-            {
-                Runner.Update(intervalMS);
+                if (BattleView != null)
+                {
+                    Runner.Update(intervalMS);
+                    BattleView.UpdateBattle(intervalMS);
+                }
+                else
+                {
+                    Runner.Update(intervalMS);
+                }
             }
         }
         public void Refresh()
         {
-            if (Events.Length > 10000)
+            lock (this)
             {
-                Events.Clear();
-            }
-            using (var list = CollectionObjectPool<string>.AllocList())
-            {
-                this.Runner.PopLogs(list);
-                foreach (var e in list)
+                if (Events.Length > 10000)
                 {
-                    Events.AppendLine(e);
+                    Events.Clear();
                 }
-            }
-            var colums = Runner.Columns;
-            for (int i = 1; i < colums.Length; i++)
-            {
-                if (this.SubItems[i].Text != colums[i])
-                    this.SubItems[i].Text = colums[i];
-            }
-            if (Client.GameClient.IsConnected == false)
-            {
-                this.ForeColor = Color.Gray;
-            }
-            else
-            {
-                this.ForeColor = Color.Black;
+                using (var list = CollectionObjectPool<string>.AllocList())
+                {
+                    this.Runner.PopLogs(list);
+                    foreach (var e in list)
+                    {
+                        Events.AppendLine(e);
+                    }
+                }
+                var colums = Runner.Columns;
+                for (int i = 1; i < colums.Length; i++)
+                {
+                    if (this.SubItems[i].Text != colums[i])
+                        this.SubItems[i].Text = colums[i];
+                }
+                if (Client.GameClient.IsConnected == false)
+                {
+                    this.ForeColor = Color.Gray;
+                }
+                else
+                {
+                    this.ForeColor = Color.Black;
+                }
             }
         }
 
