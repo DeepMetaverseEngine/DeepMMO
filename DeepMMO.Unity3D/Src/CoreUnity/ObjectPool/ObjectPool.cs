@@ -17,9 +17,9 @@ namespace CoreUnity.Cache
 
     public interface IObjectPoolControl
     {
+        int Count { get; }
         bool Enable { get; set; }
-        uint Capacity { get; set; }
-        bool AutoCapacity { get; set; }
+        int Capacity { get; set; }
         void Clear();
     }
 
@@ -36,19 +36,17 @@ namespace CoreUnity.Cache
 
     public abstract class ObjectPoolControl : IObjectPoolControl
     {
-        private uint mCapacity = DefaultCapacity;
+        private int mCapacity = DefaultCapacity;
 
         private bool mEnable = true;
-        private bool mAutoCapacity;
-
-        public const int DefaultCapacity = 50;
+        protected const int DefaultCapacity = 50;
 
         public abstract int Count { get; }
         protected abstract void RemoveOne();
 
         public bool Enable
         {
-            get => mEnable && (Capacity > 0 || AutoCapacity);
+            get => mEnable && Capacity > 0;
             set
             {
                 mEnable = value;
@@ -56,22 +54,12 @@ namespace CoreUnity.Cache
             }
         }
 
-        public uint Capacity
+        public int Capacity
         {
             get => mCapacity;
             set
             {
                 mCapacity = value;
-                EnsureCapacity();
-            }
-        }
-
-        public bool AutoCapacity
-        {
-            get => mAutoCapacity;
-            set
-            {
-                mAutoCapacity = value;
                 EnsureCapacity();
             }
         }
@@ -117,7 +105,7 @@ namespace CoreUnity.Cache
         private readonly LinkedList<object> mPool = new LinkedList<object>();
         public Type ObjectType { get; }
 
-        protected BaseObjectPool(Type t, uint capacity)
+        protected BaseObjectPool(Type t, int capacity)
         {
             ObjectType = t;
             Capacity = capacity;
@@ -148,6 +136,11 @@ namespace CoreUnity.Cache
 
         protected virtual bool CheckPutCache(object obj)
         {
+            if (!Enable)
+            {
+                return false;
+            }
+            
             if (obj is ICacheObject cacheObject)
             {
                 if (!cacheObject.BeforePutCache())
@@ -156,7 +149,7 @@ namespace CoreUnity.Cache
                 }
             }
 
-            return Enable;
+            return true;
         }
 
         protected virtual void RemoveObject(object obj)
@@ -196,11 +189,22 @@ namespace CoreUnity.Cache
         private readonly Action<object> mHit;
 
 
-        public ObjectPool(Type t, uint capacity = DefaultCapacity, Action<object> removeMethod = null, BeforePutDelegate beforePutMethod = null, Action<object> hitMethod = null) : base(t, capacity)
+        public ObjectPool(Type t, int capacity = DefaultCapacity, Action<object> removeMethod = null, BeforePutDelegate beforePutMethod = null, Action<object> hitMethod = null) : base(t, capacity)
         {
             mBeforePutMethod = beforePutMethod;
             mRemove = removeMethod;
             mHit = hitMethod;
+        }
+
+        public object GetOrCreate(Func<object> factory)
+        {
+            var ret = Get();
+            if (ret != null)
+            {
+                return ret;
+            }
+
+            return factory.Invoke();
         }
 
         protected override void HitCache(object obj)
@@ -229,7 +233,7 @@ namespace CoreUnity.Cache
         private readonly Action<T> mRemove;
         private readonly Action<T> mHit;
 
-        public ObjectPool(uint capacity = DefaultCapacity, Action<T> removeMethod = null, BeforePutDelegate beforePutMethod = null, Action<T> hitMethod = null) : base(typeof(T), capacity)
+        public ObjectPool(int capacity = DefaultCapacity, Action<T> removeMethod = null, BeforePutDelegate beforePutMethod = null, Action<T> hitMethod = null) : base(typeof(T), capacity)
         {
             mRemove = removeMethod;
             mHit = hitMethod;
@@ -245,6 +249,17 @@ namespace CoreUnity.Cache
             }
 
             return default(T);
+        }
+
+        public T GetOrCreate(Func<T> factory)
+        {
+            var ret = Get();
+            if (ret != null)
+            {
+                return ret;
+            }
+
+            return factory.Invoke();
         }
 
         protected override void HitCache(object obj)
@@ -282,7 +297,7 @@ namespace CoreUnity.Cache
 
         public Type ObjectType { get; }
 
-        protected BaseKeyObjectPool(Type keyType, Type objectType, uint capacity)
+        protected BaseKeyObjectPool(Type keyType, Type objectType, int capacity)
         {
             KeyType = keyType;
             ObjectType = objectType;
@@ -367,14 +382,13 @@ namespace CoreUnity.Cache
                 var item = new CacheItem {Key = key, Value = obj};
                 item.Node = new LinkedListNode<CacheItem>(item);
                 mPool.AddFirst(item.Node);
-                LinkedList<CacheItem> vlist;
-                if (!mKeyMap.TryGetValue(key, out vlist))
+                if (!mKeyMap.TryGetValue(key, out var vList))
                 {
-                    vlist = new LinkedList<CacheItem>();
-                    mKeyMap[key] = vlist;
+                    vList = new LinkedList<CacheItem>();
+                    mKeyMap[key] = vList;
                 }
 
-                vlist.AddFirst(item);
+                vList.AddFirst(item);
                 EnsureCapacity();
             }
         }
@@ -390,7 +404,7 @@ namespace CoreUnity.Cache
         private readonly Action<object, object> mHit;
 
 
-        public KeyObjectPool(Type tKey, Type tValue, uint capacity = DefaultCapacity,
+        public KeyObjectPool(Type tKey, Type tValue, int capacity = DefaultCapacity,
             Action<object, object> removeMethod = null,
             BeforePutDelegate beforePutMethod = null,
             Action<object, object> hitMethod = null) : base(tKey, tValue, capacity)
@@ -400,6 +414,17 @@ namespace CoreUnity.Cache
             mHit = hitMethod;
         }
 
+
+        public object GetOrCreate(object key, Func<object, object> factory)
+        {
+            var ret = Get(key);
+            if (ret != null)
+            {
+                return ret;
+            }
+
+            return factory.Invoke(key);
+        }
 
         protected override void HitCache(object key, object obj)
         {
@@ -421,7 +446,6 @@ namespace CoreUnity.Cache
 
     public class KeyObjectPool<TKey, TValue> : BaseKeyObjectPool
     {
-
         public delegate bool BeforePutDelegate(TKey key, TValue obj);
 
         private readonly BeforePutDelegate mBeforePutMethod;
@@ -430,7 +454,7 @@ namespace CoreUnity.Cache
         private readonly Action<TKey, TValue> mHit;
 
 
-        public KeyObjectPool(uint capacity = DefaultCapacity, Action<TKey, TValue> removeMethod = null,
+        public KeyObjectPool(int capacity = DefaultCapacity, Action<TKey, TValue> removeMethod = null,
             BeforePutDelegate beforePutMethod = null,
             Action<TKey, TValue> hitMethod = null) : base(typeof(TKey), typeof(TValue), capacity)
         {
@@ -442,6 +466,17 @@ namespace CoreUnity.Cache
         public void Put(TKey key, TValue value)
         {
             base.Put(key, value);
+        }
+
+        public TValue GetOrCreate(TKey key, Func<TKey, TValue> factory)
+        {
+            var ret = Get(key);
+            if (ret != null)
+            {
+                return ret;
+            }
+
+            return factory.Invoke(key);
         }
 
         public TValue Get(TKey key)

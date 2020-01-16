@@ -12,7 +12,7 @@ namespace CoreUnity.Asset
     {
         private IAssetImpl mImpl;
 
-        private KeyObjectPool<int, GameObject> mGameObjectCache;
+        private KeyObjectPool<int, GameObject> mGameObjectPool;
 
         private readonly Dictionary<int, int> mActiveGameObject = new Dictionary<int, int>();
 
@@ -21,23 +21,29 @@ namespace CoreUnity.Asset
             return mImpl.LoadScene(address, mode);
         }
 
+        public string GameObjectFileExtension => mImpl.GameObjectFileExtension;
         public bool IsInitialized => mImpl.Initialized;
 
-        private GameObject mCacheGameObject;
 
-        private GameObject CacheGameObject
+        public IObjectPoolControl GameObjectPool => mGameObjectPool;
+        public IObjectPoolControl BundlePool => mImpl.BundlePool;
+
+        private static GameObject sCacheGameObject;
+
+        [RuntimeInitializeOnLoadMethod]
+        static void Init()
         {
-            get
-            {
-                if (!mCacheGameObject)
-                {
-                    mCacheGameObject = new GameObject("AssetManagerCache");
-                    mCacheGameObject.SetActive(false);
-                    GameObject.DontDestroyOnLoad(mCacheGameObject);
-                }
-
-                return mCacheGameObject;
-            }
+            var obj = new GameObject("CoreUnity.Asset.AssetManager");
+            var statistics = obj.AddComponent<Statistics>();
+            //todo 修改为配置, 或删除此功能
+            statistics.destroyedToUnloadUnused = 1000;
+            GameObject.DontDestroyOnLoad(obj);
+#if UNITY_EDITOR
+            new AssetManagerDebug(obj);
+#endif
+            sCacheGameObject = new GameObject("CacheParent");
+            sCacheGameObject.transform.SetParent(obj.transform);
+            sCacheGameObject.SetActive(false);
         }
 
         public Scene LoadSceneImmediate(object address, LoadSceneMode mode)
@@ -50,16 +56,89 @@ namespace CoreUnity.Asset
             mImpl.UnloadScene(scene);
         }
 
+        private bool IsUnusedAssetsUnloading => mUnloadUnusedAssetsOperation != null && !mUnloadUnusedAssetsOperation.isDone;
+
+        private void WaitUnloadUnusedAssets(Action callBack)
+        {
+            mUnloadUnusedAssetsOperation.completed += operation => { callBack.Invoke(); };
+        }
+
+        public T LoadAssetImmediate<T>(object address) where T : Object
+        {
+            return mImpl.LoadAssetImmediate<T>(address);
+        }
+
+        public GameObject InstantiateImmediate(object address)
+        {
+            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
+            var hash = assetAddress.GetHashCode();
+            var cacheGameObject = GetGameObjectFromPool(hash);
+            if (cacheGameObject)
+            {
+                assetAddress.PreSetInstance(cacheGameObject);
+                assetAddress.Instantiate();
+                return cacheGameObject;
+            }
+
+            var go = mImpl.InstantiateImmediate(address);
+            OnLoadedGameObject(go, hash);
+            return go;
+        }
+
         public ResultAsyncOperation<T> LoadAsset<T>(object address) where T : Object
         {
-            return mImpl.LoadAsset<T>(address);
+            ResultAsyncOperation<T> ret;
+            if (IsUnusedAssetsUnloading)
+            {
+                ret = new ResultAsyncOperationDecorator<T>();
+                WaitUnloadUnusedAssets(() => { ((ResultAsyncOperationDecorator<T>) ret).SetSourceAsyncOperation(LoadAsset<T>(address)); });
+            }
+            else
+            {
+                ret = mImpl.LoadAsset<T>(address);
+            }
+
+            return ret;
+        }
+
+        public CollectionResultAsyncOperation<T> LoadAssets<T>(IList<object> addresses) where T : Object
+        {
+            CollectionResultAsyncOperation<T> ret;
+            if (IsUnusedAssetsUnloading)
+            {
+                ret = new CollectionResultAsyncOperation<T>();
+                WaitUnloadUnusedAssets(() => { ret.SetPreEnumerator(LoadAssets<T>(addresses).PreEnumerators); });
+            }
+            else
+            {
+                ret = mImpl.LoadAssets<T>(addresses);
+            }
+
+            return ret;
+        }
+
+        private GameObject GetGameObjectFromPool(int hash)
+        {
+            var cacheGameObject = mGameObjectPool.Get(hash);
+            if (cacheGameObject)
+            {
+                OnLoadedGameObject(cacheGameObject, hash);
+                return cacheGameObject;
+            }
+
+            return null;
+        }
+
+        private void OnLoadedGameObject(GameObject go, int hash)
+        {
+            mActiveGameObject.Add(go.GetInstanceID(), hash);
         }
 
         public ResultAsyncOperation<GameObject> Instantiate(object address)
         {
             var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
             var hash = assetAddress.GetHashCode();
-            var cacheGameObject = mGameObjectCache.Get(hash);
+            var cacheGameObject = GetGameObjectFromPool(hash);
             if (cacheGameObject)
             {
                 assetAddress.PreSetInstance(cacheGameObject);
@@ -67,19 +146,37 @@ namespace CoreUnity.Asset
                 return new ResultAsyncOperation<GameObject>(cacheGameObject);
             }
 
-            return mImpl.Instantiate(assetAddress).Subscribe(go =>
+            ResultAsyncOperation<GameObject> ret;
+            if (IsUnusedAssetsUnloading)
             {
-                if (go)
+                ret = new ResultAsyncOperation<GameObject>();
+                WaitUnloadUnusedAssets(() =>
                 {
-                    mActiveGameObject.Add(go.GetInstanceID(), assetAddress.GetHashCode());
-                }
-            });
+                    mImpl.Instantiate(assetAddress).Subscribe(go =>
+                    {
+                        if (go)
+                        {
+                            OnLoadedGameObject(go, hash);
+                        }
+
+                        ret.SetComplete(go);
+                    });
+                });
+            }
+            else
+            {
+                ret = mImpl.Instantiate(assetAddress).Subscribe(go =>
+                {
+                    if (go)
+                    {
+                        OnLoadedGameObject(go, hash);
+                    }
+                });
+            }
+
+            return ret;
         }
 
-        public CollectionResultAsyncOperation<T> LoadAssets<T>(IList<object> addresses) where T : Object
-        {
-            return mImpl.LoadAssets<T>(addresses);
-        }
 
         public CollectionResultAsyncOperation<GameObject> Instantiates(IList<object> addresses)
         {
@@ -87,73 +184,114 @@ namespace CoreUnity.Asset
             {
                 var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
                 var hash = assetAddress.GetHashCode();
-                var cacheGameObject = mGameObjectCache.Get(hash);
+                var cacheGameObject = mGameObjectPool.Get(hash);
                 if (cacheGameObject)
                 {
                     assetAddress.PreSetInstance(cacheGameObject);
                 }
             }
 
-            return mImpl.Instantiates(addresses);
-        }
-
-
-        public void ReleaseInstance(GameObject obj, bool recursive)
-        {
-            if (recursive)
+            CollectionResultAsyncOperation<GameObject> ret;
+            if (IsUnusedAssetsUnloading)
             {
-                var all = obj.GetComponentsInChildren<Transform>();
-                foreach (var t in all)
-                {
-                    var go = t.gameObject;
-                    ReleaseInstance(go);
-                }
+                ret = new CollectionResultAsyncOperation<GameObject>();
+                WaitUnloadUnusedAssets(() => { ret.SetPreEnumerator(mImpl.Instantiates(addresses).PreEnumerators); });
             }
             else
             {
-                ReleaseInstance(obj);
+                ret = mImpl.Instantiates(addresses);
+            }
+
+            return ret;
+        }
+
+        private AsyncOperation mUnloadUnusedAssetsOperation;
+
+        public void UnloadUnusedAssets()
+        {
+            if (mUnloadUnusedAssetsOperation == null || mUnloadUnusedAssetsOperation.isDone)
+            {
+                Debug.Log("[AssetManager.UnloadUnusedAssets] starting");
+                mUnloadUnusedAssetsOperation = Resources.UnloadUnusedAssets();
             }
         }
 
-        public bool ReleaseInstance(GameObject obj)
+        public bool ReleaseInstance(GameObject obj, bool destroy)
         {
             if (!mActiveGameObject.TryGetValue(obj.GetInstanceID(), out var hash))
             {
+                Debug.LogWarning("ReleaseInstance not success: " + obj);
                 return false;
             }
 
-            mActiveGameObject.Remove(obj.GetInstanceID());
-            obj.transform.SetParent(CacheGameObject.transform);
-            mGameObjectCache.Put(hash, obj);
+            if (IsUnusedAssetsUnloading)
+            {
+                WaitUnloadUnusedAssets(() => { ReleaseInstance(obj, destroy); });
+            }
+            else
+            {
+                if (!destroy)
+                {
+                    mActiveGameObject.Remove(obj.GetInstanceID());
+                    obj.transform.SetParent(sCacheGameObject.transform);
+                    mGameObjectPool.Put(hash, obj);
+                }
+                else
+                {
+                    RemoveGameObject(hash, obj);
+                }
+            }
+
             return true;
         }
 
-        public void DestroyInstance(GameObject obj)
-        {
-            ReleaseInstance(obj, true);
-            Object.Destroy(obj);
-        }
 
         public void Release(Object asset)
         {
-            mImpl.Release(asset);
+            if (IsUnusedAssetsUnloading)
+            {
+                WaitUnloadUnusedAssets(() => { Release(asset); });
+            }
+            else
+            {
+                mImpl.Release(asset);
+            }
+        }
+
+        private void RemoveGameObject(int hash, GameObject go)
+        {
+            if (!mImpl.ReleaseInstance(go))
+            {
+                Debug.LogWarning("RemoveGameObject not success: " + go);
+                Object.Destroy(go);
+            }
+
+            Statistics.Instance.destroyed++;
         }
 
         public BaseAsyncOperation Initialize<T>(AssetManagerParam param) where T : IAssetImpl, new()
         {
             mImpl?.Dispose();
             mImpl = new T();
-            if (mGameObjectCache == null)
+            if (mGameObjectPool == null)
             {
-                mGameObjectCache = new KeyObjectPool<int, GameObject>((uint) param.InstanceCacheCapacity, RemoveGameObject);
+                mGameObjectPool = new KeyObjectPool<int, GameObject>(param.InstanceCacheCapacity, RemoveGameObject, OnBeforePutGameObject, OnHitGameObject);
+            }
+            else
+            {
+                mGameObjectPool.Capacity = param.InstanceCacheCapacity;
             }
 
             return mImpl.Initialize(param);
         }
 
-        private void RemoveGameObject(int hash, GameObject go)
+        private void OnHitGameObject(int key, GameObject obj)
         {
-            mImpl.ReleaseInstance(go);
+        }
+
+        private bool OnBeforePutGameObject(int key, GameObject obj)
+        {
+            return true;
         }
     }
 
@@ -189,6 +327,23 @@ namespace CoreUnity.Asset
             return sAssetManager.Instantiates(address);
         }
 
+        public static T LoadAssetImmediate<T>(object address) where T : Object
+        {
+            return sAssetManager.LoadAssetImmediate<T>(address);
+        }
+
+        public static GameObject InstantiateImmediate(object address)
+        {
+            return sAssetManager.InstantiateImmediate(address);
+        }
+
+        public static GameObject InstantiateImmediate(object address, Vector3 position, Quaternion rotation, Transform parent = null)
+        {
+            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
+            assetAddress.Parameters = new InstantiationParameters(position, rotation, parent);
+            return InstantiateImmediate(assetAddress);
+        }
+
         public static ResultAsyncOperation<T> LoadAsset<T>(object address) where T : Object
         {
             return sAssetManager.LoadAsset<T>(address);
@@ -196,7 +351,7 @@ namespace CoreUnity.Asset
 
         public static void LoadAsset<T>(object address, Action<T> cb) where T : Object
         {
-            sAssetManager.LoadAsset<T>(address).Subscribe(cb);
+            LoadAsset<T>(address).Subscribe(cb);
         }
 
         public static ResultAsyncOperation<GameObject> Instantiate(object address)
@@ -240,8 +395,10 @@ namespace CoreUnity.Asset
 
         public static bool ReleaseInstance(GameObject obj)
         {
-            return sAssetManager.ReleaseInstance(obj);
+            return sAssetManager.ReleaseInstance(obj, false);
         }
+
+        public static void DestroyInstance(GameObject obj) => sAssetManager.ReleaseInstance(obj, true);
 
         public static void Release(Object asset)
         {
@@ -252,5 +409,14 @@ namespace CoreUnity.Asset
         {
             return sAssetManager.Initialize<T>(param);
         }
+
+        public static void UnloadUnusedAssets()
+        {
+            sAssetManager.UnloadUnusedAssets();
+        }
+
+        public static IObjectPoolControl GameObjectPool => sAssetManager.GameObjectPool;
+        public static IObjectPoolControl BundlePool => sAssetManager.BundlePool;
+        public static string GameObjectFileExtension => sAssetManager.GameObjectFileExtension;
     }
 }

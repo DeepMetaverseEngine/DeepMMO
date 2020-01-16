@@ -9,6 +9,13 @@ using System.Collections.Generic;
 
 namespace CoreUnity.Async
 {
+    public enum ResultOption
+    {
+        Auto,
+        Succeeded,
+        Failed,
+    }
+
     public class BaseAsyncOperation : IEnumerator
     {
         public bool IsDone => Status != OperationStatus.None;
@@ -125,43 +132,88 @@ namespace CoreUnity.Async
 
     public class DecoratorAsyncOperation : BaseAsyncOperation
     {
-        private readonly IEnumerable<IEnumerator> mPreEnumerators;
+        public IEnumerable<IEnumerator> PreEnumerators { get; private set; }
 
         public DecoratorAsyncOperation(params IEnumerator[] preEnumerators)
         {
-            mPreEnumerators = preEnumerators;
+            SetPreEnumerator(preEnumerators);
         }
 
         public DecoratorAsyncOperation(IEnumerable<IEnumerator> preEnumerators)
         {
-            mPreEnumerators = preEnumerators;
+            SetPreEnumerator(preEnumerators);
+        }
+
+        public DecoratorAsyncOperation()
+        {
+        }
+
+        public void SetPreEnumerator(IEnumerable<IEnumerator> preEnumerators)
+        {
+            PreEnumerators = preEnumerators;
+        }
+
+        public void SetPreEnumerator(params IEnumerator[] preEnumerators)
+        {
+            PreEnumerators = preEnumerators;
         }
 
         public IEnumerable<TEnumerator> CastTo<TEnumerator>() where TEnumerator : IEnumerator
         {
-            return mPreEnumerators.Cast<TEnumerator>();
+            return PreEnumerators.Cast<TEnumerator>();
         }
 
         protected override void Execute()
         {
             base.Execute();
-            if (mPreEnumerators.All(e => !e.MoveNext()))
+            if (PreEnumerators != null && PreEnumerators.All(e => !e.MoveNext()))
             {
                 SetComplete(true);
             }
         }
     }
 
+
     public class CollectionResultAsyncOperation<TV> : DecoratorAsyncOperation
     {
         public TV[] Result => CastTo<ResultAsyncOperation<TV>>().Select(e => e.Result).ToArray();
 
-        public CollectionResultAsyncOperation(params CollectionResultAsyncOperation<TV>[] preEnumerators) : base(preEnumerators)
+        public CollectionResultAsyncOperation(params ResultAsyncOperation<TV>[] preEnumerators) : base(preEnumerators)
         {
         }
 
         public CollectionResultAsyncOperation(IEnumerable<ResultAsyncOperation<TV>> preEnumerators) : base(preEnumerators)
         {
+        }
+
+        public CollectionResultAsyncOperation()
+        {
+        }
+
+
+        private Action<TV[]> mCompleted;
+        private Action<CollectionResultAsyncOperation<TV>> mCompletedFullType;
+
+        protected override void InvokeCompleteEvent()
+        {
+            base.InvokeCompleteEvent();
+            mCompleted?.Invoke(Result);
+            mCompletedFullType?.Invoke(this);
+        }
+        
+        
+        public CollectionResultAsyncOperation<TV> Subscribe(Action<TV[]> cb)
+        {
+            if (IsDone)
+            {
+                cb.Invoke(Result);
+            }
+            else
+            {
+                mCompleted += cb;
+            }
+
+            return this;
         }
 
         public new Task<TV[]> Task
@@ -245,9 +297,37 @@ namespace CoreUnity.Async
         }
     }
 
+    public class ResultAsyncOperationDecorator<TV> : ResultAsyncOperation<TV>
+    {
+        private ResultAsyncOperation<TV> mSource;
+
+        public ResultAsyncOperationDecorator()
+        {
+        }
+
+        public ResultAsyncOperationDecorator(ResultAsyncOperation<TV> op)
+        {
+            SetSourceAsyncOperation(op);
+        }
+
+        protected override void Execute()
+        {
+            base.Execute();
+            if (mSource != null && mSource.IsDone)
+            {
+                SetComplete(mSource.Result);
+            }
+        }
+
+        public void SetSourceAsyncOperation(ResultAsyncOperation<TV> op)
+        {
+            mSource = op;
+        }
+    }
+
     public class ResultAsyncOperation<TV> : BaseAsyncOperation
     {
-        public TV Result { get; protected set; }
+        public TV Result { get; private set; }
         private Action<TV> mCompleted;
         private Action<ResultAsyncOperation<TV>> mCompletedFullType;
 
@@ -265,11 +345,6 @@ namespace CoreUnity.Async
             return this;
         }
 
-        public static ResultAsyncOperation<TV> FromResult(TV result)
-        {
-            return new ResultAsyncOperation<TV>(result);
-        }
-
         public ResultAsyncOperation<TV> Subscribe(Action<ResultAsyncOperation<TV>> cb)
         {
             if (IsDone)
@@ -282,6 +357,11 @@ namespace CoreUnity.Async
             }
 
             return this;
+        }
+
+        public static ResultAsyncOperation<TV> FromResult(TV result)
+        {
+            return new ResultAsyncOperation<TV>(result);
         }
 
 
@@ -297,12 +377,6 @@ namespace CoreUnity.Async
             SetComplete(obj);
         }
 
-        public enum ResultOption
-        {
-            Auto,
-            Succeeded,
-            Failed,
-        }
 
         public ResultAsyncOperation(Action<Action<TV>> callToAction)
         {

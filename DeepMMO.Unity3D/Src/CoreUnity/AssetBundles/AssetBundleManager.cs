@@ -159,7 +159,7 @@ namespace CoreUnity.AssetBundles
             public bool UnloadAllLoadedObjects;
         }
 
-        private KeyObjectPool<string, CachedAssetBundle> mCachedBundles;
+        private KeyObjectPool<string, CachedAssetBundle> mCachedPool;
 
         private void OnRemoveCachedBundle(string key, CachedAssetBundle cache)
         {
@@ -168,16 +168,13 @@ namespace CoreUnity.AssetBundles
 
         public bool EnablePlatformBundlePath { get; }
 
-        public AssetBundleManager(bool platformBundlePath, bool useLowerCasePlatform, uint cacheCapacity = 50)
+        public IObjectPoolControl BundlePool => mCachedPool;
+
+        public AssetBundleManager(bool platformBundlePath, bool useLowerCasePlatform, int cacheCapacity = 50)
         {
             PlatformName = GetPlatformName(useLowerCasePlatform);
             EnablePlatformBundlePath = platformBundlePath;
-            mCachedBundles = new KeyObjectPool<string, CachedAssetBundle>(cacheCapacity, OnRemoveCachedBundle);
-        }
-
-        public void SetCacheCapacity(uint capacity)
-        {
-            mCachedBundles.Capacity = capacity;
+            mCachedPool = new KeyObjectPool<string, CachedAssetBundle>(cacheCapacity, OnRemoveCachedBundle);
         }
 
         public void SetHandler(ICommandHandler<AssetBundleCommand> handler)
@@ -511,7 +508,11 @@ namespace CoreUnity.AssetBundles
 
         public Scene LoadSceneImmediate(string address, LoadSceneMode mode)
         {
-            GetBundleImmediate(address);
+            var ab = GetBundleImmediate(address);
+			if(ab == null)
+			{
+				return new Scene();
+			}
             var sceneName = Path.GetFileNameWithoutExtension(address);
             SceneManager.LoadScene(sceneName, mode);
             return SceneManager.GetSceneByName(sceneName);
@@ -519,7 +520,7 @@ namespace CoreUnity.AssetBundles
 
         private void HandleCommand(AssetBundleCommand mainBundle)
         {
-            var ab = mCachedBundles.Get(mainBundle.BundleName);
+            var ab = mCachedPool.Get(mainBundle.BundleName);
             if (ab != null)
             {
                 mainBundle.OnComplete?.Invoke(ab.Bundle);
@@ -780,7 +781,7 @@ namespace CoreUnity.AssetBundles
                 }
             }
 
-            mCachedBundles.Clear();
+            mCachedPool.Clear();
             activeBundles.Clear();
         }
 
@@ -838,7 +839,7 @@ namespace CoreUnity.AssetBundles
             {
                 if (cache.AssetBundle != null)
                 {
-                    mCachedBundles.Put(bundleName, new CachedAssetBundle {Bundle = cache.AssetBundle, UnloadAllLoadedObjects = unloadAllLoadedObjects});
+                    mCachedPool.Put(bundleName, new CachedAssetBundle {Bundle = cache.AssetBundle, UnloadAllLoadedObjects = unloadAllLoadedObjects});
                     //cache.AssetBundle.Unload(unloadAllLoadedObjects);
                 }
 

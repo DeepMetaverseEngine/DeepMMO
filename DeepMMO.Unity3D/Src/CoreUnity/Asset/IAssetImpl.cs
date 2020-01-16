@@ -1,8 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using CoreUnity.AssetBundles;
 using CoreUnity.Async;
+using CoreUnity.Cache;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
@@ -13,11 +15,16 @@ namespace CoreUnity.Asset
     {
         public int References = 1;
 
-        public AssetAddress AssetPath { get; }
+        public AssetAddress Address { get; }
 
         public ReferencesContainer(AssetAddress assetPath)
         {
-            AssetPath = assetPath;
+            Address = assetPath;
+        }
+
+        public override int GetHashCode()
+        {
+            return Address.GetHashCode();
         }
     }
 
@@ -54,7 +61,12 @@ namespace CoreUnity.Asset
                 return assetAddress;
             }
 
-            return (T) address.ToString();
+            if (typeof(InstantiationAssetAddress).IsAssignableFrom(typeof(T)))
+            {
+                return new InstantiationAssetAddress(address.ToString()) as T;
+            }
+
+            throw new ArgumentException();
         }
 
         public override int GetHashCode()
@@ -73,7 +85,7 @@ namespace CoreUnity.Asset
             return address.Address;
         }
 
-        public AssetAddress(string address, string key)
+        public AssetAddress(string address, string key = null)
         {
             Address = address;
             Key = key;
@@ -262,8 +274,12 @@ namespace CoreUnity.Asset
                 }
                 else
                 {
-                    Parameters.Reset(Instance);
+                    return null;
                 }
+            }
+            else
+            {
+                Parameters.Reset(Instance);
             }
 
             if (Parts != null && Instance != null)
@@ -287,16 +303,15 @@ namespace CoreUnity.Asset
             Parameters = parameters;
         }
 
-        public static explicit operator InstantiationAssetAddress(string address)
+        public InstantiationAssetAddress(string address) : this(address, new InstantiationParameters())
         {
-            return new InstantiationAssetAddress(address, new InstantiationParameters());
         }
     }
 
     public class AssetManagerParam
     {
         public int BundleCacheCapacity;
-        public int InstanceCacheCapacity = 0;
+        public int InstanceCacheCapacity = 100;
         public string PrefixScenePath;
         public string BaseUrl;
     }
@@ -309,7 +324,16 @@ namespace CoreUnity.Asset
     }
 
 
-    public interface IAssetImpl : IDisposable
+    public interface IAssetImplInstantiate
+    {
+        GameObject InstantiateImmediate(object address);
+        ResultAsyncOperation<GameObject> Instantiate(object address);
+        CollectionResultAsyncOperation<GameObject> Instantiates(IList<object> addresses);
+    
+        bool ReleaseInstance(GameObject obj);
+    }
+
+    public interface IAssetImpl : IDisposable, IAssetImplInstantiate
     {
         /// <summary>
         /// load scene
@@ -328,18 +352,19 @@ namespace CoreUnity.Asset
         /// <param name="key">can be null</param>
         /// <typeparam name="T"></typeparam>
         ResultAsyncOperation<T> LoadAsset<T>(object address) where T : Object;
-
-        ResultAsyncOperation<GameObject> Instantiate(object address);
+        
+        T LoadAssetImmediate<T>(object address) where T : Object;
 
         CollectionResultAsyncOperation<T> LoadAssets<T>(IList<object> address) where T : Object;
 
-        CollectionResultAsyncOperation<GameObject> Instantiates(IList<object> addresses);
-
-        bool ReleaseInstance(GameObject obj);
 
         void Release(Object asset);
 
         BaseAsyncOperation Initialize(AssetManagerParam param);
         bool Initialized { get; }
+
+        string GameObjectFileExtension { get; }
+
+        IObjectPoolControl BundlePool { get; }
     }
 }

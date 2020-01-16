@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using CoreUnity.AssetBundles;
 using CoreUnity.Async;
+using CoreUnity.Cache;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
@@ -17,7 +18,7 @@ namespace CoreUnity.Asset
             public readonly UnityEngine.Object Asset;
             public readonly AssetBundle Bundle;
 
-            public AssetContainer(LoadingContainer container, UnityEngine.Object asset) : base(container.AssetPath)
+            public AssetContainer(LoadingContainer container, Object asset) : base(container.Address)
             {
                 References = container.References;
                 Bundle = container.Bundle;
@@ -25,13 +26,32 @@ namespace CoreUnity.Asset
             }
         }
 
+        internal class AssetContainer<T> : AssetContainer
+        {
+            public readonly ResultAsyncOperation<T> Operation;
+
+            public AssetContainer(LoadingContainer container, Object asset, ResultAsyncOperation<T> operation) : base(container, asset)
+            {
+                Operation = operation;
+            }
+        }
+
         internal class LoadingContainer : ReferencesContainer
         {
-            public Action<UnityEngine.Object> OnComplete;
             public AssetBundle Bundle;
 
             public LoadingContainer(AssetAddress assetPath) : base(assetPath)
             {
+            }
+        }
+
+        internal class LoadingContainer<T> : LoadingContainer
+        {
+            public readonly ResultAsyncOperation<T> Operation;
+
+            public LoadingContainer(AssetAddress assetPath, ResultAsyncOperation<T> operation) : base(assetPath)
+            {
+                Operation = operation;
             }
         }
 
@@ -41,11 +61,16 @@ namespace CoreUnity.Asset
         private readonly Dictionary<int, int> mGameObjectsHash = new Dictionary<int, int>();
         private AssetBundleManager mAbm;
 
-        private void OnLoadAssetComplete(LoadingContainer con, UnityEngine.Object obj)
+        private void OnLoadAssetComplete<T>(LoadingContainer<T> con, Object obj) where T : Object
         {
             var hash = con.GetHashCode();
+            if (!mLoadingAssets.Remove(hash))
+            {
+                throw new SystemException("what ?");
+            }
+
             mLoadingAssets.Remove(hash);
-            var assetContainer = new AssetContainer(con, obj);
+            var assetContainer = new AssetContainer<T>(con, obj, con.Operation);
             if (obj)
             {
                 mAssets.Add(hash, assetContainer);
@@ -56,10 +81,10 @@ namespace CoreUnity.Asset
                 mAbm.UnloadBundle(con.Bundle);
             }
 
-            con.OnComplete?.Invoke(obj);
+            assetContainer.Operation.SetComplete((T) obj);
         }
 
-        private void OnAssetBundleComplete<T>(LoadingContainer loadingContainer, AssetBundle bundle)
+        private void OnAssetBundleComplete<T>(LoadingContainer<T> loadingContainer, AssetBundle bundle) where T : Object
         {
             loadingContainer.Bundle = bundle;
             if (bundle == null)
@@ -68,14 +93,21 @@ namespace CoreUnity.Asset
             }
             else
             {
-                var key = loadingContainer.AssetPath.Key;
+                var key = loadingContainer.Address.Key;
                 if (string.IsNullOrEmpty(key))
                 {
-                    key = ConvertToAssetKey(loadingContainer.AssetPath.Address);
+                    key = ConvertToAssetKey<T>(loadingContainer.Address.Address);
                 }
 
                 var rq = bundle.LoadAssetAsync<T>(key);
-                rq.completed += operation => { OnLoadAssetComplete(loadingContainer, rq.asset); };
+                if (rq.isDone)
+                {
+                    OnLoadAssetComplete(loadingContainer, rq.asset);
+                }
+                else
+                {
+                    rq.completed += operation => { OnLoadAssetComplete(loadingContainer, rq.asset); };
+                }
             }
         }
 
@@ -118,34 +150,78 @@ namespace CoreUnity.Asset
         {
             var assetAddress = AssetAddress.EvaluateAddress(address);
             var hash = assetAddress.GetHashCode();
-            var ret = new ResultAsyncOperation<T>();
             if (mAssets.TryGetValue(hash, out var container))
             {
                 container.References++;
-                ret.SetComplete(container.Asset as T);
+                return ((AssetContainer<T>) container).Operation;
+            }
+
+
+            if (mLoadingAssets.TryGetValue(hash, out var loadingContainer))
+            {
+                loadingContainer.References++;
+                return ((LoadingContainer<T>) loadingContainer).Operation;
+            }
+
+            var lCon = new LoadingContainer<T>(assetAddress, new ResultAsyncOperation<T>());
+            mLoadingAssets.Add(hash, lCon);
+            mAbm.GetBundle(assetAddress.Address, bundle => { OnAssetBundleComplete<T>(lCon, bundle); });
+            return lCon.Operation;
+        }
+
+        public T LoadAssetImmediate<T>(object address) where T : Object
+        {
+            var assetAddress = AssetAddress.EvaluateAddress(address);
+            var hash = assetAddress.GetHashCode();
+            if (mAssets.TryGetValue(hash, out var container))
+            {
+                container.References++;
+                return (T) container.Asset;
+            }
+
+            if (mLoadingAssets.TryGetValue(hash, out var loadingContainer))
+            {
+                loadingContainer.References++;
             }
             else
             {
-                void InvokeCompleted(Object asset)
-                {
-                    ret.SetComplete(asset as T);
-                }
-
-                if (mLoadingAssets.TryGetValue(hash, out var loadingContainer))
-                {
-                    loadingContainer.References++;
-                    loadingContainer.OnComplete += InvokeCompleted;
-                }
-                else
-                {
-                    loadingContainer = new LoadingContainer(assetAddress);
-                    loadingContainer.OnComplete += InvokeCompleted;
-                    mLoadingAssets.Add(hash, loadingContainer);
-                    mAbm.GetBundle(assetAddress.Address, bundle => { OnAssetBundleComplete<T>(loadingContainer, bundle); });
-                }
+                loadingContainer = new LoadingContainer<T>(assetAddress, new ResultAsyncOperation<T>());
             }
 
-            return ret;
+            var bundle = mAbm.GetBundleImmediate(assetAddress.Address);
+            loadingContainer.Bundle = bundle;
+
+            if (bundle == null)
+            {
+                OnLoadAssetComplete<T>((LoadingContainer<T>) loadingContainer, null);
+                return null;
+            }
+            else
+            {
+                var key = loadingContainer.Address.Key;
+                if (string.IsNullOrEmpty(key))
+                {
+                    key = ConvertToAssetKey<T>(loadingContainer.Address.Address);
+                }
+
+                var asset = bundle.LoadAsset<T>(key);
+                OnLoadAssetComplete<T>((LoadingContainer<T>) loadingContainer, asset);
+                return asset;
+            }
+        }
+
+        public GameObject InstantiateImmediate(object address)
+        {
+            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
+            var asset = LoadAssetImmediate<GameObject>(address);
+            assetAddress.PreSetAsset(asset);
+            var obj = assetAddress.Instantiate();
+            if (obj)
+            {
+                mGameObjectsHash.Add(obj.GetInstanceID(), address.GetHashCode());
+            }
+
+            return obj;
         }
 
         public ResultAsyncOperation<GameObject> Instantiate(object address)
@@ -167,11 +243,12 @@ namespace CoreUnity.Asset
                         var asset = ao.Result;
                         assetAddress.PreSetAsset(asset);
                         var obj = assetAddress.Instantiate();
-                        ret.SetComplete(obj);
                         if (obj)
                         {
                             mGameObjectsHash.Add(obj.GetInstanceID(), address.GetHashCode());
                         }
+
+                        ret.SetComplete(obj);
                     });
                 }
             }
@@ -257,7 +334,7 @@ namespace CoreUnity.Asset
             mAbm?.Dispose();
 
             var p = param as ABAssetManagerParam;
-            mAbm = new AssetBundleManager(p.PlatformBundlePath, p.UseLowerCasePlatform, (uint) p.BundleCacheCapacity);
+            mAbm = new AssetBundleManager(p.PlatformBundlePath, p.UseLowerCasePlatform, p.BundleCacheCapacity);
             mAbm.SetHandler(p.Handler);
             mAbm.SetBaseUri(p.BaseUrl);
             ScenePrefix = p.PrefixScenePath;
@@ -270,6 +347,10 @@ namespace CoreUnity.Asset
 
         public bool Initialized => mAbm?.Initialized ?? false;
 
+        public string GameObjectFileExtension => ".assetbundles";
+
+        public IObjectPoolControl BundlePool => mAbm.BundlePool;
+
         public string ScenePrefix { get; private set; }
 
         protected virtual string ConvertToSceneAddress(string sceneName)
@@ -277,9 +358,15 @@ namespace CoreUnity.Asset
             return $"{ScenePrefix}{sceneName}.unity3d";
         }
 
-        protected virtual string ConvertToAssetKey(string address)
+        protected virtual string ConvertToAssetKey<T>(string address) where T : Object
         {
-            return Path.GetFileNameWithoutExtension(address);
+            var ret = Path.GetFileNameWithoutExtension(address);
+            if (typeof(GameObject).IsAssignableFrom(typeof(T)))
+            {
+                ret += ".prefab";
+            }
+
+            return ret;
         }
 
         public void Dispose()

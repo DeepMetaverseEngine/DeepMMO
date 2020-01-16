@@ -1,9 +1,10 @@
 // #define UNITY_EDITOR
+
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using CoreUnity.Async;
+using CoreUnity.Cache;
 #if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
@@ -38,13 +39,41 @@ namespace CoreUnity.Asset
         public ResultAsyncOperation<T> LoadAsset<T>(object address) where T : Object
         {
             var assetAddress = AssetAddress.EvaluateAddress(address);
-            var asset = AssetDatabase.LoadAssetAtPath<T>(Prefix + assetAddress.Address);
+            var asset = AssetDatabase.LoadAssetAtPath<T>(FixAddress(assetAddress.Address));
             return new ResultAsyncOperation<T>(asset);
+        }
+
+        public T LoadAssetImmediate<T>(object address) where T : Object
+        {
+            var assetAddress = AssetAddress.EvaluateAddress(address);
+            var asset = AssetDatabase.LoadAssetAtPath<T>(FixAddress(assetAddress.Address));
+            return asset;
+        }
+
+        public GameObject InstantiateImmediate(object address)
+        {
+            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
+            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(FixAddress(assetAddress.Address));
+            assetAddress.PreSetAsset(asset);
+            return assetAddress.Instantiate();
         }
 
         public ResultAsyncOperation<GameObject> Instantiate(object address)
         {
-            throw new NotImplementedException();
+            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
+            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(FixAddress(assetAddress.Address));
+            assetAddress.PreSetAsset(asset);
+            return new ResultAsyncOperation<GameObject>(assetAddress.Instantiate());
+        }
+
+        private string FixAddress(string assetPath)
+        {
+            if (!assetPath.StartsWith(Prefix))
+            {
+                assetPath = Prefix + assetPath;
+            }
+
+            return assetPath;
         }
 
         public CollectionResultAsyncOperation<T> LoadAssets<T>(IList<object> address) where T : Object
@@ -57,12 +86,6 @@ namespace CoreUnity.Asset
             throw new NotImplementedException();
         }
 
-        public ResultAsyncOperation<GameObject> Instantiate(object address, Transform parent, bool worldPositionStays)
-        {
-            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(Prefix + address);
-            var obj = Object.Instantiate(asset, parent, worldPositionStays);
-            return new ResultAsyncOperation<GameObject>(obj);
-        }
 
         public bool ReleaseInstance(GameObject obj)
         {
@@ -89,6 +112,10 @@ namespace CoreUnity.Asset
 
 
         public bool Initialized => true;
+
+        public string GameObjectFileExtension => ".prefab";
+
+        public IObjectPoolControl BundlePool => null;
 
         public string Prefix { get; private set; }
 

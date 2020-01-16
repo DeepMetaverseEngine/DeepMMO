@@ -38,8 +38,7 @@ namespace CoreUnity.Cache
 
         public IObjectPool GetObjectPool(Type t)
         {
-            IObjectPool obj;
-            if (!mPools.TryGetValue(t, out obj))
+            if (!mPools.TryGetValue(t, out var obj))
             {
                 obj = CreateObjectPool(t);
                 RegisterObjectPool(t, obj);
@@ -99,8 +98,7 @@ namespace CoreUnity.Cache
 
         public IKeyObjectPool GetObjectPool(Type tKey, Type tValue)
         {
-            IKeyObjectPool obj;
-            if (!mKeyValuePools.TryGetValue(new KeyValueType(tKey, tValue), out obj))
+            if (!mKeyValuePools.TryGetValue(new KeyValueType(tKey, tValue), out var obj))
             {
                 obj = CreateObjectPool(tKey, tValue);
                 RegisterObjectPool(tKey, tValue, obj);
