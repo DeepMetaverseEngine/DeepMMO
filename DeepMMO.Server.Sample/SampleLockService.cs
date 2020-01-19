@@ -34,13 +34,6 @@ namespace CommonRPG.Server.Sample
         }
         protected override async Task OnStartAsync()
         {
-            //共享内存, 写入当前服务启动时间戳
-            var dict = this.SharedMemory.GetDictionary<DateTime>("ServiceStartDateTime");
-            dict[SelfAddress.ServiceName] = DateTime.Now;
-            
-            // 读取指定服务启动时间戳
-            dict.TryGetValue("FuckService", out DateTime startingTime);
-            
             //创建异步锁（内存）
             this.coinLocker = Provider.CreateLock();
             //获得消耗者
