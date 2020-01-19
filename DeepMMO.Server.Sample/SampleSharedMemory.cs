@@ -12,7 +12,10 @@ namespace DeepMMO.Server.Sample
         protected override void OnDisposed() { }
         protected override Task OnStartAsync()
         {
-            //共享内存, 写入当前服务启动时间戳
+            //服务A，往共享内存内写入数据
+            //共享内存工作机制：
+            //1、向当前进程内写入数据
+            //2、广播给整个集群，每个节点会自动同步写入操作，但不是实时的。
             var dict = this.SharedMemory.GetDictionary<DateTime>("ServiceStartDateTime");
             dict[SelfAddress.ServiceName] = DateTime.Now;
             return Task.CompletedTask;
@@ -29,9 +32,9 @@ namespace DeepMMO.Server.Sample
         protected override void OnDisposed() { }
         protected override Task OnStartAsync()
         {
-            //共享内存, 写入当前服务启动时间戳
+            //服务B，从共享内存里读取数据
+            //服务B当前获取的可能不是最新的数据。
             var dict = this.SharedMemory.GetDictionary<DateTime>("ServiceStartDateTime");
-            // 读取指定服务启动时间戳
             dict.TryGetValue("FuckService", out DateTime startingTime);
             return Task.CompletedTask;
         }
