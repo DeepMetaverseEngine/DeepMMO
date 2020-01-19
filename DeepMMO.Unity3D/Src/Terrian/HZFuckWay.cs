@@ -479,6 +479,32 @@ namespace DeepMMO.Unity3D.Terrain
             return false;
         }
 
+        private void FixMove(ref Vector2 srcpos,Vector2 targetpos,float length)
+        {
+            float nextdistance = Vector2.Distance(srcpos, targetpos);
+            if (MathVector3D.moveTo(ref srcpos, targetpos, length))
+            {
+                if ((nextdistance <= length || nextdistance <= 0.1f)
+                    && mNavPathPoints != null && mNavPathPoints.Count > 0)
+                {
+                    mNavPathPoints.RemoveAt(0);
+                    if (mNavPathPoints.Count == 0)
+                    {
+                        if (!b_hasTransport)
+                        {
+                            mFinish = true;
+                            Stop();
+                        }
+                        Owner.SendUnitAxisAngle(0, 0, cur_dir);
+                        return;
+                    }
+
+                    targetpos = Get3DTo2DZonePostion(mNavPathPoints[0]);
+                    FixMove(ref srcpos, targetpos, length - nextdistance);
+
+                }
+            }
+        }
         protected override void BeginUpdate(int intervalMS)
         {
             cur_dir = Owner.Direction;
@@ -528,30 +554,31 @@ namespace DeepMMO.Unity3D.Terrain
                     return;
                 }
 
-                if (MathVector3D.moveTo(ref curpos2d, nextpos2d, length))
-                {
-                    if ((nextdistance <= length || Vector2.Distance(curpos2d, nextpos2d) <= 0.1f)
-                        && mNavPathPoints != null && mNavPathPoints.Count > 0)
-                    {
-                        mNavPathPoints.RemoveAt(0);
-                        if (mNavPathPoints.Count == 0)
-                        {
-                            if (!b_hasTransport)
-                            {
-                                mFinish = true;
-                                Stop();
-                            }
-                            Owner.SendUnitAxisAngle(0, 0, cur_dir);
-                            return;
-                        }
-
-                        nextpos = mNavPathPoints[0];
-                        nextpos2d = Get3DTo2DZonePostion(nextpos);
-                        MathVector3D.moveTo(ref curpos2d, nextpos2d, length - nextdistance);
-                        //Debug.Log("curpos2d========"+curpos2d +" nextpos========"+nextpos);
-
-                    }
-                }
+                FixMove(ref curpos2d, nextpos2d, length);
+//                if (MathVector3D.moveTo(ref curpos2d, nextpos2d, length))
+//                {
+//                    if ((nextdistance <= length || Vector2.Distance(curpos2d, nextpos2d) <= 0.1f)
+//                        && mNavPathPoints != null && mNavPathPoints.Count > 0)
+//                    {
+//                        mNavPathPoints.RemoveAt(0);
+//                        if (mNavPathPoints.Count == 0)
+//                        {
+//                            if (!b_hasTransport)
+//                            {
+//                                mFinish = true;
+//                                Stop();
+//                            }
+//                            Owner.SendUnitAxisAngle(0, 0, cur_dir);
+//                            return;
+//                        }
+//
+//                        nextpos = mNavPathPoints[0];
+//                        nextpos2d = Get3DTo2DZonePostion(nextpos);
+//                        MathVector3D.moveTo(ref curpos2d, nextpos2d, length - nextdistance);
+//                        //Debug.Log("curpos2d========"+curpos2d +" nextpos========"+nextpos);
+//
+//                    }
+//                }
 
                 //Debug.Log("cur_pos3========"+curpos2d );
                 var pos = curpos2d;
