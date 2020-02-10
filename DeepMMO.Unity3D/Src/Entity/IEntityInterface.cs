@@ -14,10 +14,10 @@ namespace DeepMMO.Unity3D.Entity
     public interface IEntityComponent
     {
         int EntityIndex { get; set; }
-        void OnEntityUpdate();
-        void OnEntityBecameActive();
-        void OnEntityBecameInactive();
-        void OnAttached();
+        void Update(GameEntity entity);
+        void EntityBecameActive(GameEntity entity);
+        void EntityBecameInactive(GameEntity entity);
+        void Attached(GameEntity entity);
     }
 
     public interface IEntityLayer : IDisposable
@@ -45,19 +45,19 @@ namespace DeepMMO.Unity3D.Entity
     {
         public int EntityIndex { get; set; }
 
-        public virtual void OnEntityUpdate()
+        public virtual void Update(GameEntity entity)
         {
         }
 
-        public virtual void OnEntityBecameActive()
+        public virtual void EntityBecameActive(GameEntity entity)
         {
         }
 
-        public virtual void OnEntityBecameInactive()
+        public virtual void EntityBecameInactive(GameEntity entity)
         {
         }
 
-        public virtual void OnAttached()
+        public virtual void Attached(GameEntity entity)
         {
         }
     }

@@ -29,11 +29,11 @@ namespace DeepMMO.Unity3D.Entity
             {
                 if (Active)
                 {
-                    c.OnEntityBecameActive();
+                    c.EntityBecameActive(this);
                 }
                 else
                 {
-                    c.OnEntityBecameInactive();
+                    c.EntityBecameInactive(this);
                 }
             }
         }

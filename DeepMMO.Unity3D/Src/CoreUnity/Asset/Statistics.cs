@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace CoreUnity.Asset
@@ -9,6 +10,7 @@ namespace CoreUnity.Asset
 
         public int destroyedToUnloadUnused;
 
+        public HashSet<string> loadedBundles;
         private void Awake()
         {
             Instance = this;

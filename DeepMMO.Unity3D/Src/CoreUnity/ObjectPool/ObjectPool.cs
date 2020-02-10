@@ -18,7 +18,7 @@ namespace CoreUnity.Cache
     public interface IObjectPoolControl
     {
         int Count { get; }
-        bool Enable { get; set; }
+        bool EnablePut { get; set; }
         int Capacity { get; set; }
         void Clear();
     }
@@ -38,19 +38,22 @@ namespace CoreUnity.Cache
     {
         private int mCapacity = DefaultCapacity;
 
-        private bool mEnable = true;
+        private bool mEnablePut = true;
         protected const int DefaultCapacity = 50;
 
         public abstract int Count { get; }
         protected abstract void RemoveOne();
 
-        public bool Enable
+        public bool EnablePut
         {
-            get => mEnable && Capacity > 0;
+            get => mEnablePut && Capacity > 0;
             set
             {
-                mEnable = value;
-                EnsureCapacity();
+                mEnablePut = value;
+                if (mEnablePut)
+                {
+                    EnsureCapacity();
+                }
             }
         }
 
@@ -66,16 +69,9 @@ namespace CoreUnity.Cache
 
         protected void EnsureCapacity()
         {
-            if (!Enable)
+            while (Count > Capacity)
             {
-                Clear();
-            }
-            else
-            {
-                while (Count > Capacity)
-                {
-                    RemoveOne();
-                }
+                RemoveOne();
             }
         }
 
@@ -136,11 +132,11 @@ namespace CoreUnity.Cache
 
         protected virtual bool CheckPutCache(object obj)
         {
-            if (!Enable)
+            if (!EnablePut)
             {
                 return false;
             }
-            
+
             if (obj is ICacheObject cacheObject)
             {
                 if (!cacheObject.BeforePutCache())
@@ -352,7 +348,7 @@ namespace CoreUnity.Cache
                 case ICacheObject o when !o.BeforePutCache():
                     return false;
                 default:
-                    return Enable;
+                    return EnablePut;
             }
         }
 

@@ -827,7 +827,7 @@ namespace CoreUnity.AssetBundles
         ///     well. If there are game objects in your scene referencing those assets, the references to them will become missing.
         /// </param>
         /// <param name="force">Unload the bundle even if we believe there are other dependencies on it.</param>
-        public bool UnloadBundle(string bundleName, bool unloadAllLoadedObjects, bool force)
+        public bool UnloadBundle(string bundleName, bool unloadAllLoadedObjects = false, bool force = false)
         {
             if (bundleName == null) return false;
 
@@ -837,19 +837,16 @@ namespace CoreUnity.AssetBundles
 
             if (force || --cache.References <= 0)
             {
-                if (cache.AssetBundle != null)
-                {
-                    mCachedPool.Put(bundleName, new CachedAssetBundle {Bundle = cache.AssetBundle, UnloadAllLoadedObjects = unloadAllLoadedObjects});
-                    //cache.AssetBundle.Unload(unloadAllLoadedObjects);
-                }
-
-                activeBundles.Remove(bundleName);
-
-                for (int i = 0; i < cache.Dependencies.Length; i++)
+                for (var i = 0; i < cache.Dependencies.Length; i++)
                 {
                     UnloadBundle(cache.Dependencies[i], unloadAllLoadedObjects, force);
                 }
+                if (cache.AssetBundle != null)
+                {
+                    mCachedPool.Put(bundleName, new CachedAssetBundle {Bundle = cache.AssetBundle, UnloadAllLoadedObjects = unloadAllLoadedObjects});
+                }
 
+                activeBundles.Remove(bundleName);
                 return true;
             }
 

@@ -132,7 +132,10 @@ namespace CoreUnity.Asset
                 ret.SetComplete(op);
                 if (op != null)
                 {
-                    op.completed += operation => { mAbm.UnloadBundle(scenePath, false, false); };
+                    op.completed += operation =>
+                    {
+                        //
+                    };
                 }
             });
             return ret;
@@ -142,9 +145,9 @@ namespace CoreUnity.Asset
         {
             var assetAddress = AssetAddress.EvaluateAddress(address);
             var scenePath = FixSceneAddress(assetAddress.Address);
-            return mAbm.LoadSceneImmediate(scenePath, mode);
+            var ret = mAbm.LoadSceneImmediate(scenePath, mode);
+            return ret;
         }
-
 
         public ResultAsyncOperation<T> LoadAsset<T>(object address) where T : Object
         {
@@ -304,7 +307,9 @@ namespace CoreUnity.Asset
 
         public void UnloadScene(Scene scene)
         {
-            SceneManager.UnloadSceneAsync(scene);
+            var scenePath = ConvertToSceneAddress(scene.name);
+            SceneManager.UnloadSceneAsync(scene, UnloadSceneOptions.UnloadAllEmbeddedSceneObjects);
+            mAbm.UnloadBundle(scenePath);
         }
 
 

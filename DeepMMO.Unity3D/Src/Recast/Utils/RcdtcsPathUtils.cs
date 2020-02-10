@@ -26,7 +26,7 @@ public static partial class RcdtcsUnityUtils{
 
 	public class SmoothPath {
 		public const int MAX_POLYS = 256;
-		public const int MAX_SMOOTH = 2048;
+		public const int MAX_SMOOTH = 1024;//最大寻路点
 		
 		public int m_nsmoothPath = 0;
 		public float[] m_smoothPath = new float[MAX_SMOOTH*3];

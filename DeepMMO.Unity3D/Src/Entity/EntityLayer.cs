@@ -445,7 +445,7 @@ namespace DeepMMO.Unity3D.Entity
 
             arr[entity.Index] = component;
             component.EntityIndex = entity.Index;
-            component.OnAttached();
+            component.Attached(entity);
 
             if (key != null)
             {
@@ -841,7 +841,7 @@ namespace DeepMMO.Unity3D.Entity
                     }
                     else
                     {
-                        c.OnEntityUpdate();
+                        c.Update(mEntities[c.EntityIndex]);
                     }
                 }
             }
