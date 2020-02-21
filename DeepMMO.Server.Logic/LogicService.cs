@@ -1,25 +1,22 @@
 ﻿using DeepCore;
+using DeepCore.GameEvent;
+using DeepCore.GameEvent.Message;
+using DeepCore.IO;
 using DeepCore.Log;
+using DeepCore.Statistics;
+using DeepCrystal.ORM;
 using DeepCrystal.RPC;
+using DeepCrystal.Sql;
 using DeepMMO.Protocol;
 using DeepMMO.Protocol.Client;
 using DeepMMO.Server.Area;
 using DeepMMO.Server.Connect;
+using DeepMMO.Server.GameEvent;
 using DeepMMO.Server.Logic.Model;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using DeepCore.GameEvent;
-using DeepCore.GameEvent.Events;
-using DeepCore.GameEvent.Message;
-using DeepCrystal.ORM;
 using System.Diagnostics;
-using DeepMMO.Server.GameEvent;
-using DeepCore.Xml;
-using DeepCore.IO;
-using DeepCrystal.Threading;
-using DeepCrystal.Sql;
-using DeepCore.Statistics;
+using System.Threading.Tasks;
 
 namespace DeepMMO.Server.Logic
 {
