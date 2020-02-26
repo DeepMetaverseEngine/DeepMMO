@@ -14,7 +14,7 @@ namespace DeepMMO.Client.Win32.Battle
         public RPGClient Client { get; private set; }
         public GamePanel BattlePanel { get; private set; }
         public FormSessionTracer SessionView { get; private set; }
-        //public bool AutoUpdateBattleClient { get; set; } = true;
+        public bool AutoUpdateBattleClient { get; set; } = true;
         public GamePanelContainer()
         {
             InitializeComponent();
@@ -156,7 +156,7 @@ namespace DeepMMO.Client.Win32.Battle
             this.BattlePanel = new GamePanel(this, obj);
             this.BattlePanel.Dock = DockStyle.Fill;
             this.BattlePanel.BattleView.OnDrawHUD += BattleView_OnDrawHUD;
-            //this.BattlePanel.BattleView.AutoUpdateBattleClient = this.AutoUpdateBattleClient;
+            this.BattlePanel.BattleView.AutoUpdateBattleClient = this.AutoUpdateBattleClient;
             this.ResumeLayout(false);
             this.panel1.Controls.Add(BattlePanel);
         }

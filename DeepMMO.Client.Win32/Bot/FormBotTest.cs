@@ -88,18 +88,18 @@ namespace DeepMMO.Client.BotTest
         {
             //if (base.Visible)
             {
-//                 long curTime = DeepCore.CUtils.CurrentTimeMS;
-//                 if (last_update_time == 0)
-//                 {
-//                     last_update_time = curTime;
-//                 }
-//                 int intervalMS = (int)(curTime - last_update_time);
-//                 last_update_time = curTime;
-//                 intervalMS = Math.Min(intervalMS, timer_30.Interval * 2);
-//                 foreach (BotListViewItem item in list_Bots.Items)
-//                 {
-//                     item.Update(intervalMS);
-//                 }
+                long curTime = DeepCore.CUtils.CurrentTimeMS;
+                if (last_update_time == 0)
+                {
+                    last_update_time = curTime;
+                }
+                int intervalMS = (int)(curTime - last_update_time);
+                last_update_time = curTime;
+                intervalMS = Math.Min(intervalMS, timer_30.Interval * 2);
+                foreach (BotListViewItem item in list_Bots.Items)
+                {
+                    item.Update(intervalMS);
+                }
             }
             var selected = SelectedBotItem;
             if (text_Events.Tag != selected)
@@ -468,8 +468,7 @@ namespace DeepMMO.Client.BotTest
                 if (BotLauncher.NoBattleView == false)
                 {
                     this.BattleView = new BotGamePanelContainer(bot);
-                    //this.BattleView.AutoUpdateBattleClient = false;
-                    this.BattleView.BattlePanel.BattleView.OnUpdate += BattleView_OnUpdate;
+                    this.BattleView.AutoUpdateBattleClient = false;
                     this.BattleView.Init(this.Client);
                     this.BattleView.Dock = DockStyle.Fill;
                 }
@@ -481,48 +480,51 @@ namespace DeepMMO.Client.BotTest
                 }
             }
         }
-
-        private void BattleView_OnUpdate(DeepEditor.Common.G3D.GLView sender, TimeSpan interval)
+        public void Update(int intervalMS)
         {
-            int intervalMS = (int)interval.TotalMilliseconds;
-            if (BattleView != null)
+            lock (this)
             {
-                Runner.Update(intervalMS);
-                BattleView.UpdateBattle(intervalMS);
-            }
-            else
-            {
-                Runner.Update(intervalMS);
-            }
-        }
-
-        public void Refresh()
-        {
-            if (Events.Length > 10000)
-            {
-                Events.Clear();
-            }
-            using (var list = CollectionObjectPool<string>.AllocList())
-            {
-                this.Runner.PopLogs(list);
-                foreach (var e in list)
+                if (BattleView != null)
                 {
-                    Events.AppendLine(e);
+                    Runner.Update(intervalMS);
+                    BattleView.UpdateBattle(intervalMS);
+                }
+                else
+                {
+                    Runner.Update(intervalMS);
                 }
             }
-            var colums = Runner.Columns;
-            for (int i = 1; i < colums.Length; i++)
+        }
+        public void Refresh()
+        {
+            lock (this)
             {
-                if (this.SubItems[i].Text != colums[i])
-                    this.SubItems[i].Text = colums[i];
-            }
-            if (Client.GameClient.IsConnected == false)
-            {
-                this.ForeColor = Color.Gray;
-            }
-            else
-            {
-                this.ForeColor = Color.Black;
+                if (Events.Length > 10000)
+                {
+                    Events.Clear();
+                }
+                using (var list = CollectionObjectPool<string>.AllocList())
+                {
+                    this.Runner.PopLogs(list);
+                    foreach (var e in list)
+                    {
+                        Events.AppendLine(e);
+                    }
+                }
+                var colums = Runner.Columns;
+                for (int i = 1; i < colums.Length; i++)
+                {
+                    if (this.SubItems[i].Text != colums[i])
+                        this.SubItems[i].Text = colums[i];
+                }
+                if (Client.GameClient.IsConnected == false)
+                {
+                    this.ForeColor = Color.Gray;
+                }
+                else
+                {
+                    this.ForeColor = Color.Black;
+                }
             }
         }
 
