@@ -82,7 +82,7 @@ namespace DeepMMO.Server.Connect
         [RpcHandler(typeof(SystemStaticServicesStartedNotify))]
         public virtual void system_rpc_Handle(SystemStaticServicesStartedNotify shutdown)
         {
-            log.InfoFormat("HostIP={0} HostPort={1} ListenPort={2}", acceptor_host, acceptor_port, this.StartConfig["Port"]);
+            log.InfoFormat("HostIP={0} HostPort={1}", acceptor_host, acceptor_port);
             log.InfoFormat("[ConnectServer Started]");
             this.acceptor.StartAsync();
             this.OnGateSyncTimerTick(this);

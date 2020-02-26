@@ -381,7 +381,7 @@ namespace DeepMMO.Server.AreaManager
                 //分配至队伍场景/
                 if (req.teamID != null)
                 {
-                    zone = LookingForExpectZone(req.servergroupID, z =>
+                    zone = LookingForExpectServerGroupZone(req.servergroupID, z =>
                     {
                         return z.currentRoleCount < temp.max_players &&
                                z.map_data.zone_template_id == req.expectMapTemplateID &&
@@ -443,7 +443,7 @@ namespace DeepMMO.Server.AreaManager
                 temp = RPGServerTemplateManager.Instance.GetDefaultMapData(req);
                 req.lastPublicPos = new ZonePosition();
             }
-            zone = LookingForExpectZone(req.servergroupID, z =>
+            zone = LookingForExpectServerGroupZone(req.servergroupID, z =>
             {
                 return z.currentRoleCount < temp.full_players && z.map_data.zone_template_id == temp.id && req.roleSessionNode == z.nodeName;
             });
@@ -474,7 +474,7 @@ namespace DeepMMO.Server.AreaManager
         /// <summary>
         /// 根据地图ID，和Area名字选择合适Zone
         /// </summary>
-        public virtual ZoneInfo LookingForExpectZone(string serverGroupID, Predicate<ZoneInfo> condition)
+        protected virtual ZoneInfo LookingForExpectServerGroupZone(string serverGroupID, Predicate<ZoneInfo> condition)
         {
             Dictionary<string, ZoneInfo> map = zones.GetZoneMap(serverGroupID);
             if (map != null)
