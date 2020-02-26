@@ -56,7 +56,7 @@ namespace DeepMMO.Unity3D.Terrain
         }
 
         //private LayerEditorPoint start_point;
-        private LayerEditorPoint end_point;
+//        private LayerEditorPoint end_point;
         private Predicate<LayerEditorPoint> select;
         //private ILayerWayPoint way_points;
         //todo 做多段寻路
@@ -144,7 +144,8 @@ namespace DeepMMO.Unity3D.Terrain
 //                    hasFindPath = false;
 //                    isStraight = true;
 //                }
-
+                LayerEditorPoint startFlag_point = null;
+                LayerEditorPoint endFlag_point = null;
                 //开始段
                 if (hasFindPath && select != null)
                 {
@@ -152,8 +153,8 @@ namespace DeepMMO.Unity3D.Terrain
 //                    {
 //                        start_point = Layer.GetNearZoneFlag<LayerEditorPoint>(beginpos, select);
 //                    }
-                    var start_point =  Layer.GetNearZoneFlag<LayerEditorPoint>(beginpos, select);
-                    if (start_point == null)
+                    startFlag_point =  Layer.GetNearZoneFlag<LayerEditorPoint>(beginpos, select);
+                    if (startFlag_point == null)
                     {
                         //Debug.Log("start_point == null");
                         hasFindPath = false;
@@ -162,19 +163,19 @@ namespace DeepMMO.Unity3D.Terrain
                     {
                         
                         //结尾段
-                        var end_point = Layer.GetNearZoneFlag<LayerEditorPoint>(endpos, select);
-                        if (end_point == null)
+                        endFlag_point = Layer.GetNearZoneFlag<LayerEditorPoint>(endpos, select);
+                        if (endFlag_point == null)
                         {
                             //Debug.Log("end_point == null");
                             hasFindPath = false;
                         }
-                        else if (start_point == end_point) //开始结尾一致
+                        else if (startFlag_point == endFlag_point) //开始结尾一致
                         {
                             hasFindPath = false;
                         }
                         else
                         {
-                            wp_path = Layer.FindPathWayPoint(start_point.Name, end_point.Name);
+                            wp_path = Layer.FindPathWayPoint(startFlag_point.Name, endFlag_point.Name);
                             if (wp_path == null)
                             {
                                 hasFindPath = false;
@@ -231,12 +232,12 @@ namespace DeepMMO.Unity3D.Terrain
 
                             if (isbreak)
                             {
-                                navwaypoint = Layer.Terrain3D.FindPath(beginpos, end_point.Position) as NavMeshWayPoint.NavMeshClientWayPoint;
+                                navwaypoint = Layer.Terrain3D.FindPath(beginpos, endFlag_point.Position) as NavMeshWayPoint.NavMeshClientWayPoint;
                             }
 
                         }
 
-                        var end_points = Layer.Terrain3D.FindPath(end_point.Position, endpos) as NavMeshWayPoint.NavMeshClientWayPoint;
+                        var end_points = Layer.Terrain3D.FindPath(endFlag_point.Position, endpos) as NavMeshWayPoint.NavMeshClientWayPoint;
                         if (end_points != null)
                         {
                             navwaypoint.LinkNext(end_points);

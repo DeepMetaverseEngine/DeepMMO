@@ -96,7 +96,7 @@ namespace DeepMMO.Unity3D.Terrain
         private float TerrainWidth;
         private float TerrainHeight;
         private int TerrainGridCellSize;
-        private float StepIntercept;
+        protected float StepIntercept;
         private string[] laymaskNames =
         {
             "NavLayer",
@@ -442,7 +442,7 @@ namespace DeepMMO.Unity3D.Terrain
         }
 
        
-        public ILayerUnitPosition CreateUnitPosition(LayerUnit unit)
+        public virtual ILayerUnitPosition CreateUnitPosition(LayerUnit unit)
         {
             if (unit is LayerPlayer)
             {
@@ -454,7 +454,7 @@ namespace DeepMMO.Unity3D.Terrain
             }
         }
 
-        class ClientUnitPostion : ILayerUnitPosition
+        protected class ClientUnitPostion : ILayerUnitPosition
         {
             public float X => vobj.X;
             public float Y => vobj.Y;
@@ -544,7 +544,7 @@ namespace DeepMMO.Unity3D.Terrain
 
         }
         //--------------------------------------------------------------------------------------------------------
-        class ClientPlayerPosition : ClientUnitPostion,ILayerPlayerPosition
+        protected class ClientPlayerPosition : ClientUnitPostion,ILayerPlayerPosition
         {
 
             private float AsyncUnitPosModifyMinRange = 20f;
