@@ -45,8 +45,8 @@ namespace DeepMMO.Client.Win32.Battle
             };
             base.timerInfo.Tick += (object sender, EventArgs e) =>
             {
-//                 string conn = mClient.Session.IsConnected ? "已连接" : "未连接";
-//                 this.Text = mClient.PlayerUUID + " - [" + conn + "]";
+                //                 string conn = mClient.Session.IsConnected ? "已连接" : "未连接";
+                //                 this.Text = mClient.PlayerUUID + " - [" + conn + "]";
             };
             base.LoadTemplates += (DirectoryInfo dataRoot) =>
             {
@@ -64,7 +64,7 @@ namespace DeepMMO.Client.Win32.Battle
         }
 
 
-    
+
 
     }
 }
