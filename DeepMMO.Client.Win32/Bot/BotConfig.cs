@@ -37,7 +37,11 @@ namespace DeepMMO.Client.BotTest
 
         [Desc("维持机器人数量", "显示")]
         public int KeepBotCount = 0;
+
+        [Desc("是否显示场景", "显示")]
+        public bool NoBattleView = false;
         //-------------------------------------------------------------------------------------
+
     }
 
     public class BotConfigHistory

@@ -13,7 +13,6 @@ namespace DeepMMO.Client.BotTest
     {
         public static string DefaultBotPrefix { get; private set; }
         public static int DefaultBotCount { get; private set; }
-        public static bool NoBattleView { get; private set; } = false;
         public static bool IsAuto { get; private set; }
 
         private static bool first_start = true;
@@ -27,10 +26,6 @@ namespace DeepMMO.Client.BotTest
         {
             string b_name = argp.Get("name");
             string b_count = argp.Get("count");
-            if (argp.TryGetAsBool("noView", out var noView))
-            {
-                NoBattleView = noView;
-            }
             if (b_name != null && b_count != null)
             {
                 BotLauncher.IsAuto = true;

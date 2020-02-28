@@ -52,7 +52,7 @@ namespace DeepMMO.Client.BotTest
 
         private void FormBotTest_Load(object sender, EventArgs e)
         {
-            if (BotLauncher.NoBattleView)
+            if (config.NoBattleView)
             {
                 splitContainer2.Panel1Collapsed = true;
             }
@@ -465,7 +465,7 @@ namespace DeepMMO.Client.BotTest
                 this.Runner = bot;
                 this.Events = new StringBuilder();
                 this.Runner.Client.IsAutoUpdateBattle = true;
-                if (BotLauncher.NoBattleView == false)
+                if (cfg.NoBattleView == false)
                 {
                     this.BattleView = new BotGamePanelContainer(bot);
                     this.BattleView.AutoUpdateBattleClient = false;
