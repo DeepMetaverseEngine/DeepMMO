@@ -93,13 +93,15 @@ namespace DeepMMO.Server.Logic
                 {
                     EventMgr.PutObject("Service", this);
                     EventMgr.Start();
-                    mEventTimer = Provider.CreateTimer(OnEventManagerTick, this, TimeSpan.FromSeconds(0), TimeSpan.FromMilliseconds(300));
+                    mEventTimer = Provider.CreateTimer(OnEventManagerTick, this, 
+                        TimeSpan.FromSeconds(0),
+                        TimeSpan.FromSeconds(TimerConfig.timer_sec_EventUpdateTime));
                 }
                 {
                     //定期存数据.
-                    int interval = RPGServerManager.Instance.Config.timer_minute_SaveDataTimer;
+                    int interval = TimerConfig.timer_minute_SaveDataTimer;
                     interval = Math.Max(5, interval);
-                    interval += (int)(interval * 0.25 * new Random().NextDouble());
+                    interval += (int)(interval * (0.25 * new Random().NextDouble()));
                     this.mSaveDataTimer = Provider.CreateTimer(OnFlushDataTick, this,
                         TimeSpan.FromMinutes(interval),
                         TimeSpan.FromMinutes(interval));

@@ -40,7 +40,7 @@ namespace DeepMMO.Server.Area
             this.area_manager = await this.Provider.GetAsync(ServerNames.AreaManager);
             this.sync_state_timer = this.Provider.CreateTimer(timer_SyncState, this,
                 TimeSpan.FromSeconds(0),
-                TimeSpan.FromSeconds(RPGServerManager.Instance.Config.timer_sec_AreaStateNotify));
+                TimeSpan.FromSeconds(TimerConfig.timer_sec_AreaStateNotify));
         }
         protected override async Task OnStopAsync(ServiceStopInfo reason)
         {

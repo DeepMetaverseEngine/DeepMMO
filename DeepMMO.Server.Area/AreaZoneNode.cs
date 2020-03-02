@@ -333,9 +333,9 @@ namespace DeepMMO.Server.Area
             z.OnUnitGotInstanceItem += Z_OnUnitGotInstanceItem;
             z.OnGameOver += Z_OnGameOver;
 
-            if (RPGServerManager.Instance.Config.timer_sec_ZoneKeepPlayerTimeout > 0)//场景无人后清理时间.程序控制.
+            if (TimerConfig.timer_sec_ZoneKeepPlayerTimeout > 0)//场景无人后清理时间.程序控制.
             {
-                keepPlayerExpire = TimeSpan.FromSeconds(RPGServerManager.Instance.Config.timer_sec_ZoneKeepPlayerTimeout);
+                keepPlayerExpire = TimeSpan.FromSeconds(TimerConfig.timer_sec_ZoneKeepPlayerTimeout);
                 z.AddTimePeriodicMS((int)keepPlayerExpire.TotalMilliseconds, (t) =>
                 {
                     if (CheckNeedKeepPlayer(z))
@@ -358,7 +358,7 @@ namespace DeepMMO.Server.Area
 
                         t.Dispose();
                         //start delay desotry.
-                        var delayDestoryTime = TimeSpan.FromSeconds(RPGServerManager.Instance.Config.timer_sec_DelayDestoryTime);
+                        var delayDestoryTime = TimeSpan.FromSeconds(TimerConfig.timer_sec_DelayDestoryTime);
                         // if (delayDestoryTime > TimeSpan.Zero)
                         {
 

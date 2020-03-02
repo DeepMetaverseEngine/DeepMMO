@@ -210,7 +210,8 @@ namespace DeepMMO.Unity3D.Terrain
         public bool TryGetVoxelUpRange(Vector3 pos, out float upward)
         {
             var _unitypos = pos.ConvertToUnityPos(TerrainHeight);
-            var downhit = Physics.Raycast(_unitypos + UnityEngine.Vector3.up * Height, UnityEngine.Vector3.down,out RaycastHit hitInfo, 400, layMasks);
+            _unitypos.y += 0.1f;
+            var downhit = Physics.Raycast(_unitypos, UnityEngine.Vector3.down,out RaycastHit hitInfo, 400, layMasks);
             if (downhit)
             {
                 var zonepos = BattleUtils.UnityPos2ZonePos(TotalHeight,hitInfo.point);
@@ -224,7 +225,8 @@ namespace DeepMMO.Unity3D.Terrain
         public bool TryGetVoxelTopRange(Vector3 pos, out float top)
         {
             var _unitypos = pos.ConvertToUnityPos(TerrainHeight);
-            var uphit = Physics.Raycast(_unitypos + UnityEngine.Vector3.down * Height, UnityEngine.Vector3.up, out RaycastHit hitInfo,400, layMasks);
+            
+            var uphit = Physics.Raycast(_unitypos, UnityEngine.Vector3.up, out RaycastHit hitInfo,400, layMasks);
             if (uphit)
             {
                 var zonepos = BattleUtils.UnityPos2ZonePos(TotalHeight,hitInfo.point);

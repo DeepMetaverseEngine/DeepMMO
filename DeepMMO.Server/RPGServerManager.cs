@@ -35,7 +35,6 @@ namespace DeepMMO.Server
         #endregion
         //--------------------------------------------------------------------------------------
         public virtual AccessPolicy Access { get; protected set; }
-        public virtual ServerConfig Config { get; protected set; }
         public virtual ServerPassport Passport { get; protected set; }
         //--------------------------------------------------------------------------------------
         public RPGServerManager()
@@ -44,11 +43,10 @@ namespace DeepMMO.Server
         }
         public virtual void Init()
         {
-            this.Config = CreateServerConfig();
-            var subcfg = IService.GlobalConfig.SubProperties("RPGServerManager.Config.");
+            var subcfg = IService.GlobalConfig.SubProperties(typeof(TimerConfig).FullName + ".");
             if (subcfg != null)
             {
-                subcfg.LoadFields(this.Config);
+                subcfg.LoadStaticFields(typeof(TimerConfig));
             }
             this.Access = CreateAccessPolicy();
             this.Passport = CreatePassport();
@@ -60,11 +58,6 @@ namespace DeepMMO.Server
         public virtual ServerPassport CreatePassport()
         {
             return new ServerPassport();
-        }
-        public virtual ServerConfig CreateServerConfig()
-        {
-            var ret = new ServerConfig();
-            return ret;
         }
 
         //         public virtual Persistence.AccountPersistenceOperator CreateAccountPersistenceOperator()

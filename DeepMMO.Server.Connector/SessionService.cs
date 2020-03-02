@@ -86,8 +86,8 @@ namespace DeepMMO.Server.Connect
             this.queryRoleDataStatusSnap = new QueryMappingReference<RoleDataStatusSnap>(RPGServerPersistenceManager.TYPE_ROLE_DATA_STATUS_SNAP_DATA, this);
 
             this.heartbeat_timer = base.Provider.CreateTimer(CheckHeartbeat, this,
-                TimeSpan.FromSeconds(RPGServerManager.Instance.Config.timer_sec_SessionKeepTimeout / 2),
-                TimeSpan.FromSeconds(RPGServerManager.Instance.Config.timer_sec_SessionKeepTimeout / 2));
+                TimeSpan.FromSeconds(TimerConfig.timer_sec_SessionKeepTimeout / 2),
+                TimeSpan.FromSeconds(TimerConfig.timer_sec_SessionKeepTimeout / 2));
 
             var data = await this.accountSave.LoadDataAsync();
             var roleSnap = await this.accountRoleSnapSave.LoadDataAsync();
@@ -102,7 +102,7 @@ namespace DeepMMO.Server.Connect
         }
         protected void CheckHeartbeat(object state)
         {
-            if (DateTime.Now - last_heartbeat > TimeSpan.FromSeconds(RPGServerManager.Instance.Config.timer_sec_SessionKeepTimeout))
+            if (DateTime.Now - last_heartbeat > TimeSpan.FromSeconds(TimerConfig.timer_sec_SessionKeepTimeout))
             {
                 if (session == null || session.socket.IsConnected == false)
                 {

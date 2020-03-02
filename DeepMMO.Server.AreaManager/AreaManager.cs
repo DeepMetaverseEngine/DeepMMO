@@ -41,7 +41,9 @@ namespace DeepMMO.Server.AreaManager
             {
                 EventMgr.PutObject("Service", this);
                 EventMgr.Start();
-                mTimer = Provider.CreateTimer(OnEventTick, this, TimeSpan.FromSeconds(0), TimeSpan.FromMilliseconds(300));
+                mTimer = Provider.CreateTimer(OnEventTick, this, 
+                    TimeSpan.FromSeconds(0),
+                    TimeSpan.FromSeconds(TimerConfig.timer_sec_EventUpdateTime));
             }
             return Task.FromResult(0);
         }

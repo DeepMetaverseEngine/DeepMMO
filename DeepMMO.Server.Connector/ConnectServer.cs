@@ -63,8 +63,8 @@ namespace DeepMMO.Server.Connect
             log.Info("[ConnectServer Start]");
             this.gate_service = await base.Provider.GetAsync(ServerNames.GateServer);
             this.heartbeat_timer = base.Provider.CreateTimer(CheckHeartbeat, this,
-                TimeSpan.FromSeconds(RPGServerManager.Instance.Config.timer_sec_SessionKeepTimeout),
-                TimeSpan.FromSeconds(RPGServerManager.Instance.Config.timer_sec_SessionKeepTimeout));
+                TimeSpan.FromSeconds(TimerConfig.timer_sec_SessionKeepTimeout),
+                TimeSpan.FromSeconds(TimerConfig.timer_sec_SessionKeepTimeout));
         }
         protected override Task OnStopAsync(ServiceStopInfo reason)
         {
@@ -86,7 +86,7 @@ namespace DeepMMO.Server.Connect
             log.InfoFormat("[ConnectServer Started]");
             this.acceptor.StartAsync();
             this.OnGateSyncTimerTick(this);
-            var intervalSec = TimeSpan.FromSeconds(RPGServerManager.Instance.Config.timer_sec_SyncConnectToGateNotify);
+            var intervalSec = TimeSpan.FromSeconds(TimerConfig.timer_sec_SyncConnectToGateNotify);
             this.gate_sync_timer = base.Provider.CreateTimer(OnGateSyncTimerTick, this, intervalSec, intervalSec);
         }
 
@@ -155,7 +155,7 @@ namespace DeepMMO.Server.Connect
         #region __SessionInfo__
 
         private IDisposable heartbeat_timer;
-        private TimeSpan heartbeat_timeout = TimeSpan.FromSeconds(RPGServerManager.Instance.Config.timer_sec_SessionKeepTimeout);
+        private TimeSpan heartbeat_timeout = TimeSpan.FromSeconds(TimerConfig.timer_sec_SessionKeepTimeout);
 
         public class SessionInfo
         {

@@ -61,7 +61,7 @@ namespace DeepMMO.Server.Gate
             {
                 log.WarnFormat("Templates Server:{0} Group:{1} State:{2}", server.id, server.group, server.state);
             }
-            var interval = TimeSpan.FromSeconds(RPGServerManager.Instance.Config.timer_sec_GateUpdateQueue);
+            var interval = TimeSpan.FromSeconds(TimerConfig.timer_sec_GateUpdateQueue);
             this.Provider.CreateTimer(groupMap.UpdateInQueue, groupMap, interval, interval);
             return Task.CompletedTask;
         }
