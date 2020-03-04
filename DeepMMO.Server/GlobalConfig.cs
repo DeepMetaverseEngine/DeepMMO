@@ -1,6 +1,10 @@
 ﻿
 using DeepCore;
+using DeepCore.Log;
+using DeepCore.Reflection;
 using DeepCrystal.RPC;
+using System;
+using System.Reflection;
 
 namespace DeepMMO.Server
 {
@@ -91,6 +95,36 @@ namespace DeepMMO.Server
         {
             get { return ServerDataRoot + "/event_script/"; }
         }
+
+
+        internal static void LoadAll()
+        {
+            foreach (var cfgType in ReflectionUtil.GetAllTypes())
+            {
+                if (cfgType.TryGetAttribute<LoadFromGlobalConfigAttribute>(out var attr))
+                {
+                    LoadStaticFieldsFromGlobal(cfgType);
+                }
+            }
+        }
+        public static void LoadStaticFieldsFromGlobal(Type type)
+        {
+            var log = new LazyLogger(type.FullName);
+            var subcfg = IService.GlobalConfig.SubProperties(type.FullName + ".");
+            if (subcfg != null)
+            {
+                subcfg.LoadStaticFields(type, (f) =>
+                {
+                    log.Error($"'{f.Name}' Not Exist In GlobalConfig");
+                });
+            }
+        }
+    }
+
+
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
+    public class LoadFromGlobalConfigAttribute : Attribute
+    {
 
     }
 }

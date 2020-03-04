@@ -1,4 +1,5 @@
 ﻿
+using DeepCore.Log;
 using DeepCore.Reflection;
 using DeepCrystal.RPC;
 
@@ -43,11 +44,7 @@ namespace DeepMMO.Server
         }
         public virtual void Init()
         {
-            var subcfg = IService.GlobalConfig.SubProperties(typeof(TimerConfig).FullName + ".");
-            if (subcfg != null)
-            {
-                subcfg.LoadStaticFields(typeof(TimerConfig));
-            }
+            GlobalConfig.LoadAll();
             this.Access = CreateAccessPolicy();
             this.Passport = CreatePassport();
         }

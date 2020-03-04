@@ -1,4 +1,6 @@
-﻿using System;
+﻿using DeepCore.Log;
+using DeepCrystal.RPC;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace DeepMMO.Server
 {
+    [LoadFromGlobalConfig]
     public sealed class TimerConfig
     {
         /// <summary>
@@ -25,7 +28,7 @@ namespace DeepMMO.Server
         /// <summary>
         /// 角色刷新定时器.
         /// </summary>
-        public static int timer_sec_OnPollingRoleModule = 1;
+        public static int timer_sec_OnPollingRoleModule = 3;
 
         /// <summary>
         /// Snap数据定时保存
@@ -50,7 +53,7 @@ namespace DeepMMO.Server
         /// <summary>
         /// 定期储存数据10分钟.
         /// </summary>
-        public static int timer_minute_SaveDataTimer = 2;
+        public static int timer_minute_SaveDataTimer = 5;
 
         /// <summary>
         /// GameOver后场景销毁延迟时间.
@@ -60,6 +63,8 @@ namespace DeepMMO.Server
         /// <summary>
         ///AreaManager EventManager
         /// </summary>
-        public static int timer_sec_EventUpdateTime = 1;
+        public static int timer_sec_EventUpdateTime = 3;
+
+       
     }
 }
