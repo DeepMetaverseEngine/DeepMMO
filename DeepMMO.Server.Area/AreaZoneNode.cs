@@ -12,11 +12,13 @@ using DeepCore.Game3D.Host.ZoneServer;
 using DeepCore.Game3D.Host.ZoneServer.Interface;
 using DeepCore.Geometry;
 using DeepMMO.Data;
+using DeepCore;
 
 namespace DeepMMO.Server.Area
 {
     public class AreaZoneNode : IZoneNodeServer
     {
+        private readonly static TypeAllocRecorder Alloc = new TypeAllocRecorder(typeof(AreaZoneNode));
         protected readonly Logger log;
         protected readonly AreaService service;
         protected readonly CreateZoneNodeRequest create;
@@ -37,12 +39,17 @@ namespace DeepMMO.Server.Area
 
         public AreaZoneNode(AreaService svc, CreateZoneNodeRequest create, MapTemplateData map_temp)
         {
+            Alloc.RecordConstructor(GetType().ToVisibleName() + ":" + map_temp.id);
             this.log = LoggerFactory.GetLogger(string.Format("{0}-{1}", GetType().Name, create.managerZoneUUID));
             this.service = svc;
             this.create = create;
             this.map_temp = map_temp;
             this.uuid = create.managerZoneUUID;
             this.node = CreateZoneNode(create);
+        }
+        ~AreaZoneNode()
+        {
+            Alloc.RecordDestructor(GetType().ToVisibleName() + ":" + map_temp.id);
         }
         public virtual void rpc_Handle(ISerializable msg, OnRpcReturn<ISerializable> cb)
         {
@@ -73,6 +80,7 @@ namespace DeepMMO.Server.Area
 
         public virtual Task<EditorScene> DoStopAsync()
         {
+            Alloc.RecordDispose(GetType().ToVisibleName() + ":" + map_temp.id);
             node.OnZoneStop += (z) =>
             {
                 OnNodeStopped(z as EditorScene);
@@ -116,7 +124,7 @@ namespace DeepMMO.Server.Area
                         areaNode = service.SelfAddress.ServiceNode,
                         guildUUID = enter.guildUUID,
                     });
-                }, err=> 
+                }, err =>
                 {
                     tcs.TrySetResult(new RoleEnterZoneResponse()
                     {
@@ -327,6 +335,45 @@ namespace DeepMMO.Server.Area
         {
             return z.AllPlayersCount > 0 || HasAddPlayer == false || (!zoneGameOver && !IsExpire());
         }
+        protected virtual void CheckZoneDispose(EditorScene z, TimeTaskMS t)
+        {
+            if (CheckNeedKeepPlayer(z))
+            {
+                keepPlayerLastTick = DateTime.Now;
+            }
+            else if ((DateTime.Now - keepPlayerLastTick) > keepPlayerExpire)
+            {
+                if (!zoneGameOver)
+                {
+                    zoneGameOver = true;
+                    //notify areamanager close zone.
+                    service.area_manager.Invoke(new AreaZoneGameOverNotify()
+                    {
+                        zoneUUID = this.ZoneUUID,
+                        reason = "KeepPlayerTimeOver",
+                    });
+                }
+                t.Dispose();
+                //start delay desotry.
+                var delayDestoryTime = TimeSpan.FromSeconds(TimerConfig.timer_sec_DelayDestoryTime);
+                // if (delayDestoryTime > TimeSpan.Zero)
+                {
+                    //log.Info("ZoneNode Start Delay Destory : " + delayDestoryTime + " " + this.ZoneUUID);
+                    var evt = new DeepCore.GameData.Zone.GameOverEvent() { WinForce = 0, message = "KeepPlayerTimeOver" };
+                    service.Provider.Delay((st) =>
+                    {
+                        if (node.IsDisposed) { return; }
+                        //log.Info("ZoneNode Send AreaZoneDestoryNotify ZoneUUID : " + this.ZoneUUID);
+                        NotifyAllLogicsGameOver(evt);
+                        service.area_manager.Invoke(new AreaZoneDestoryNotify()
+                        {
+                            zoneUUID = this.ZoneUUID,
+                            reason = evt.message,
+                        });
+                    }, create, delayDestoryTime);
+                }
+            }
+        }
         protected virtual void OnNodeStarted(EditorScene z)
         {
             z.OnUnitDead += Z_OnUnitDead;
@@ -338,46 +385,7 @@ namespace DeepMMO.Server.Area
                 keepPlayerExpire = TimeSpan.FromSeconds(TimerConfig.timer_sec_ZoneKeepPlayerTimeout);
                 z.AddTimePeriodicMS((int)keepPlayerExpire.TotalMilliseconds, (t) =>
                 {
-                    if (CheckNeedKeepPlayer(z))
-                    {
-                        keepPlayerLastTick = DateTime.Now;
-                    }
-                    else if ((DateTime.Now - keepPlayerLastTick) > keepPlayerExpire)
-                    {
-                        if (!zoneGameOver)
-                        {
-                            zoneGameOver = true;
-                            //notify areamanager close zone.
-                            service.area_manager.Invoke(new AreaZoneGameOverNotify()
-                            {
-                                zoneUUID = this.ZoneUUID,
-                                reason = "KeepPlayerTimeOver",
-                            });
-
-                        }
-
-                        t.Dispose();
-                        //start delay desotry.
-                        var delayDestoryTime = TimeSpan.FromSeconds(TimerConfig.timer_sec_DelayDestoryTime);
-                        // if (delayDestoryTime > TimeSpan.Zero)
-                        {
-
-                            //log.Info("ZoneNode Start Delay Destory : " + delayDestoryTime + " " + this.ZoneUUID);
-                            var evt = new DeepCore.GameData.Zone.GameOverEvent() { WinForce = 0, message = "KeepPlayerTimeOver" };
-
-                            service.Provider.Delay((st) =>
-                            {
-                                if (node.IsDisposed) { return; }
-                                //log.Info("ZoneNode Send AreaZoneDestoryNotify ZoneUUID : " + this.ZoneUUID);
-                                NotifyAllLogicsGameOver(evt);
-                                service.area_manager.Invoke(new AreaZoneDestoryNotify()
-                                {
-                                    zoneUUID = this.ZoneUUID,
-                                    reason = evt.message,
-                                });
-                            }, create, delayDestoryTime);
-                        }
-                    }
+                    CheckZoneDispose(z, t);
                 });
             }
             this.EventMgr = EventManagerFactory.Instance.CreateEventManager("Zone", z.UUID);
@@ -387,7 +395,10 @@ namespace DeepMMO.Server.Area
                 this.EventMgr.PutObject("Service", this.service);
                 this.EventMgr.PutObject("Node", this);
                 this.EventMgr.Start();
-                node.OnZoneBeginUpdate += zone => { this.EventMgr.EnterUpdate(); };
+                node.OnZoneBeginUpdate += zone =>
+                {
+                    this.EventMgr.EnterUpdate();
+                };
                 node.OnZoneEndUpdate += zone =>
                 {
                     this.EventMgr.Update();
@@ -399,10 +410,13 @@ namespace DeepMMO.Server.Area
 
         protected virtual void OnNodeStopped(EditorScene z)
         {
+            this.zone_rpc_call_handler = null;
+            this.zone_rpc_invoke_handler = null;
             z.OnUnitDead -= Z_OnUnitDead;
             z.OnUnitGotInstanceItem -= Z_OnUnitGotInstanceItem;
             z.OnGameOver -= Z_OnGameOver;
             this.EventMgr?.Dispose();
+            this.EventMgr = null;
         }
         //--------------------------------------------------------------------------------------------------------------------------------
 
