@@ -211,71 +211,81 @@ namespace DeepMMO.Server.Logic
         private async Task OnModulesSaveDataAsync()
         {
             var stopwatch = Stopwatch.StartNew();
-            OnBeforeSaveData?.Invoke();
-            if (ORMFactory.IsTest)
+            try
             {
-                var watch_exe = CUtils.TickTimeMS;
-                //var exe = new SyncTaskExecutor();
-                var trans = DBAdapter.CreateExecutableObjectTransaction(this);
-                using (var list = CollectionObjectPool<ILogicModule>.AllocList(modules))
+                OnBeforeSaveData?.Invoke();
+                if (ORMFactory.IsTest)
                 {
-                    foreach (var module in list)
+                    var watch_exe = CUtils.TickTimeMS;
+                    //var exe = new SyncTaskExecutor();
+                    var trans = DBAdapter.CreateExecutableObjectTransaction(this);
+                    using (var list = CollectionObjectPool<ILogicModule>.AllocList(modules))
                     {
-                        var watch = CUtils.TickTimeMS;
-                        try
+                        foreach (var module in list)
                         {
-                            module.OnSaveData(trans);
-                        }
-                        catch (Exception err)
-                        {
-                            log.Error(err.Message, err);
-                        }
-                        finally
-                        {
-                            Statistics.LogTime($"{module.GetType().Name} : OnSaveData", CUtils.TickTimeMS - watch);
+                            var watch = CUtils.TickTimeMS;
+                            try
+                            {
+                                module.OnSaveData(trans);
+                            }
+                            catch (Exception err)
+                            {
+                                log.Error(err.Message, err);
+                            }
+                            finally
+                            {
+                                Statistics.LogTime($"{module.GetType().Name} : OnSaveData", CUtils.TickTimeMS - watch);
+                            }
                         }
                     }
-                }
-                var test = new TestTransaction(CFiles.CurrentSubDir("/test_orm/"), this.roleID, trans, ORMFactory.Instance.DefaultAdapter, this);
-                await trans.ExecuteAsync().ContinueWith(t =>
-                {
-                    Statistics.LogTime($"{GetType().Name} : OnModulesSaveDataAsync", CUtils.TickTimeMS - watch_exe);
-                });
-                await test.CheckAsync(false);
-            }
-            else
-            {
-                var watch_exe = CUtils.TickTimeMS;
-                var trans = DBAdapter.CreateExecutableObjectTransaction(this);
-                using (var list = CollectionObjectPool<ILogicModule>.AllocList(modules))
-                {
-                    foreach (var module in list)
+                    var test = new TestTransaction(CFiles.CurrentSubDir("/test_orm/"), this.roleID, trans, ORMFactory.Instance.DefaultAdapter, this);
+                    await trans.ExecuteAsync().ContinueWith(t =>
                     {
-                        var watch = CUtils.TickTimeMS;
-                        try
+                        Statistics.LogTime($"{GetType().Name} : OnModulesSaveDataAsync", CUtils.TickTimeMS - watch_exe);
+                    });
+                    await test.CheckAsync(false);
+                }
+                else
+                {
+                    var watch_exe = CUtils.TickTimeMS;
+                    var trans = DBAdapter.CreateExecutableObjectTransaction(this);
+                    using (var list = CollectionObjectPool<ILogicModule>.AllocList(modules))
+                    {
+                        foreach (var module in list)
                         {
-                            module.OnSaveData(trans);
-                        }
-                        catch (Exception err)
-                        {
-                            log.Error(err.Message, err);
-                        }
-                        finally
-                        {
-                            Statistics.LogTime($"{module.GetType().Name} : OnSaveData", CUtils.TickTimeMS - watch);
+                            var watch = CUtils.TickTimeMS;
+                            try
+                            {
+                                module.OnSaveData(trans);
+                            }
+                            catch (Exception err)
+                            {
+                                log.Error(err.Message, err);
+                            }
+                            finally
+                            {
+                                Statistics.LogTime($"{module.GetType().Name} : OnSaveData", CUtils.TickTimeMS - watch);
+                            }
                         }
                     }
+                    await trans.ExecuteAsync().ContinueWith(t =>
+                    {
+                        Statistics.LogTime($"{GetType().Name} : OnModulesSaveDataAsync", CUtils.TickTimeMS - watch_exe);
+                    });
                 }
-                await trans.ExecuteAsync().ContinueWith(t =>
-                {
-                    Statistics.LogTime($"{GetType().Name} : OnModulesSaveDataAsync", CUtils.TickTimeMS - watch_exe);
-                });
             }
-            if (stopwatch.ElapsedMilliseconds > SAVE_EXPECT_TIME_LIMIT)
+            finally
             {
-                log.Warn("LogicService : OnModulesSaveDataAsync Flush Time = " + stopwatch.Elapsed);
+                stopwatch.Stop();
+                if (stopwatch.ElapsedMilliseconds > SAVE_EXPECT_TIME_LIMIT)
+                {
+                    log.Warn("LogicService : OnModulesSaveDataAsync Flush Time = " + stopwatch.Elapsed);
+                }
+                else
+                {
+                    log.Debug("LogicService : OnModulesSaveDataAsync Flush Time = " + stopwatch.Elapsed);
+                }
             }
-            stopwatch.Stop();
         }
 
         private async Task OnModulesStopAsync()
