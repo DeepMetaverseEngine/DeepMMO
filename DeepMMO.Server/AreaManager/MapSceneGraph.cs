@@ -20,6 +20,15 @@ namespace DeepMMO.Server.AreaManager
         {
             return new SceneGraphPath(node);
         }
+        protected override void SetTempNode(IMapNode node, ITempMapNode temp)
+        {
+            (node as SceneGraphNode).TempNode = temp;
+        }
+        protected override ITempMapNode GetTempNode(IMapNode node)
+        {
+            return (node as SceneGraphNode).TempNode;
+        }
+
         /// <summary>
         /// 跨场景寻路
         /// </summary>
@@ -85,18 +94,6 @@ namespace DeepMMO.Server.AreaManager
             {
                 return nodes.Get(mapID);
             }
-
-            public void Init(IOpenList open, IOpenList close)
-            {
-                foreach (var node in this.nodes.Values)
-                {
-                    node.TempNode = open.GenTempNode(node);
-                }
-            }
-            public ITempMapNode GetTempNode(IMapNode node)
-            {
-                return (node as SceneGraphNode).TempNode;
-            }
         }
         public class SceneGraphNode : IMapNode
         {
@@ -116,7 +113,6 @@ namespace DeepMMO.Server.AreaManager
             }
             public override void Dispose()
             {
-                TempNode.Dispose();
                 nexts.Clear();
             }
             public override bool TestCross(IMapNode other)
