@@ -85,16 +85,30 @@ namespace DeepMMO.Server.AreaManager
             {
                 return nodes.Get(mapID);
             }
+
+            public void Init(IOpenList open, IOpenList close)
+            {
+                foreach (var node in this.nodes.Values)
+                {
+                    node.TempNode = open.GenTempNode(node);
+                }
+            }
+            public ITempMapNode GetTempNode(IMapNode node)
+            {
+                return (node as SceneGraphNode).TempNode;
+            }
         }
         public class SceneGraphNode : IMapNode
         {
             private SceneGraphNode[] nexts_array;
             private HashMap<int, SceneNextLink> nexts = new HashMap<int, SceneNextLink>(1);
+
             public int MapID { get; private set; }
             public MapTemplateData Data { get; private set; }
             public override IMapNode[] Nexts { get { return nexts_array; } }
             public override int CloseAreaIndex { get { return 0; } }
             public override object Tag { get; set; }
+            internal ITempMapNode TempNode;
             public SceneGraphNode(MapTemplateData data)
             {
                 this.Data = data;
@@ -102,6 +116,7 @@ namespace DeepMMO.Server.AreaManager
             }
             public override void Dispose()
             {
+                TempNode.Dispose();
                 nexts.Clear();
             }
             public override bool TestCross(IMapNode other)
@@ -121,8 +136,8 @@ namespace DeepMMO.Server.AreaManager
                         var next_node = map.GetNode(next.to_map_id);
                         if (next_node != null)
                         {
-                            if(!nexts.ContainsKey(next_node.MapID))
-                            nexts.Add(next_node.MapID, next);
+                            if (!nexts.ContainsKey(next_node.MapID))
+                                nexts.Add(next_node.MapID, next);
                             list.Add(next_node);
                         }
                     }
