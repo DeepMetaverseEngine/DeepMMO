@@ -53,7 +53,7 @@ namespace DeepMMO.Client.BotTest.Runner.Modules
                             var tp = vt.World.Terrain.FindNearRandomMoveableNode(random, layer, size);
                             //if (pos != null)
                             {
-                                obj.SendUnitAttackMoveTo(tp.GetUpwardCenterPos(), false);
+                                obj.SendUnitAttackMoveTo(tp.UpwardCenterPos, false);
                             }
                         }
                     }
