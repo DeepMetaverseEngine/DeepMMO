@@ -15,6 +15,7 @@ using DeepCore.GameEvent;
 using DeepCore.GameEvent.Message;
 using DeepCore.Game3D.Host.Instance;
 using System.Collections.Concurrent;
+using System.IO;
 
 namespace DeepMMO.Server.Area
 {
@@ -50,15 +51,15 @@ namespace DeepMMO.Server.Area
                 await item.Value.DoStopAsync();
             }
         }
-
-        [RpcHandler(typeof(SystemStaticServicesStartedNotify))]
-        public virtual void rpc_HandleSystem(SystemStaticServicesStartedNotify shutdown)
+        public override bool GetState(TextWriter sb)
         {
-            area_manager.CallAsync<RegistAreaResponse>(new RegistAreaRequest()
+            ForEachZones(node =>
             {
-                areaName = SelfAddress.ServiceName,
-                areaNode = SelfAddress.ServiceNode,
+                sb.WriteLine(CUtils.SequenceChar('-', 100));
+                node.GetStatus(sb);
+                sb.WriteLine(CUtils.SequenceChar('-', 100));
             });
+            return true;
         }
 
         protected virtual void timer_SyncState(object obj)
@@ -71,6 +72,16 @@ namespace DeepMMO.Server.Area
                 zoneCount = this.ZoneNodeCount,
                 cpuPercent = 1, // TODO
                 memoryMB = 1, // TODO
+            });
+            this.LogState();
+        }
+        [RpcHandler(typeof(SystemStaticServicesStartedNotify))]
+        public virtual void rpc_HandleSystem(SystemStaticServicesStartedNotify shutdown)
+        {
+            area_manager.CallAsync<RegistAreaResponse>(new RegistAreaRequest()
+            {
+                areaName = SelfAddress.ServiceName,
+                areaNode = SelfAddress.ServiceNode,
             });
         }
 

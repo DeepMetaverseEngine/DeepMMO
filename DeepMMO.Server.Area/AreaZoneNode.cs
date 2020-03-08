@@ -13,6 +13,8 @@ using DeepCore.Game3D.Host.ZoneServer.Interface;
 using DeepCore.Geometry;
 using DeepMMO.Data;
 using DeepCore;
+using System.Text;
+using System.IO;
 
 namespace DeepMMO.Server.Area
 {
@@ -34,9 +36,6 @@ namespace DeepMMO.Server.Area
         public string ServerID => create.serverID;
         public string ServerGroupID => create.serverGroupID;
         public ZoneNode ZoneNode { get { return node; } }
-        protected bool HasAddPlayer = false;
-        protected DateTime mExpireTime;
-
         public AreaZoneNode(AreaService svc, CreateZoneNodeRequest create, MapTemplateData map_temp)
         {
             Alloc.RecordConstructor(GetType().ToVisibleName() + ":" + map_temp.id);
@@ -324,21 +323,89 @@ namespace DeepMMO.Server.Area
         //--------------------------------------------------------------------------------------------------------------------------------
         public EventManager EventMgr { get; private set; }
 
+        protected virtual void OnNodeStarted(EditorScene z)
+        {
+            z.OnUnitDead += Z_OnUnitDead;
+            z.OnUnitGotInstanceItem += Z_OnUnitGotInstanceItem;
+            z.OnGameOver += Z_OnGameOver;
+
+            if (TimerConfig.timer_sec_ZoneKeepPlayerTimeout > 0)//场景无人后清理时间.程序控制.
+            {
+                keepPlayerExpire = TimeSpan.FromSeconds(TimerConfig.timer_sec_ZoneKeepPlayerTimeout);
+                z.AddTimePeriodicMS((int)(keepPlayerExpire.TotalMilliseconds / 2), (t) =>
+                  {
+                      CheckZoneDispose(z, t);
+                  });
+            }
+            this.EventMgr = EventManagerFactory.Instance.CreateEventManager("Zone", z.UUID);
+            if (this.EventMgr != null)
+            {
+                this.EventMgr.PutObject("Zone", z);
+                this.EventMgr.PutObject("Service", this.service);
+                this.EventMgr.PutObject("Node", this);
+                this.EventMgr.Start();
+                node.OnZoneBeginUpdate += zone =>
+                {
+                    this.EventMgr.EnterUpdate();
+                };
+                node.OnZoneEndUpdate += zone =>
+                {
+                    this.EventMgr.Update();
+                };
+            }
+        }
+
+        protected virtual void OnNodeStopped(EditorScene z)
+        {
+            this.zone_rpc_call_handler = null;
+            this.zone_rpc_invoke_handler = null;
+            z.OnUnitDead -= Z_OnUnitDead;
+            z.OnUnitGotInstanceItem -= Z_OnUnitGotInstanceItem;
+            z.OnGameOver -= Z_OnGameOver;
+            this.EventMgr?.Dispose();
+            this.EventMgr = null;
+        }
+        //--------------------------------------------------------------------------------------------------------------------------------
+        public virtual void GetStatus(TextWriter sb)
+        {
+            sb.WriteLine("         UUID = " + this.uuid);
+            sb.WriteLine("    SceneData = " + this.node.SceneData);
+            sb.WriteLine("  PlayerCount = " + this.node.PlayerCount);
+            sb.WriteLine("   ExpireTime = " + this.mExpireTimeUTC.ToLocalTime());
+            sb.WriteLine("   IsGameOver = " + zoneGameOver);
+            sb.WriteLine(" HasAddPlayer = " + HasAddPlayer);
+            sb.WriteLine("     PassTime = " + node.ZonePassTime);
+        }
         private DateTime keepPlayerLastTick = DateTime.Now;
         private TimeSpan keepPlayerExpire;
         private bool zoneGameOver = false;
+        private DateTime mExpireTimeUTC = DateTime.UtcNow;
+        private bool HasAddPlayer = false;// player already in zone
+        public void SetSceneExpireTime(DateTime time)
+        {
+            mExpireTimeUTC = time.ToUniversalTime();
+        }
+        private bool IsExpire()
+        {
+            return (DateTime.UtcNow - mExpireTimeUTC).TotalSeconds > 0;
+        }
         /// <summary>
         /// 检测是否需要维持场景，否则，则销毁场景
         /// </summary>
         /// <returns></returns>
         protected virtual bool CheckNeedKeepPlayer(EditorScene z)
         {
-            return z.AllPlayersCount > 0 || HasAddPlayer == false || (!zoneGameOver && !IsExpire());
+            if (zoneGameOver) return false;
+            if (node.PlayerCount > 0) return true;
+            if (HasAddPlayer == false) return true;
+            if (!IsExpire()) return true;
+            return false;
         }
         protected virtual void CheckZoneDispose(EditorScene z, TimeTaskMS t)
         {
             if (CheckNeedKeepPlayer(z))
             {
+                zoneGameOver = false;
                 keepPlayerLastTick = DateTime.Now;
             }
             else if ((DateTime.Now - keepPlayerLastTick) > keepPlayerExpire)
@@ -374,50 +441,6 @@ namespace DeepMMO.Server.Area
                 }
             }
         }
-        protected virtual void OnNodeStarted(EditorScene z)
-        {
-            z.OnUnitDead += Z_OnUnitDead;
-            z.OnUnitGotInstanceItem += Z_OnUnitGotInstanceItem;
-            z.OnGameOver += Z_OnGameOver;
-
-            if (TimerConfig.timer_sec_ZoneKeepPlayerTimeout > 0)//场景无人后清理时间.程序控制.
-            {
-                keepPlayerExpire = TimeSpan.FromSeconds(TimerConfig.timer_sec_ZoneKeepPlayerTimeout);
-                z.AddTimePeriodicMS((int)keepPlayerExpire.TotalMilliseconds, (t) =>
-                {
-                    CheckZoneDispose(z, t);
-                });
-            }
-            this.EventMgr = EventManagerFactory.Instance.CreateEventManager("Zone", z.UUID);
-            if (this.EventMgr != null)
-            {
-                this.EventMgr.PutObject("Zone", z);
-                this.EventMgr.PutObject("Service", this.service);
-                this.EventMgr.PutObject("Node", this);
-                this.EventMgr.Start();
-                node.OnZoneBeginUpdate += zone =>
-                {
-                    this.EventMgr.EnterUpdate();
-                };
-                node.OnZoneEndUpdate += zone =>
-                {
-                    this.EventMgr.Update();
-                };
-            }
-        }
-
-
-
-        protected virtual void OnNodeStopped(EditorScene z)
-        {
-            this.zone_rpc_call_handler = null;
-            this.zone_rpc_invoke_handler = null;
-            z.OnUnitDead -= Z_OnUnitDead;
-            z.OnUnitGotInstanceItem -= Z_OnUnitGotInstanceItem;
-            z.OnGameOver -= Z_OnGameOver;
-            this.EventMgr?.Dispose();
-            this.EventMgr = null;
-        }
         //--------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -446,6 +469,7 @@ namespace DeepMMO.Server.Area
         }
         protected virtual void Z_OnGameOver(InstanceZone zone, DeepCore.GameData.Zone.GameOverEvent evt)
         {
+            zoneGameOver = true;
             //log.Info("ZoneNode GameOver : " + evt.message + " " + this.ZoneUUID);
             //notify logic.
             NotifyAllLogicsGameOver(evt);
@@ -455,7 +479,6 @@ namespace DeepMMO.Server.Area
                 zoneUUID = this.ZoneUUID,
                 reason = evt.message,
             });
-            zoneGameOver = true;
         }
 
         /// <summary>
@@ -536,21 +559,6 @@ namespace DeepMMO.Server.Area
             this.zone_rpc_call_handler = handler;
         }
         #endregion
-        //--------------------------------------------------------------------------------------------------------------------------------
-
-        public void SetSceneExpireTime(DateTime time)
-        {
-            var temp = time.ToUniversalTime();
-            var ret = DateTime.Compare(mExpireTime, temp);
-
-            if (ret < 0)
-                mExpireTime = temp;
-        }
-
-        private bool IsExpire()
-        {
-            return (DateTime.UtcNow - mExpireTime).TotalMilliseconds > 0;
-        }
     }
 }
 

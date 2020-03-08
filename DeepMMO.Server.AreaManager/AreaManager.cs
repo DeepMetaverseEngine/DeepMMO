@@ -58,6 +58,34 @@ namespace DeepMMO.Server.AreaManager
             EventMgr?.Update();
         }
 
+        public virtual void AreaSyncState(AreaStateNotify st)
+        {
+            if (areas.TryGetValue(st.areaNode, out var group))
+            {
+                areas.MarkSort();
+                if (group.TryGetValue(st.areaName, out var area))
+                {
+                    group.MarkSort();
+                    area.state = st;
+                }
+            }
+            this.LogState();
+        }
+        public override bool GetState(TextWriter sb)
+        {
+            sb.WriteLine(CUtils.SequenceChar('-', 100));
+            foreach (var group in areas.ToSortedArray())
+            {
+                foreach (var area in group.ToSortedArray())
+                {
+                    area.WriteState(sb);
+                }
+            }
+            sb.WriteLine(CUtils.SequenceChar('-', 100));
+            return true;
+        }
+
+
         //------------------------------------------------------------------------------------------------------------------------------------
         #region RPC
 
@@ -533,19 +561,6 @@ namespace DeepMMO.Server.AreaManager
                 log.Error(err.Message, err);
                 throw;
             }
-        }
-        public virtual void AreaSyncState(AreaStateNotify st)
-        {
-            if (areas.TryGetValue(st.areaNode, out var group))
-            {
-                areas.MarkSort();
-                if (group.TryGetValue(st.areaName, out var area))
-                {
-                    group.MarkSort();
-                    area.state = st;
-                }
-            }
-            this.LogState();
         }
         /// <summary>
         /// 分配一个空闲的Area
@@ -1116,19 +1131,6 @@ namespace DeepMMO.Server.AreaManager
                 }
                 return ret.ToArray();
             }
-        }
-
-        protected override void WriteState(TextWriter sb)
-        {
-            sb.WriteLine(CUtils.SequenceChar('-', 100));
-            foreach (var group in areas.ToSortedArray())
-            {
-                foreach (var area in group.ToSortedArray())
-                {
-                    area.WriteState(sb);
-                }
-            }
-            sb.WriteLine(CUtils.SequenceChar('-', 100));
         }
 
         //------------------------------------------------------------------------------------------------------------------------------------

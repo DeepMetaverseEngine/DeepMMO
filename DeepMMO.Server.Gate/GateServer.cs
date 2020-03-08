@@ -70,9 +70,10 @@ namespace DeepMMO.Server.Gate
             this.acceptor.Dispose();
             return Task.FromResult(0);
         }
-        protected override void WriteState(TextWriter output)
+        public override bool GetState(TextWriter output)
         {
             this.groupMap.WriteStatus(output);
+            return true;
         }
         //------------------------------------------------------------------------------------------
 

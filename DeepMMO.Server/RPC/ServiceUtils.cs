@@ -12,21 +12,28 @@ namespace DeepCrystal.RPC
     {
         public static void LogState(this IService service)
         {
-            var info = service.State;
-            Task.Run(() =>
+            using (var sb = StringBuilderObjectPool.AllocAutoRelease())
             {
-                var type = service.GetType();
-                try
+                if (service.GetState(sb))
                 {
-                    lock (type)
+                    var info = sb.ToString();
+                    Task.Run(() =>
                     {
-                        var file = Environment.CurrentDirectory + Path.DirectorySeparatorChar + "state" + Path.DirectorySeparatorChar + service.SelfAddress.FullPath + ".txt";
-                        CFiles.CreateFile(new FileInfo(file));
-                        File.WriteAllText(file, info, CUtils.UTF8);
-                    }
+                        var type = service.GetType();
+                        try
+                        {
+                            lock (type)
+                            {
+                                var name = CFiles.ReplaceSpecialChars(service.SelfAddress.FullPath);
+                                var file = Environment.CurrentDirectory + Path.DirectorySeparatorChar + "state" + Path.DirectorySeparatorChar + name + ".txt";
+                                CFiles.CreateFile(new FileInfo(file));
+                                File.WriteAllText(file, info, CUtils.UTF8);
+                            }
+                        }
+                        catch { }
+                    });
                 }
-                catch { }
-            });
+            }
         }
         
     }

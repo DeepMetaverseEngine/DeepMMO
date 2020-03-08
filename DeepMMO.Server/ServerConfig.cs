@@ -58,12 +58,12 @@ namespace DeepMMO.Server
         /// <summary>
         /// GameOver后场景销毁延迟时间.
         /// </summary>
-        public static int timer_sec_DelayDestoryTime = 20;
+        public static int timer_sec_DelayDestoryTime = 30;
 
         /// <summary>
         ///AreaManager EventManager
         /// </summary>
-        public static int timer_sec_EventUpdateTime = 3;
+        public static int timer_sec_EventUpdateTime = 1;
 
        
     }
