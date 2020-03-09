@@ -371,7 +371,7 @@ namespace DeepMMO.Server.Area
             sb.WriteLine("         UUID = " + this.uuid);
             sb.WriteLine("    SceneData = " + this.node.SceneData);
             sb.WriteLine("  PlayerCount = " + this.node.PlayerCount);
-            sb.WriteLine("   ExpireTime = " + this.mExpireTimeUTC.ToLocalTime());
+            //sb.WriteLine("   ExpireTime = " + this.mExpireTimeUTC.ToLocalTime());
             sb.WriteLine("   IsGameOver = " + zoneGameOver);
             sb.WriteLine(" HasAddPlayer = " + HasAddPlayer);
             sb.WriteLine("     PassTime = " + node.ZonePassTime);
@@ -379,26 +379,26 @@ namespace DeepMMO.Server.Area
         private DateTime keepPlayerLastTick = DateTime.Now;
         private TimeSpan keepPlayerExpire;
         private bool zoneGameOver = false;
-        private DateTime mExpireTimeUTC = DateTime.UtcNow;
+        //private DateTime mExpireTimeUTC = DateTime.UtcNow;
         private bool HasAddPlayer = false;// player already in zone
-        public void SetSceneExpireTime(DateTime time)
-        {
-            mExpireTimeUTC = time.ToUniversalTime();
-        }
-        private bool IsExpire()
-        {
-            return (DateTime.UtcNow - mExpireTimeUTC).TotalSeconds > 0;
-        }
+//         public void SetSceneExpireTime(DateTime time)
+//         {
+//             mExpireTimeUTC = time.ToUniversalTime();
+//         }
+//         private bool IsExpire()
+//         {
+//             return (DateTime.UtcNow - mExpireTimeUTC).TotalSeconds > 0;
+//         }
         /// <summary>
         /// 检测是否需要维持场景，否则，则销毁场景
         /// </summary>
         /// <returns></returns>
         protected virtual bool CheckNeedKeepPlayer(EditorScene z)
         {
-            if (zoneGameOver) return false;
             if (node.PlayerCount > 0) return true;
+            if (zoneGameOver) return false;
             if (HasAddPlayer == false) return true;
-            if (!IsExpire()) return true;
+           // if (!IsExpire()) return true;
             return false;
         }
         protected virtual void CheckZoneDispose(EditorScene z, TimeTaskMS t)
