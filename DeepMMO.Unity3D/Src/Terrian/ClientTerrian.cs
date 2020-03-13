@@ -107,6 +107,8 @@ namespace DeepMMO.Unity3D.Terrain
         private float Height = 2f;// 碰撞高度
         private float FindPathDistance;//最近路点采样距离
         private RcdtcsUnityUtils.SystemHelper m_System = new RcdtcsUnityUtils.SystemHelper();
+        public ClientFlyPath clientFlyPath;
+        public float LandOffSet = 0.5f;
         public NavMeshClientTerrain3D(string scenePathFindFileName,float terrainWidth,float terrainheight,int terrainGridCellSize,float stepIntercept,float findPathDistance = 3f)
         {
             TerrainWidth = terrainWidth;
@@ -135,11 +137,38 @@ namespace DeepMMO.Unity3D.Terrain
                 m_System.ComputeSystem(data,0);
             }
 
+            clientFlyPath = new ClientFlyPath(m_System, layMasks, FindPathDistance)
+            {
+                LandOffset = LandOffSet, event_FindGroundPath = event_FindGroundPath
+            };
+
+        }
+            
+        
+        public UnityEngine.Vector3 FixPos(UnityEngine.Vector3 pos)
+        {
+            if (clientFlyPath != null)
+            {
+               return clientFlyPath.FixPos(pos);
+            }
+
+            return pos;
+        }
+        public UnityEngine.Vector3 UpdateAirMove(UnityEngine.Vector3 startPos,float speed,ref List<UnityEngine.Vector3> path)
+        {
+            if (clientFlyPath != null)
+            {
+                startPos = clientFlyPath.Update(startPos,speed);
+                path = clientFlyPath.GetPath();
+            }
+            return startPos;
         }
 
         public float TotalWidth => TerrainWidth;
         public float TotalHeight => TerrainHeight;
         public int GridCellSize => TerrainGridCellSize;
+
+        public bool m_CanFly = false;
 
         public void Dispose()
         {
@@ -233,12 +262,12 @@ namespace DeepMMO.Unity3D.Terrain
                 top = zonepos.Z;
                 return true;
             }
-
             top = float.MaxValue;
             return false;
         }
      
         private static string[] layname = {"SelectableUnit","SelfLayer","CharacterUnlit"};
+        private bool b_ReadyToFly;
 
         private static bool isPlayerLayer(GameObject obj)
         {
@@ -250,6 +279,72 @@ namespace DeepMMO.Unity3D.Terrain
 
             return false;
         }
+
+
+        public ILayerWayPoint FindAirPath(Vector3 src, Vector3 dst)
+        {
+            var srctounitypos = src.ConvertToUnityPos(TerrainHeight);
+            var dsttounitypos = dst.ConvertToUnityPos(TerrainHeight);
+
+            if (m_System == null)
+            {
+                return null;
+            }
+            List<UnityEngine.Vector3> NavPathPoints = new List<UnityEngine.Vector3>();
+            if (clientFlyPath != null)
+            {
+                NavPathPoints = clientFlyPath.ComputePath(srctounitypos,dsttounitypos);
+              if (NavPathPoints == null || NavPathPoints.Count == 0)
+              {
+                  NavPathPoints.Add(srctounitypos);
+              }
+              
+            }
+            return NavMeshClientWayPoint.CreateFromVoxel(GenNavMeshWayPoint(NavPathPoints)); 
+        }
+        public static List<UnityEngine.Vector3> GetRoadPoint(ILayerWayPoint waypoint,float TotalHeight)
+        {
+            var points = new List<UnityEngine.Vector3>();
+            if (waypoint != null)
+            {
+                var postion = waypoint.Position.ConvertToUnityPos(TotalHeight);
+                points.Add(postion);
+                var curway = waypoint;
+                while (curway.Next != null)
+                {
+                    var _postion = curway.Next.Position.ConvertToUnityPos(TotalHeight);
+                    points.Add(_postion);
+                    curway = curway.Next;
+                }
+
+            }
+
+            else
+            {
+                return null;
+            }
+            return points;
+        }
+        private List<UnityEngine.Vector3> event_FindGroundPath(UnityEngine.Vector3 startpos, UnityEngine.Vector3 endpos)
+        {
+            var src = BattleUtils.UnityPos2ZonePos(TotalHeight,startpos);
+            var dst = BattleUtils.UnityPos2ZonePos(TotalHeight,endpos);
+            List<UnityEngine.Vector3> NavPathPoints = new List<UnityEngine.Vector3>();
+            m_CanFly = true;
+            var waypoint = FindPath(src, dst);
+            if (waypoint != null)
+            {
+                NavPathPoints = GetRoadPoint(waypoint,TotalHeight);
+            }
+
+            return NavPathPoints;
+
+        }
+
+        public void SetReadyToFly(bool _readytofly)
+        {
+            b_ReadyToFly = _readytofly;
+        }
         public ILayerWayPoint FindPath(Vector3 src, Vector3 dst)
         {
             var srctounitypos = src.ConvertToUnityPos(TerrainHeight);
@@ -259,7 +354,7 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 return null;
             }
-           
+
             
             var haspos = m_System.GetClosestPointOnNavMesh(srctounitypos,FindPathDistance);
             if (haspos.Item1)
@@ -268,7 +363,20 @@ namespace DeepMMO.Unity3D.Terrain
             }
             else
             {
-                return null;
+                if (b_ReadyToFly && clientFlyPath != null)
+                {
+                    var retEnd = clientFlyPath.GetTopBottom(dsttounitypos, clientFlyPath.CheckNavMaxHeight);
+                    var targetBottomPos = retEnd.Item2;
+                    if (targetBottomPos.Equals( UnityEngine.Vector3.positiveInfinity))
+                    {
+                        return null;
+                    }
+                    else
+                    {
+                        dsttounitypos = targetBottomPos;
+                    }
+
+                }
             }
             List<UnityEngine.Vector3> NavPathPoints = new List<UnityEngine.Vector3>();
             var m_SmoothPath = RcdtcsUnityUtils.ComputeSmoothPath(m_System.m_navQuery, srctounitypos, dsttounitypos);
@@ -300,43 +408,47 @@ namespace DeepMMO.Unity3D.Terrain
                     var lpVec2 = new UnityEngine.Vector2(lastPoint.x,lastPoint.z);
                     var dstVec2 = new UnityEngine.Vector2(dsttounitypos.x,dsttounitypos.z);
                     float distance =  UnityEngine.Vector2.Distance(lpVec2,dstVec2);
-                    //寻路修正 高度单独处理修正
-                    if (distance>=0.5f && Mathf.Abs(lastPoint.y - dsttounitypos.y) < 1f && distance <= FindPathDistance)
+                    if (!m_CanFly && !b_ReadyToFly)
                     {
-                        var point1 = lastPoint;
-                        var point2 = dsttounitypos;
-                        point1.y -= 0.5f;
-                        point2.y -= 0.5f;
-                        var ray = new Ray(point1, point2 - point1);
-                        var hits = Physics.RaycastAll(ray, distance);
-                        bool hasobstacle = false;
-                        if (hits != null)
+                        //寻路修正 高度单独处理修正
+                        if ((distance>= 0.5f && Mathf.Abs(lastPoint.y - dsttounitypos.y) < 1f && distance <= FindPathDistance))
                         {
-                            foreach (var hit in hits)
+                            var point1 = lastPoint;
+                            var point2 = dsttounitypos;
+                            point1.y -= 0.5f;
+                            point2.y -= 0.5f;
+                            var ray = new Ray(point1, point2 - point1);
+                            var hits = Physics.RaycastAll(ray, distance);
+                            bool hasobstacle = false;
+                            if (hits != null)
                             {
-                                if (hit.transform != null && !isPlayerLayer(hit.transform.gameObject))
+                                foreach (var hit in hits)
                                 {
-                                    hasobstacle = true;
-                                    break;
+                                    if (hit.transform != null && !isPlayerLayer(hit.transform.gameObject))
+                                    {
+                                        hasobstacle = true;
+                                        break;
+                                    }
+                                }
+                                if(!hasobstacle)
+                                    NavPathPoints.Add(dsttounitypos);
+                                else
+                                {
+                                    return null;
                                 }
                             }
-                            if(!hasobstacle)
-                                NavPathPoints.Add(dsttounitypos);
                             else
                             {
                                 return null;
                             }
                         }
-                        else
+
+                        else if (distance > FindPathDistance )//地面寻路专用
                         {
                             return null;
                         }
                     }
-
-                    else if (distance > FindPathDistance)
-                    {
-                        return null;
-                    }
+                    
                 }
                 
                
@@ -344,58 +456,6 @@ namespace DeepMMO.Unity3D.Terrain
                 
             }
             
-//            
-//            NavMeshHit hit;
-//          
-//            if (NavMesh.SamplePosition(srctounitypos,out hit,FindPathDistance,1))//先就近采集寻路点
-//            {
-//                if (hit.position != srctounitypos)
-//                {
-//                    srctounitypos = hit.position;
-//                    NavPathPoints.Add(hit.position);
-//                }
-//            }
-//            else
-//            {
-//                return null;
-//            }
-//            var navMeshPath = new NavMeshPath();
-//            NavMesh.CalculatePath(srctounitypos, dsttounitypos, 1, navMeshPath);
-//            if (navMeshPath.corners.Length > 0)
-//            {
-//                NavPathPoints = navMeshPath.corners.ToList<UnityEngine.Vector3>();
-//                var lastPoint = NavPathPoints[NavPathPoints.Count - 1];
-//                float distance =  UnityEngine.Vector3.Distance(lastPoint,dsttounitypos);
-//               
-//                if (distance>=0.5f)
-//                {
-//                    var hasMesh = NavMesh.SamplePosition(dsttounitypos, out  hit, 10, 1);
-//                    if (hasMesh)
-//                    {
-//                        var ray = new Ray(lastPoint, dsttounitypos - lastPoint);
-//                        RaycastHit hit;
-//                        Physics.Raycast(ray, out hit, distance);
-//                        if (hit.transform != null && hit.transform.gameObject.layer != xxxx)
-//                        {
-//                            //终点与目标点有障碍物
-//                        }
-//                        else
-//                        NavPathPoints.Add(hit.position);
-//                    }
-//                }
-//
-//                float bodysize = 0.5f;
-//                for (int i = 1; i <= NavPathPoints.Count - 1; i++)//贴边优化
-//                {
-//                    bool result = NavMesh.FindClosestEdge(NavPathPoints[i], out hit, 1);
-//                    if (result && hit.distance <= bodysize)
-//                    {
-//                        NavPathPoints[i] = hit.position + hit.normal * bodysize;
-//                    }
-//
-//                }
-//                return NavMeshClientWayPoint.CreateFromVoxel(GenNavMeshWayPoint(NavPathPoints));
-//            }
 
             return null;
 

@@ -50,17 +50,7 @@ namespace DeepMMO.Unity3D.Terrain
                 hitpos = bottomhit.Item2.point;
                 dis = Mathf.Abs(pointbottom.y - hitpos.y);
             }
-
-
-            //            var bottomhit = RayHit(pos + Vector3.up * height/2, Vector3.down, 10);
-            //            if (bottomhit.Item1 )
-            //            {
-            //                dis = Mathf.Abs(pointbottom.y - bottomhit.Item2.point.y);
-            //                hitpos = bottomhit.Item2.point;
-            //                isBottomhit = true;
-            //            }
-
-            //        
+    
             if (isBottomhit)
             {
                 isBottomhit = dis <= 0.02f || pointbottom.y < (hitpos.y);

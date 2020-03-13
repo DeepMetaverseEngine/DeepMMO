@@ -378,7 +378,7 @@ namespace DeepMMO.Unity3D.Terrain
             var bottomhit = IsBottomhit(currentUnityPos);
            // UnityEngine.Debug.Log("topHeight.Item1===="+topHeight);
            // UnityEngine.Debug.Log("bottomHeight.Item1===="+bottomHeight);
-            mIsInAir = zspeed > 0 || !bottomhit.Item1;
+            mIsInAir = zspeed > 0 || Gravity == 0 || !bottomhit.Item1;
             if (zspeed > 0 || !bottomhit.Item1)
             {
                 currentPos.Z += CMath.GetSpeedDistance(intervalMS, zspeed);

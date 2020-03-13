@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 
 namespace DeepMMO.Server
 {
-    public class RPGServerPersistenceManager
+    public class RPGServerPersistenceManager : DeepCore.Disposable
     {
         //--------------------------------------------------------------------------------------------------------------------------
         #region Singleton
@@ -48,15 +48,15 @@ namespace DeepMMO.Server
         //--------------------------------------------------------------------------------------------------------------------------
 
 
-        public RPGServerPersistenceManager()
-        {
-            instance = this;
-        }
         private DeepCrystal.ORM.IMappingHash mappingNameToUUID;
         private DeepCrystal.ORM.IMappingHash mappingUUIDToName;
         private DeepCrystal.ORM.IMappingHash mappingDigitToUUID;
         private DeepCrystal.ORM.IMappingHash mappingUUIDToDigit;
         public DateTime ServerInitTimeUTC { get; private set; }
+        public RPGServerPersistenceManager()
+        {
+            instance = this;
+        }
         public virtual void Init()
         {
             Task.Run(async () =>
@@ -78,6 +78,17 @@ namespace DeepMMO.Server
                 this.mappingDigitToUUID = DeepCrystal.ORM.ORMFactory.Instance.DefaultAdapter.GetHash("Mapping:DigitToUUID", null);
                 this.mappingUUIDToDigit = DeepCrystal.ORM.ORMFactory.Instance.DefaultAdapter.GetHash("Mapping:UUIDToDigit", null);
             }).Wait();
+        }
+        protected override void Disposing()
+        {
+            mappingNameToUUID?.Dispose();
+            mappingUUIDToName?.Dispose();
+            mappingDigitToUUID?.Dispose();
+            mappingUUIDToDigit?.Dispose();
+            this.mappingNameToUUID = null;
+            this.mappingUUIDToName = null;
+            this.mappingDigitToUUID = null;
+            this.mappingUUIDToDigit = null;
         }
         //--------------------------------------------------------------------------------------------------------------------------
         #region RoleNameMapping

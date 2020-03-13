@@ -885,7 +885,9 @@ public static partial class Detour{
 	        int polyCount = 0;
 	        if (dtStatusFailed(queryPolygons(center, extents, filter, polys, ref polyCount, 128)))
 		        return DT_FAILURE | DT_INVALID_PARAM;
-	
+	        if (polyCount == 0)
+		        return DT_FAILURE;
+		
 	        // Find nearest polygon amongst the nearby polygons.
 	        dtPolyRef nearest = 0;
 	        float nearestDistanceSqr = float.MaxValue;

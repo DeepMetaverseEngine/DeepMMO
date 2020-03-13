@@ -66,15 +66,30 @@ namespace DeepMMO.Unity3D.Terrain
         {
             float num1 = dst.x - src.x;
             float num2 = dst.y - src.y;
-            if (Math.Abs(num1) < distance && Math.Abs(num2) < distance)
+            var dis = Vector2.Distance(dst, src);
+            if (dis <= distance )
             {
-                src.x = dst.x;
-                src.y = dst.y;
+                src = dst;
                 return true;
             }
 
             float degree = (float) Math.Atan2(num2, num1);
             movePolar(ref src, degree, distance);
+            return false;
+        }
+        
+        public static bool moveTo(ref Vector3 src, Vector3 dst, float distance)
+        {
+
+            var dir = dst - src;
+            var dis = Vector3.Distance(src, dst);
+            if (dis < distance)
+            {
+                src = dst;
+                return true;
+            }
+
+            src = src + dir.normalized * distance;
             return false;
         }
 

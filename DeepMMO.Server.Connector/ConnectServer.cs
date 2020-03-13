@@ -112,6 +112,10 @@ namespace DeepMMO.Server.Connect
                     socket.Send(binary);
                 }
             }
+            else if (message is ISerializable toall)
+            {
+                acceptor.Broadcast(toall);
+            }
         }
 
         //------------------------------------------------------------------------------------------

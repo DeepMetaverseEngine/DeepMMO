@@ -69,10 +69,30 @@ namespace DeepMMO.Unity3D.Terrain
         // 传送区域
         public List<RegionData> mRegionDatas;
         private bool b_wait;
+        private bool b_waitFLy;
         private bool b_hasTransport;
-
+        private bool m_FlyAbility;
+        private bool m_IsFlying;
+        private bool b_ReadyToFly = false;
+       
+        public enum FlyState
+        {
+            None,
+            ReadyToFly,
+            WaitToFly,
+            Flying,
+            Failure,
+            
+        }
+        private FlyState m_CurFlyState = FlyState.None;
+        public delegate FlyState BeginHandle();
+        public delegate FlyState FlyStateHandle(FlyState state);
+        public event BeginHandle event_BeginFlyHandle;
+        public event FlyStateHandle event_FlyStateHandle;
         public HZFuckWay(
             Vector3 targetpos,
+            bool _FlyAbility,
+            bool _IsFlying,
             float endDistance = 0.05f,
             Predicate<LayerEditorPoint> select = null,
             bool autoAdjust = true,
@@ -83,8 +103,17 @@ namespace DeepMMO.Unity3D.Terrain
             this.UserData = ud;
             this.targetpos = targetpos;
             this.select = select;
+            this.m_IsFlying = _IsFlying;
+            this.m_FlyAbility = _FlyAbility;
+
         }
 
+        public void SetFlyHandle(BeginHandle _event_BeginFlyHandle,FlyStateHandle _event_FlyStateHandle)
+        {
+            this.event_BeginFlyHandle = _event_BeginFlyHandle;
+            this.event_FlyStateHandle = _event_FlyStateHandle;
+        }
+        
       
         protected override void OnInit(LayerPlayer actor)
         {
@@ -123,36 +152,46 @@ namespace DeepMMO.Unity3D.Terrain
         }
 
 
-        private ILayerWayPoint GetWay_Points(DeepCore.Geometry.Vector3 beginpos, DeepCore.Geometry.Vector3 endpos)
+        private NavMeshWayPoint.NavMeshClientWayPoint NewFindPath(DeepCore.Geometry.Vector3 beginpos, DeepCore.Geometry.Vector3 endpos)
         {
+            var clientTerrain = Layer.Terrain3D as NavMeshWayPoint.NavMeshClientTerrain3D;
             ILayerWayPoint points = null;
-            if (!auto_adjust) //直接寻路
+            if (m_IsFlying)//已经在飞行
             {
-                points = Layer.Terrain3D.FindPath(beginpos, endpos);
+                clientTerrain.SetReadyToFly(false);
+                points = clientTerrain.FindAirPath(beginpos, endpos);
             }
             else
             {
+                clientTerrain.SetReadyToFly(b_ReadyToFly);
+                points = Layer.Terrain3D.FindPath(beginpos, endpos);
+            }
+               
 
+            return points as NavMeshWayPoint.NavMeshClientWayPoint;
+        }
+
+        private ILayerWayPoint GetWay_Points(DeepCore.Geometry.Vector3 beginpos, DeepCore.Geometry.Vector3 endpos)
+        {
+            
+            ILayerWayPoint points = null;
+            if (!auto_adjust) //直接寻路
+            {
+                points = NewFindPath(beginpos, endpos);
+            }
+            else
+            {
 
                 bool hasFindPath = true;
                 bool isStraight = false;
                 WayPointAstar.FlagGraphPath wp_path = null;
              
-//                if (!NavMesh.Raycast(srcUnitypos, targetpos, out NavMeshHit hit, 1)) //直接能到目标点就不走大路点
-//                {
-//                    this.way_points = Layer.Terrain3D.FindPath(Owner.Position, target_pos);
-//                    hasFindPath = false;
-//                    isStraight = true;
-//                }
+
                 LayerEditorPoint startFlag_point = null;
                 LayerEditorPoint endFlag_point = null;
                 //开始段
                 if (hasFindPath && select != null)
                 {
-//                    if (start_point == null)
-//                    {
-//                        start_point = Layer.GetNearZoneFlag<LayerEditorPoint>(beginpos, select);
-//                    }
                     startFlag_point =  Layer.GetNearZoneFlag<LayerEditorPoint>(beginpos, select);
                     if (startFlag_point == null)
                     {
@@ -190,7 +229,8 @@ namespace DeepMMO.Unity3D.Terrain
                 {
                     if (!isStraight)
                     {
-                        points = Layer.Terrain3D.FindPath(beginpos, endpos);
+                        points = NewFindPath(beginpos, endpos);
+//                        points = Layer.Terrain3D.FindPath(beginpos, endpos);
                     }
                    
                 }
@@ -198,7 +238,7 @@ namespace DeepMMO.Unity3D.Terrain
                 {
 
                     var zonepos = new DeepCore.Geometry.Vector3(wp_path.Data.X, wp_path.Data.Y, wp_path.Data.Z);
-                    var navwaypoint = Layer.Terrain3D.FindPath(beginpos, zonepos) as NavMeshWayPoint.NavMeshClientWayPoint;
+                    var navwaypoint = NewFindPath(beginpos, zonepos) ;//Layer.Terrain3D.FindPath(beginpos, zonepos) as NavMeshWayPoint.NavMeshClientWayPoint;
                     if (navwaypoint != null)
                     {
                         if (Layer.Terrain3D is NavMeshWayPoint.NavMeshClientTerrain3D)
@@ -217,7 +257,7 @@ namespace DeepMMO.Unity3D.Terrain
                             var isbreak = false;
                             for (int i = 0; i < pos.Count - 1; i++)
                             {
-                                var navpoint = Layer.Terrain3D.FindPath(pos[i], pos[i + 1]) as NavMeshWayPoint.NavMeshClientWayPoint;
+                                var navpoint = NewFindPath(pos[i], pos[i + 1]);//Layer.Terrain3D.FindPath(pos[i], pos[i + 1]) as NavMeshWayPoint.NavMeshClientWayPoint;
                                 if (navpoint != null)
                                 {
                                     navwaypoint.LinkNext(navpoint);
@@ -232,12 +272,12 @@ namespace DeepMMO.Unity3D.Terrain
 
                             if (isbreak)
                             {
-                                navwaypoint = Layer.Terrain3D.FindPath(beginpos, endFlag_point.Position) as NavMeshWayPoint.NavMeshClientWayPoint;
+                                navwaypoint = NewFindPath(beginpos, endFlag_point.Position);//Layer.Terrain3D.FindPath(beginpos, endFlag_point.Position) as NavMeshWayPoint.NavMeshClientWayPoint;
                             }
 
                         }
 
-                        var end_points = Layer.Terrain3D.FindPath(endFlag_point.Position, endpos) as NavMeshWayPoint.NavMeshClientWayPoint;
+                        var end_points = NewFindPath(endFlag_point.Position, endpos);//Layer.Terrain3D.FindPath(endFlag_point.Position, endpos) as NavMeshWayPoint.NavMeshClientWayPoint;
                         if (end_points != null)
                         {
                             navwaypoint.LinkNext(end_points);
@@ -250,7 +290,7 @@ namespace DeepMMO.Unity3D.Terrain
                     }
                     else
                     {
-                        points = Layer.Terrain3D.FindPath(beginpos, endpos);
+                        points = NewFindPath(beginpos,endpos); //Layer.Terrain3D.FindPath(beginpos, endpos);
                     }
                     
                 }
@@ -268,22 +308,18 @@ namespace DeepMMO.Unity3D.Terrain
             }
             return new Tuple<float,ILayerWayPoint>(waypoint.GetTotalDistance(),waypoint);
         }
-        /// <summary>
-        /// 再次开始
-        /// </summary>
-        public void Start()
-        {
 
-            var target_pos = BattleUtils.UnityPos2ZonePos(Owner.Parent.Terrain3D.TotalHeight, targetpos);
+
+        private void CalculatePath()
+        {
+            var target_pos = BattleUtils.UnityPos2ZonePos(Owner.Parent.Terrain3D.TotalHeight, FixPos(targetpos));
+            //Debug.Log("target_pos==========="+FixPos(targetpos));
             var tarMaxdis = 99999f;
-//            var begintransport = DeepCore.Geometry.Vector3.NaN;
-//            var endtransport = DeepCore.Geometry.Vector3.NaN;
             ILayerWayPoint beginlayerwp = null;
             ILayerWayPoint endlaywp = null;
             //var stopwatch = Stopwatch.StartNew();
             if (mRegionDatas != null && mRegionDatas.Count > 0)//传送点判断
             {
-                
                 foreach (var regionData in mRegionDatas)
                 {
                     var pos = new DeepCore.Geometry.Vector3(regionData.X, regionData.Y, regionData.Z);
@@ -322,8 +358,6 @@ namespace DeepMMO.Unity3D.Terrain
                                     if (pathbegin.Item1 + pathend.Item1 < tarMaxdis)
                                     {
                                         tarMaxdis = pathend.Item1 + pathbegin.Item1;
-//                                        begintransport = pos;
-//                                        endtransport = flag.Position;
                                         beginlayerwp = pathbegin.Item2;
                                         endlaywp = pathend.Item2;
                                     }
@@ -336,6 +370,7 @@ namespace DeepMMO.Unity3D.Terrain
             
             //stopwatch.Reset();
             var distance = Distance(Owner.Position,target_pos);
+            
             //Debug.Log("orgpathfind cost time" + stopwatch.ElapsedMilliseconds / 1000f);
             if (distance.Item1 != -1 && distance.Item1 < tarMaxdis)
             {
@@ -346,54 +381,43 @@ namespace DeepMMO.Unity3D.Terrain
                 way_points.Add(beginlayerwp);
                 way_points.Add(endlaywp);
                 b_hasTransport = true;
-
-//                var waysbegin = GetWay_Points(Owner.Position,begintransport);
-//                var waysend = GetWay_Points(endtransport,target_pos);
-//                if (waysbegin.Tail is NavMeshWayPoint.NavMeshClientWayPoint wt)
-//                {
-//                    wt.LinkNext(waysend as NavMeshWayPoint.NavMeshClientWayPoint);
-//                }
-//
-//                way_points = waysbegin;
             }
 
             if (way_points != null && way_points.Count > 0)
             {
-                mNavPathPoints = GetRoadPoint(way_points[0]);
-//                Debug.Log("lastpath1="+mNavPathPoints[mNavPathPoints.Count - 1]);
-//                Debug.Log("lastpath2="+mNavPathPoints[mNavPathPoints.Count - 2]);
+                mNavPathPoints = NavMeshWayPoint.NavMeshClientTerrain3D.GetRoadPoint(way_points[0],Owner.Parent.Terrain3D.TotalHeight);
             }
             
         }
 
-        public List<Vector3> GetRoadPoint(ILayerWayPoint waypoint)
+        /// <summary>
+        /// 再次开始
+        /// </summary>
+        public void Start()
         {
-            var points = new List<Vector3>();
-            if (waypoint != null)
+            CalculatePath();
+
+            if (way_points == null && m_FlyAbility && !m_IsFlying)//地面寻路 接空中寻路
             {
-                var postion = waypoint.Position.ConvertToUnityPos(Owner.Parent.Terrain3D.TotalHeight);
-                points.Add(postion);
-                var curway = waypoint;
-                while (curway.Next != null)
+                m_IsFlying = true;
+                CalculatePath();
+                if (way_points != null && way_points.Count > 0)
                 {
-                    var _postion = curway.Next.Position.ConvertToUnityPos(Owner.Parent.Terrain3D.TotalHeight);
-                    points.Add(_postion);
-                    curway = curway.Next;
+                    var waypoint = way_points[way_points.Count - 1];
+                    var lastpoint = waypoint.Position.ConvertToUnityPos(Owner.Parent.Terrain3D.TotalHeight);
+                    var dis = Vector3.Distance(lastpoint, targetpos);
+                    if (dis <= EndDistance)
+                    {
+                        b_ReadyToFly = true;
+                        m_CurFlyState = FlyState.ReadyToFly;
+                    }
                 }
-
-//                distance = Vector3.Distance(targetpos, mNavPathPoints[mNavPathPoints.Count - 1]);
-//                if (distance > 5) //最终点大于目标点 算寻路失败
-//                {
-//                    way_points = null;
-//                }
+                m_IsFlying = false;
             }
-
-            else
-            {
-                return null;
-            }
-            return points;
+            
         }
+
+
         //路线优化
         private WayPointAstar.FlagGraphPath OptimizePath(WayPointAstar.FlagGraphPath navwaypoint)
         {
@@ -404,20 +428,7 @@ namespace DeepMMO.Unity3D.Terrain
             }
 
             var curwaypoint = navwaypoint;
-            //        var srcUnitypos = Owner.Position.ConvertToUnityPos(Owner.Parent.Terrain3D.TotalHeight);
-            //        var curwayUnitypos = curwaypoint.Position.ConvertToUnityPos(Owner.Parent.Terrain3D.TotalHeight);
-            //        float distance = UnityEngine.Vector3.Distance(srcUnitypos, curwayUnitypos);
-            //        var nextpos = curwaypoint.Next.Position.ConvertToUnityPos(Owner.Parent.Terrain3D.TotalHeight);
-            //        var startdistance =  UnityEngine.Vector3.Distance(curwayUnitypos, nextpos);
-            //        if (!NavMesh.Raycast(srcUnitypos,nextpos,out NavMeshHit hit,1)) // 如果可以直达
-            //        {
-            //            var dis = UnityEngine.Vector3.Distance(srcUnitypos, nextpos); // 判断直达还是从路点1走比较近
-            //            if (dis < distance + startdistance)
-            //            {
-            //                curwaypoint = curwaypoint.Next as NavMeshWayPoint.NavMeshClientWayPoint;
-            //            }
-            //             
-            //        }
+      
             var srcUnitypos = Owner.Position.ConvertToUnityPos(Owner.Parent.Terrain3D.TotalHeight);
 
             var forward = (targetpos - srcUnitypos).normalized;
@@ -468,11 +479,38 @@ namespace DeepMMO.Unity3D.Terrain
             return new Vector2(nextposZonePos.X, nextposZonePos.Y);
         }
 
+        private Vector3 FixPos(Vector3 pos)
+        {
+            var _targetpos = pos;
+            if (m_IsFlying)
+            {
+                var clientTerrain = Layer.Terrain3D as NavMeshWayPoint.NavMeshClientTerrain3D;
+                _targetpos = clientTerrain.FixPos(pos);
+               
+            }
+
+            return _targetpos;
+        }
+        
+        private DeepCore.Geometry.Vector3 FixPos(DeepCore.Geometry.Vector3 pos)
+        {
+            var _targetpos = pos;
+            if (m_IsFlying)
+            {
+                var clientTerrain = Layer.Terrain3D as NavMeshWayPoint.NavMeshClientTerrain3D;
+                var unitypos = pos.ConvertToUnityPos(Layer.Terrain3D.TotalHeight);
+                unitypos = clientTerrain.FixPos(unitypos);
+                _targetpos = BattleUtils.UnityPos2ZonePos(Layer.Terrain3D.TotalHeight,unitypos);
+            }
+
+            return _targetpos;
+        }
         private bool checkTargetDistance()
         {
-            float distance = Vector3.Distance(cur_pos, targetpos);
-
-            if (distance <= EndDistance)
+          
+            float distance = Vector3.Distance(cur_pos, FixPos(targetpos));
+                
+            if (distance <= (m_IsFlying?0.2f:EndDistance))
             {
                 return true;
             }
@@ -506,22 +544,63 @@ namespace DeepMMO.Unity3D.Terrain
                 }
             }
         }
+
+        private void StopAutoRun()
+        {
+            mFinish = true;
+            Stop();
+        }
+        
         protected override void BeginUpdate(int intervalMS)
         {
             cur_dir = Owner.Direction;
             cur_pos = Owner.GetUnityPos();
+            if (checkTargetDistance())
+            {
+                StopAutoRun();
+                return;
+            }
+            
+            if (!m_IsFlying && m_CurFlyState == FlyState.ReadyToFly && (mNavPathPoints == null || mNavPathPoints.Count == 0))
+            {
+                m_IsFlying = true;
+                CalculatePath();
+               
+                if (mNavPathPoints == null || mNavPathPoints.Count == 0 ||event_BeginFlyHandle == null)
+                {
+                    StopAutoRun();
+                    return;
+                }
+                
+                m_CurFlyState = event_BeginFlyHandle();
+                if (m_CurFlyState == FlyState.Failure)
+                {
+                    StopAutoRun();
+                    return;
+                }
+                
+
+            }
+            else if (m_CurFlyState >= FlyState.WaitToFly && m_CurFlyState <= FlyState.Flying)
+            {
+                if (event_FlyStateHandle != null)
+                {
+                    m_CurFlyState = event_FlyStateHandle(m_CurFlyState);
+                }
+                else
+                {
+                    StopAutoRun();
+                    return;
+                }
+            }
+            else
             if ( !b_wait && (mNavPathPoints == null || mNavPathPoints.Count == 0))
             {
                 if (b_hasTransport)
                 {
-                    Owner.SendUnitAxisAngle(0, 0, cur_dir);
-                    return;
+                    Owner.SendUnitAxisAngle(cur_dir, 0, cur_dir);
                 }
-                if (checkTargetDistance())
-                {
-                    mFinish = true;
-                    Stop();
-                }
+                
             }
             else
             {
@@ -532,78 +611,98 @@ namespace DeepMMO.Unity3D.Terrain
                     if (way_points.Count > 1)
                     {
                         way_points.RemoveAt(0);
-                        mNavPathPoints = GetRoadPoint(way_points[0]);
+                        mNavPathPoints = NavMeshWayPoint.NavMeshClientTerrain3D.GetRoadPoint(way_points[0],Owner.Parent.Terrain3D.TotalHeight);
                     }
                 }
                 
-                var nextpos = mNavPathPoints[0];
-                var curpos2d = new Vector2(Owner.Position.X, Owner.Position.Y);
-                var nextpos2d = Get3DTo2DZonePostion(nextpos); //nextpos.GetToZonePosSimpleNumberVector2(Owner.Parent.Terrain3D.TotalHeight);
-                
-                
-                
+              
                 float length = MoveHelper.GetDistance(intervalMS, Owner.MoveSpeedSEC);
 
-
-                float targetdistance = Vector3.Distance(cur_pos, targetpos);
-                float nextdistance = Vector2.Distance(curpos2d, nextpos2d);
-
-                if (checkTargetDistance())
-                {
-                    mFinish = true;
-                    Stop();
-                    return;
-                }
-
-                FixMove(ref curpos2d, nextpos2d, length);
-//                if (MathVector3D.moveTo(ref curpos2d, nextpos2d, length))
-//                {
-//                    if ((nextdistance <= length || Vector2.Distance(curpos2d, nextpos2d) <= 0.1f)
-//                        && mNavPathPoints != null && mNavPathPoints.Count > 0)
-//                    {
-//                        mNavPathPoints.RemoveAt(0);
-//                        if (mNavPathPoints.Count == 0)
-//                        {
-//                            if (!b_hasTransport)
-//                            {
-//                                mFinish = true;
-//                                Stop();
-//                            }
-//                            Owner.SendUnitAxisAngle(0, 0, cur_dir);
-//                            return;
-//                        }
-//
-//                        nextpos = mNavPathPoints[0];
-//                        nextpos2d = Get3DTo2DZonePostion(nextpos);
-//                        MathVector3D.moveTo(ref curpos2d, nextpos2d, length - nextdistance);
-//                        //Debug.Log("curpos2d========"+curpos2d +" nextpos========"+nextpos);
-//
-//                    }
-//                }
-
-                //Debug.Log("cur_pos3========"+curpos2d );
-                var pos = curpos2d;
+             
                 var ownerpos = Owner.Position;
-                var dis = MathVector3D.Get2DDistance(pos.x, pos.y, ownerpos.X, ownerpos.Y);
-
-                if (targetdistance <= 0.05f)
+                var nextpos = cur_pos;
+                if (m_IsFlying)
                 {
-                    mFinish = true;
-                    Stop();
+                  
+                    var clientTerrain = Layer.Terrain3D as NavMeshWayPoint.NavMeshClientTerrain3D;
+                    var _targetpos = clientTerrain.FixPos(targetpos);
+                    var pos = clientTerrain.UpdateAirMove(cur_pos,length,ref mNavPathPoints);
+                    //Fix3DMove(ref cur_pos, nextpos, length);
+                    //Debug.Log("cur_pos3========"+curpos2d );
+                    if (mNavPathPoints != null && mNavPathPoints.Count > 0)
+                    {
+                        nextpos = mNavPathPoints[0];
+                    }
+                    
+                    var zonepos = BattleUtils.UnityPos2ZonePos(Owner.Parent.Terrain3D.TotalHeight, pos);
+                    var dis = MathVector3D.Get2DDistance(zonepos.X, zonepos.Y, ownerpos.X, ownerpos.Y);
+                    float targetdistance = Vector3.Distance(cur_pos, _targetpos);
+                    if (targetdistance <= 0.05f)
+                    {
+                        mFinish = true;
+                        Stop();
+                    }
+                    else
+                    {
+                       
+                        var newzonepos = BattleUtils.UnityPos2ZonePos(Owner.Parent.Terrain3D.TotalHeight,
+                            nextpos);
+                        var dir = MathVector.getDegree(ownerpos.X, ownerpos.Y, newzonepos.X, newzonepos.Y);
+                        if (dir != 0)
+                        {
+                            cur_dir = dir;
+                        }
+                        //Owner.SendUnitAxisAngle(0, 0, cur_dir);
+                        if (Owner.Components.TryGetComponent<LayerPlayer.ZeroGravityFlyComponent>(out var gravityFlyComponent,
+                            true))
+                        {
+                            var speedz = (zonepos.Z - ownerpos.Z)*1000f / intervalMS;
+                            gravityFlyComponent.PreMoveTo(newzonepos.X, newzonepos.Y, newzonepos.Z, speedz,intervalMS);
+                           
+                        }
+                           
+                        //Debug.Log(" nextpos1=========="+pos +" dis======="+dis);
+
+                        //length 需要优化
+//                        var length2d = dis;
+//                        var dir = MathVector.getDegree(ownerpos.X, ownerpos.Y, zonepos.X, zonepos.Y);
+//                        if (dir != 0)
+//                        {
+//                            cur_dir = dir;
+//                        }
+//                        
+//                        Debug.Log("cur_pos= "+cur_pos+" targetpos= "+nextpos +" length2d= " + length2d);
+//                       
+//                        var speedz = (zonepos.Z - ownerpos.Z)*1000f / intervalMS;
+//                        Owner.SendUnit3DAxisAngle(cur_dir, length2d, cur_dir,speedz);
+                      
+                    }
                 }
                 else
                 {
-                    //Debug.Log(" nextpos1=========="+pos +" dis======="+dis);
+                    nextpos = mNavPathPoints[0];
+                    var curpos2d = new Vector2(Owner.Position.X, Owner.Position.Y);
+                    var nextpos2d = Get3DTo2DZonePostion(nextpos); //nextpos.GetToZonePosSimpleNumberVector2(Owner.Parent.Terrain3D.TotalHeight);
 
+                   
+
+                    FixMove(ref curpos2d, nextpos2d, length);
+                    //Debug.Log("cur_pos3========"+curpos2d );
+                    var pos = curpos2d;
+                   
+                    var dis = MathVector3D.Get2DDistance(pos.x, pos.y, ownerpos.X, ownerpos.Y);
                     if (dis <= 0.05f) //精度修正
                     {
                         pos = nextpos2d;
                         //Debug.Log(" nextpos2=========="+pos);
                     }
-
+                    
+                  
                     cur_dir = MathVector.getDegree(ownerpos.X, ownerpos.Y, pos.x, pos.y);
                     Owner.SendUnitAxisAngle(cur_dir, length, cur_dir);
+                    
                 }
+                    
 
 
             }

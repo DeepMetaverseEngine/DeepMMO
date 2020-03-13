@@ -311,18 +311,18 @@ public static partial class RcdtcsUnityUtils{
 		return new Vector3(pos[start], pos[start + 1], pos[start + 2]);
 	}
 	
-	public static StraightPath ComputeStraightPath(Detour.dtNavMeshQuery navQuery, Vector3 startPos, Vector3 endPos){
-		return ComputeStraightPath(navQuery, Vector3ToArray(startPos), Vector3ToArray(endPos));
+	public static StraightPath ComputeStraightPath(Detour.dtNavMeshQuery navQuery, Vector3 startPos, Vector3 endPos,float distance = 10){
+		return ComputeStraightPath(navQuery, Vector3ToArray(startPos), Vector3ToArray(endPos),distance);
 	}
 	
-	public static StraightPath ComputeStraightPath(Detour.dtNavMeshQuery navQuery, float[] startPos, float[] endPos){
+	public static StraightPath ComputeStraightPath(Detour.dtNavMeshQuery navQuery, float[] startPos, float[] endPos,float distance = 10){
 		//m_ComputedPathType = PathType.Straight;
 		
 		StraightPath path = new StraightPath();
 		
 		float[] extents = new float[3];
 		for (int i=0;i<3;++i){
-			extents[i] = 10.0f;
+			extents[i] = distance;
 		}
 		
 		dtPolyRef startRef = 0;
@@ -360,12 +360,29 @@ public static partial class RcdtcsUnityUtils{
 		
 		return path;
 	}
+	public static uint GetClosestPointOnNavMesh(Detour.dtNavMeshQuery navQuery, Vector3 pos,ref float[] resPos,float distance = 10) {
+		
+		return GetClosestPointOnNavMesh(navQuery,new[]{pos.x,pos.y,pos.z},ref resPos,distance);
+	}
 	
-	public static float[] GetClosestPointOnNavMesh(Detour.dtNavMeshQuery navQuery, float[] pos) {
+	public static uint GetClosestPointOnNavMesh(Detour.dtNavMeshQuery navQuery, float[] pos,ref float[] resPos, float distance = 10) {
 		
 		float[] extents = new float[3];
 		for (int i = 0; i < 3; ++i) {
-			extents[i] = 10.0f;
+			extents[i] = distance;
+		}
+		
+		Detour.dtQueryFilter filter = new Detour.dtQueryFilter();
+		dtPolyRef startRef = 0;
+		resPos = new float[3];
+		var res = navQuery.findNearestPoly(pos, extents, filter, ref startRef, ref resPos);
+		return res;
+	}
+	public static float[] GetClosestPointOnNavMesh(Detour.dtNavMeshQuery navQuery, float[] pos,float distance = 10) {
+		
+		float[] extents = new float[3];
+		for (int i = 0; i < 3; ++i) {
+			extents[i] = distance;
 		}
 		
 		Detour.dtQueryFilter filter = new Detour.dtQueryFilter();
@@ -377,11 +394,11 @@ public static partial class RcdtcsUnityUtils{
 		return res;
 	}
 	
-	public static SmoothPath ComputeSmoothPath(Detour.dtNavMeshQuery navQuery, Vector3 startPos, Vector3 endPos){
-		return ComputeSmoothPath(navQuery, Vector3ToArray(startPos), Vector3ToArray(endPos));
+	public static SmoothPath ComputeSmoothPath(Detour.dtNavMeshQuery navQuery, Vector3 startPos, Vector3 endPos,float distance = 10){
+		return ComputeSmoothPath(navQuery, Vector3ToArray(startPos), Vector3ToArray(endPos),distance);
 	}
 	
-	public static SmoothPath ComputeSmoothPath(Detour.dtNavMeshQuery navQuery, float[] startWorldPos, float[] endWorldPos){
+	public static SmoothPath ComputeSmoothPath(Detour.dtNavMeshQuery navQuery, float[] startWorldPos, float[] endWorldPos,float distance = 10){
 		
 		SmoothPath smoothPath = new SmoothPath();
 		
@@ -391,7 +408,7 @@ public static partial class RcdtcsUnityUtils{
 		
 		float[] extents = new float[3];
 		for (int i=0;i<3;++i){
-			extents[i] = 10.0f;
+			extents[i] = distance;
 		}
 		
 		dtPolyRef startRef = 0;
