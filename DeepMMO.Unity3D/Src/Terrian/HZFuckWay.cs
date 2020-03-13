@@ -1,6 +1,7 @@
 ﻿using DeepCore.GameData.Zone;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using DeepCore.Game3D.Helper;
 using DeepCore.Game3D.Slave;
 using DeepCore.Game3D.Slave.Agent;
@@ -92,7 +93,6 @@ namespace DeepMMO.Unity3D.Terrain
         public HZFuckWay(
             Vector3 targetpos,
             bool _FlyAbility,
-            bool _IsFlying,
             float endDistance = 0.05f,
             Predicate<LayerEditorPoint> select = null,
             bool autoAdjust = true,
@@ -101,9 +101,9 @@ namespace DeepMMO.Unity3D.Terrain
             this.auto_adjust = autoAdjust;
             this.EndDistance = endDistance;
             this.UserData = ud;
-            this.targetpos = targetpos;
+            this.targetpos = FixPos(targetpos);
             this.select = select;
-            this.m_IsFlying = _IsFlying;
+            
             this.m_FlyAbility = _FlyAbility;
 
         }
@@ -395,9 +395,10 @@ namespace DeepMMO.Unity3D.Terrain
         /// </summary>
         public void Start()
         {
+            this.m_IsFlying = Owner.IsZeroGravityFly;
             CalculatePath();
 
-            if (way_points == null && m_FlyAbility && !m_IsFlying)//地面寻路 接空中寻路
+            if ((way_points == null || way_points.Count == 0) && m_FlyAbility && !m_IsFlying)//地面寻路 接空中寻路
             {
                 m_IsFlying = true;
                 CalculatePath();
@@ -410,6 +411,11 @@ namespace DeepMMO.Unity3D.Terrain
                     {
                         b_ReadyToFly = true;
                         m_CurFlyState = FlyState.ReadyToFly;
+                    }
+                    else
+                    {
+                        way_points = null;
+                        StopAutoRun();
                     }
                 }
                 m_IsFlying = false;
@@ -508,7 +514,7 @@ namespace DeepMMO.Unity3D.Terrain
         private bool checkTargetDistance()
         {
           
-            float distance = Vector3.Distance(cur_pos, FixPos(targetpos));
+            float distance = Vector3.Distance(cur_pos, targetpos);
                 
             if (distance <= (m_IsFlying?0.2f:EndDistance))
             {
@@ -553,6 +559,7 @@ namespace DeepMMO.Unity3D.Terrain
         
         protected override void BeginUpdate(int intervalMS)
         {
+            this.m_IsFlying = Owner.IsZeroGravityFly;
             cur_dir = Owner.Direction;
             cur_pos = Owner.GetUnityPos();
             if (checkTargetDistance())
@@ -561,9 +568,8 @@ namespace DeepMMO.Unity3D.Terrain
                 return;
             }
             
-            if (!m_IsFlying && m_CurFlyState == FlyState.ReadyToFly && (mNavPathPoints == null || mNavPathPoints.Count == 0))
+            if (m_CurFlyState == FlyState.ReadyToFly && (mNavPathPoints == null || mNavPathPoints.Count == 0))
             {
-                m_IsFlying = true;
                 CalculatePath();
                
                 if (mNavPathPoints == null || mNavPathPoints.Count == 0 ||event_BeginFlyHandle == null)
@@ -635,7 +641,7 @@ namespace DeepMMO.Unity3D.Terrain
                     }
                     
                     var zonepos = BattleUtils.UnityPos2ZonePos(Owner.Parent.Terrain3D.TotalHeight, pos);
-                    var dis = MathVector3D.Get2DDistance(zonepos.X, zonepos.Y, ownerpos.X, ownerpos.Y);
+//                    var dis = MathVector3D.Get2DDistance(zonepos.X, zonepos.Y, ownerpos.X, ownerpos.Y);
                     float targetdistance = Vector3.Distance(cur_pos, _targetpos);
                     if (targetdistance <= 0.05f)
                     {
@@ -652,15 +658,13 @@ namespace DeepMMO.Unity3D.Terrain
                         {
                             cur_dir = dir;
                         }
-                        //Owner.SendUnitAxisAngle(0, 0, cur_dir);
-                        if (Owner.Components.TryGetComponent<LayerPlayer.ZeroGravityFlyComponent>(out var gravityFlyComponent,
-                            true))
-                        {
-                            var speedz = (zonepos.Z - ownerpos.Z)*1000f / intervalMS;
-                            gravityFlyComponent.PreMoveTo(newzonepos.X, newzonepos.Y, newzonepos.Z, speedz,intervalMS);
-                           
-                        }
-                           
+                        
+                        var dxy = DeepCore.Geometry.Vector2.Distance(ownerpos, zonepos);
+                        var maxSpeedZ = (zonepos.Z - ownerpos.Z)*1000f / intervalMS;
+                        var maxSpeedXY = (dxy)*1000f / intervalMS;
+                        var distance = maxSpeedXY == 0 ? 0 : 1;
+                        Owner.SendUnit3DAxisAngle(cur_dir,distance, cur_dir,maxSpeedZ, maxSpeedXY);
+                        
                         //Debug.Log(" nextpos1=========="+pos +" dis======="+dis);
 
                         //length 需要优化
