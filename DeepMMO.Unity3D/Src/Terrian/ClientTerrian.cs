@@ -1,17 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using DeepCore.Astar;
 using DeepCore.Game3D.Slave;
 using DeepCore.Game3D.Slave.Helper;
 using DeepCore.Game3D.Slave.Layer;
 using DeepCore.Game3D.Voxel;
 using DeepCore.GameData.Data;
-using DeepCore.GameData.Zone.ZoneEditor;
+using DeepCore.GameData.Zone;
 using DeepCore.IO;
 using DeepCore.Unity3D;
 using UnityEngine;
-using UnityEngine.AI;
 using ILayerWayPoint = DeepCore.Game3D.Slave.ILayerWayPoint;
 using Vector2 = DeepCore.Geometry.Vector2;
 using Vector3 = DeepCore.Geometry.Vector3;
@@ -406,7 +404,18 @@ namespace DeepMMO.Unity3D.Terrain
                         }
                     }
                     var lastPoint = NavPathPoints[NavPathPoints.Count - 1];
-                   
+
+                    if (!lastPoint.Equals(dsttounitypos))
+                    {
+                        var endpos = dsttounitypos;
+                        endpos.y += m_System.GetNavMeshParams().m_cellHeight;
+                        if (!Physics.Linecast(lastPoint,endpos,layMasks))
+                        {
+                            NavPathPoints.Add(dsttounitypos);
+                            lastPoint = dsttounitypos;
+                        }
+                    }
+                    
                     
                     var lpVec2 = new UnityEngine.Vector2(lastPoint.x,lastPoint.z);
                     var dstVec2 = new UnityEngine.Vector2(dsttounitypos.x,dsttounitypos.z);
@@ -573,15 +582,31 @@ namespace DeepMMO.Unity3D.Terrain
                 
                 var src = vobj.Position;
 
-                if (Math.Abs(remotePos.X - src.X) < 0.01f && Math.Abs(remotePos.Y - src.Y) < 0.01f && Mathf.Abs(src.Z - remotePos.Z)<= 0.2f)
+                if (Math.Abs(remotePos.X - src.X) < 0.01f && Math.Abs(remotePos.Y - src.Y) < 0.01f && Mathf.Abs(src.Z - remotePos.Z)<= 0.2f)//精度有点问题
                 {
                     return true;
                 }
-                
+
                 var ret = Vector3.Lerp(src, remotePos, amount);
                 if (unit.CurrentState == UnitActionStatus.Jump)//黑科技一下？
                 {
                     vobj.Transport(new Vector3(ret.X,ret.Y,src.Z));
+                }
+
+                else if (unit.Info.UType == UnitInfo.UnitType.TYPE_NPC) //先黑一下?
+                {
+                    if (Mathf.Abs(src.Z - remotePos.Z) < 0.3f)
+                    {
+                        return true;
+                    }
+
+                    vobj.Transport(ret);
+                    
+                }
+                else if (!unit.SyncInfo.HasPlayerUUID)//npc为什么会有playeruuid了？暂时没时间跟踪
+                {
+                    vobj.Transport(new Vector3(ret.X, ret.Y, src.Z));
+                    return true;
                 }
                 else
                 {
