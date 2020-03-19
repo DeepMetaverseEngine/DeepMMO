@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using DeepCore;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 using Object = UnityEngine.Object;
@@ -24,7 +25,7 @@ public class ClientFlyPath
     [Tooltip("检测碰撞高度")] public float CheckHeight = 2f;
     [Tooltip("检测步长")] public float Step = 3f;
     [Tooltip("优化路点")] public bool isOptimization = true;
-    [Tooltip("迭代路点，当寻路不到位置时多次迭代")] public int IterTimes = 1;
+    [Tooltip("迭代路点，当寻路不到位置时多次迭代")] public int IterTimes = 4;
     private RcdtcsUnityUtils.SystemHelper m_System ;
     [Tooltip("移动速度")] public float MoveSpeed = 0.6f;
     [Tooltip("地面高度")] public float LandOffset = 0.5f;
@@ -180,17 +181,25 @@ public class ClientFlyPath
         var dis = 0f;
         RaycastHit hit;
         var pos = m_StartPos;
-        var dir = m_EndPos - m_StartPos;
+        //var dir = m_EndPos - m_StartPos;
         var enddis = Vector3.Distance(m_StartPos, m_EndPos);
-        if (enddis > MoveSpeed && Physics.Raycast(m_StartPos,dir,out hit,MoveSpeed*3,m_LayerMask))
+        if (enddis > MoveSpeed && CheckAround(m_StartPos, m_StartPos, out Vector3 Closestpos, out Collider trans))
         {
-            if (!m_HitList.Contains(hit.transform.GetInstanceID()))
+            if (!m_HitList.Contains(trans.transform.GetInstanceID()))
             {
                 m_Path = RecomputePath(m_StartPos, m_EndPos, Step);
-               
-                m_HitList.Add(hit.transform.GetInstanceID());
+                m_HitList.Add(trans.transform.GetInstanceID());
             }
         }
+//        if (enddis > MoveSpeed &&  Physics.Raycast(m_StartPos,dir.normalized,out hit,MoveSpeed,m_LayerMask))
+//        {
+//            if (!m_HitList.Contains(hit.transform.GetInstanceID()))
+//            {
+//                m_Path = RecomputePath(m_StartPos, m_EndPos, Step);
+//               
+//                m_HitList.Add(hit.transform.GetInstanceID());
+//            }
+//        }
         
         var targetdis = Vector3.Distance(m_StartPos, m_EndPos);
         int Count = m_Path.Count;
@@ -239,11 +248,7 @@ public class ClientFlyPath
                 {
                     pos = m_Path[0];
                     dis = Vector3.Distance(m_StartPos, pos);
-					if(Test)
-					{
-						Debug.Log("m_StartPos================"+m_StartPos+" pos========== "+pos);
-                   		Debug.Log("dis================"+dis);
-					}                    
+					                   
                     if (dis <= 0.1f ||  GetContainPos(m_MovePoint, pos))
                     {
                         m_Path.RemoveAt(0);
@@ -320,14 +325,14 @@ public class ClientFlyPath
        
 
 
-        if (Physics.Linecast(m_StartPos, m_EndPos, out RaycastHit hit, m_LayerMask))
-        {
-            Debug.DrawRay(hit.point, hit.normal * 10, Color.green);
-            Debug.DrawRay(hit.point, -hit.normal * 10, Color.cyan);
-            var dir = m_EndPos - m_StartPos;
-            var newdir = -hit.normal + dir.normalized;
-            Debug.DrawRay(m_StartPos, newdir * 10, Color.magenta);
-        }
+//        if (Physics.Linecast(m_StartPos, m_EndPos, out RaycastHit hit, m_LayerMask))
+//        {
+//            Debug.DrawRay(hit.point, hit.normal * 10, Color.green);
+//            Debug.DrawRay(hit.point, -hit.normal * 10, Color.cyan);
+//            var dir = m_EndPos - m_StartPos;
+//            var newdir = -hit.normal + dir.normalized;
+//            Debug.DrawRay(m_StartPos, newdir * 10, Color.magenta);
+//        }
 
         //Debug.DrawRay(m_StartPos, m_EndPos - m_StartPos, Color.yellow);
 //        Debug.DrawRay(m_EndPos, Vector3.down * CheckNavMaxHeight, Color.red);
@@ -384,37 +389,69 @@ public class ClientFlyPath
         var distance = Vector3.Distance(endPos, startpos);
         var forward = dirforward;
 
-        var dirret = GetNewDir(startpos, dir, dir, distance, true); //判断是否直接能到
-        if (!dirret.Item1) //可以直达 不玩花
+        if(!Physics.Linecast(startpos,endPos,m_LayerMask))
         {
-            flypath.path = endPos;
-            srcPath.next = flypath;
+            var dis = Vector3.Distance(startpos, endPos);
+            var fixTimeLimit = (int)(dis / steplength);
+            var fixtime = 0;
+            var tempos = startpos;
+            if (fixTimeLimit > 0)
+            {
+                srcPath.next = flypath;
+                while (fixtime < fixTimeLimit)
+                {
+                    var tempfly = new FlyPath {prev = flypath};
+                    tempos = tempos + dir * steplength;
+                    flypath.path = tempos;
+                    flypath.next = tempfly;
+                    flypath = tempfly;
+                    fixtime++;
+                }
+                flypath.path = endPos;
+            }
+            else
+            {
+                if (!flypath.path.Equals(endPos))
+                {
+                    flypath.path = endPos;
+                    srcPath.next = flypath;
+                }
+            }
+            
             result = true;
             return;
         }
 
-        dirret = GetNewDir(startpos, dir, forward, movestep + CheckRadius + CheckWidth, true);
+//        var dirret = GetNewDir(startpos, dir, dir, distance, true); //判断是否直接能到
+//        if (!dirret.Item1) //可以直达 不玩花
+//        {
+//            flypath.path = endPos;
+//            srcPath.next = flypath;
+//            result = true;
+//            return;
+//        }
+
+        var dirret = GetNewDir(startpos, dir, forward, movestep + CheckRadius + CheckWidth, true);
         dir = dirret.Item2;
-
-
 
         if (dir == Vector3.zero)
         {
-            flypath.path = endPos;
-            srcPath.next = flypath;
-            result = true;
+//            flypath.path = endPos;
+//            srcPath.next = flypath;
+            
+            result = false;
             return;
         }
 
 
         if (Physics.Raycast(startpos, dir.normalized, out hit, movestep + CheckRadius + CheckWidth, m_LayerMask))
         {
-                var dis = Vector3.Distance(startpos, hit.point);
-                if (movestep + CheckRadius + CheckWidth > dis)
-                {
-                    movestep = dis - CheckRadius - CheckWidth;
-                }
-               AddHitAround(hit.collider);
+            var dis = Vector3.Distance(startpos, hit.point);
+            if (movestep + CheckRadius + CheckWidth > dis)
+            {
+                movestep = dis - CheckRadius - CheckWidth;
+            }
+            AddHitAround(hit.collider);
         }
 
         if (distance < movestep)
@@ -461,7 +498,7 @@ public class ClientFlyPath
 
         distance = Vector3.Distance(endPos, startpos);
 
-        if (distance < 0.3f || dir == Vector3.zero)
+        if (distance <= 0.3f)
         {
             flypath.path = endPos;
             srcPath.next = flypath;
@@ -535,6 +572,11 @@ public class ClientFlyPath
         RaycastHit hit;
         var srcPath = flyPath;
         var isHit = CheckAround(srcPath.path, orgpos, out Vector3 closetpos, out Collider trans);
+        if (!isHit && Physics.Linecast(srcPath.path,orgpos,out hit, m_LayerMask))
+        {
+            trans = hit.collider;
+            isHit = true;
+        }
         while (isHit || GetContainPos(pointList, orgpos))
         {
             if (isHit)
@@ -576,11 +618,14 @@ public class ClientFlyPath
                 dirList.Add(dir);
                 break;
             }
-            else if (srcPath.prev != null)
+            if (srcPath.prev != null)
             {
-                orgpos = srcPath.prev.path;
-                srcPath = srcPath.prev;
-                isHit = CheckAround(srcPath.path, orgpos, out  closetpos, out  trans);
+                if (!Physics.Linecast(srcPath.path,orgpos,out hit, m_LayerMask))
+                {
+                    orgpos = srcPath.prev.path;
+                    srcPath = srcPath.prev;
+                    isHit = CheckAround(srcPath.path, orgpos, out  closetpos, out  trans);
+                }
             }
             else
             {
@@ -623,11 +668,19 @@ public class ClientFlyPath
         {
             isHit = true;
         }
-
+        var angle = GetAngle(startpos, m_EndPos);
+        //Debug.Log("startpos ="+startpos+" angle="+angle);
         if (isHit)
         {
+           
             AddHitAround(hit.collider);
-            newdir = Vector3.Cross(hit.normal, Vector3.Cross(dirforward, hit.normal));
+           
+            if ( m_EndPos .y < startpos.y && angle >= 80 && angle <= 100)
+            {
+                newdir = hit.normal + dirforward;
+            }
+            else
+                newdir = Vector3.Cross(hit.normal, Vector3.Cross(dirforward, hit.normal));
         }
 
         return new Tuple<bool, Vector3>(isHit, newdir);
@@ -655,7 +708,7 @@ public class ClientFlyPath
 
         if (Physics.Raycast(targetpos + Vector3.up * CheckHeight/2, downward, out hit, distance, m_LayerMask))
         {
-            bottompos = hit.point;
+            bottompos = FixPos(hit.point);
         }
         
 
@@ -776,10 +829,10 @@ public class ClientFlyPath
         
         m_DynamicPos = Vector3.positiveInfinity;
         m_StartPos = startPos;
-        m_EndPos = FixPos(endPos);
+        m_EndPos = endPos;
         
         m_Path = RecomputePath(m_StartPos, m_EndPos, Step);
-        if (m_Path == null || m_Path.Count == 0)
+        if (m_Path.Count == 0)
         {
             _moveState = MoveStateType.Failure;
         }
@@ -787,45 +840,89 @@ public class ClientFlyPath
         return m_Path;
 
     }
+    private Tuple<float,FlyPath> GetPath(Vector3 startPos,Vector3 dir,Vector3 endPos,float moveStepLength)
+    {
+        var pointList = new List<Vector3>();
+        var curPath = new FlyPath() {path = startPos};
+        bool Checkresult = false;
+        CheckPath(curPath, dir.normalized, pointList, endPos, 0, moveStepLength, ref Checkresult);
+        var distance = 0f;
+        var temppath = curPath;
 
+        var curpoint = curPath.path;
+        while (temppath.next != null)
+        {
+            distance += Vector3.Distance(curpoint, temppath.next.path);
+            curpoint = temppath.next.path;
+            temppath = temppath.next;
+        }
 
-    private List<Vector3> FindAirPath(Vector3 startPos,Vector3 endPos,float moveStepLength)
+        var dis = Vector3.Distance(temppath.path, endPos);
+        if (dis <= LandOffset)
+        {
+            return new Tuple<float,FlyPath>(distance,curPath);
+        }
+
+        else
+        {
+            return new Tuple<float,FlyPath>(-1,null);
+        }
+    }
+
+ private List<Vector3> FindAirPath(Vector3 startPos,Vector3 endPos,float moveStepLength)
     {
         var flypath = new FlyPath() {path = startPos};
         var dir = endPos - startPos;
-        var pointList = new List<Vector3>();
+        //var pointList = new List<Vector3>();
         var iter = 0;
-        var curPath = flypath;
-        bool Checkresult = false;
-       
+        var Maxdistance = float.MaxValue;
         while (iter < IterTimes)
         {
-            int checkTime = 0;
-            CheckPath(curPath, dir.normalized, pointList, endPos, 0, moveStepLength, ref Checkresult);
-          
-            var temppath = curPath;
-            while (temppath.next != null)
+            var tempdir = dir.normalized;
+            if (iter == 1)
             {
-                temppath = temppath.next;
+                tempdir = Vector3.forward;
+            }
+            else if (iter == 2)
+            {
+                tempdir = Vector3.back;
+            }
+            else if (iter == 3)
+            {
+                tempdir = Vector3.left;
+            }
+            else if (iter == 4)
+            {
+                tempdir = Vector3.right;
+            }
+            else if (iter == 5)
+            {
+                tempdir = Vector3.up;
+            }
+            else if (iter == 6)
+            {
+                tempdir = Vector3.down;
             }
 
-            var dis = Vector3.Distance(temppath.path, endPos);
-            if (dis > 0.3f)
-            {
+            if (iter != 0 && tempdir.Equals(dir.normalized))
+            {   
                 iter++;
-                curPath = temppath;
-                dir = temppath.dir;
+                continue;
             }
-            else
+            var ret = GetPath(startPos, tempdir, endPos, moveStepLength);
+            if (ret.Item1 != -1&& ret.Item1 < Maxdistance)
             {
-                break;
+                Maxdistance = ret.Item1; 
+                flypath = ret.Item2;
             }
+
+            iter++;
         }
+        
         
         var path = new List<Vector3>();
         if (flypath.next != null)
         {
-           
             path.Add(flypath.path);
             while (flypath.next != null)
             {
@@ -836,6 +933,54 @@ public class ClientFlyPath
 
         return path;
     }
+
+//    private List<Vector3> FindAirPath(Vector3 startPos,Vector3 endPos,float moveStepLength)
+//    {
+//        var flypath = new FlyPath() {path = startPos};
+//        var dir = endPos - startPos;
+//        var pointList = new List<Vector3>();
+//        var iter = 0;
+//        var curPath = flypath;
+//        bool Checkresult = false;
+//       
+//        while (iter < IterTimes)
+//        {
+//            int checkTime = 0;
+//            CheckPath(curPath, dir.normalized, pointList, endPos, 0, moveStepLength, ref Checkresult);
+//          
+//            var temppath = curPath;
+//            while (temppath.next != null)
+//            {
+//                temppath = temppath.next;
+//            }
+//
+//            var dis = Vector3.Distance(temppath.path, endPos);
+//            if (dis > 0.3f)
+//            {
+//                iter++;
+//                curPath = temppath;
+//                dir = temppath.dir;
+//            }
+//            else
+//            {
+//                break;
+//            }
+//        }
+//        
+//        var path = new List<Vector3>();
+//        if (flypath.next != null)
+//        {
+//           
+//            path.Add(flypath.path);
+//            while (flypath.next != null)
+//            {
+//                path.Add(flypath.next.path);
+//                flypath = flypath.next;
+//            }
+//        }
+//
+//        return path;
+//    }
 
     public Vector3 FixPos(Vector3 pos)
     {
@@ -861,15 +1006,23 @@ public class ClientFlyPath
     }
     private List<Vector3> RecomputePath(Vector3 startpos, Vector3 endPos, float moveStepLength)
     {
+        
+       
+        //var stopwatch = Stopwatch.StartNew();
+        var path = new List<Vector3>();
 
         if (m_System == null)
         {
-            return null;
+            return path;
         }
-        var stopwatch = Stopwatch.StartNew();
-        var path = new List<Vector3>();
-
 //******************************************
+        //能直达目标点
+        if (!Physics.Linecast(startpos,endPos,m_LayerMask))
+        {
+            path.Add(endPos);
+            _moveState = MoveStateType.Moving;
+            return path;
+        }
         var retEnd = GetTopBottom(endPos, CheckNavMaxHeight);
         var targetBottomPos = retEnd.Item2;
         if (targetBottomPos.Equals( Vector3.positiveInfinity))
@@ -886,39 +1039,164 @@ public class ClientFlyPath
             path.Reverse();
             
             var dis = Vector3.Distance(path[path.Count - 1], endPos);
-//            m_GroundStartPos = path[0];
             for (int i = 0;i< path.Count;i++)
             {
-                path[i] = new Vector3(path[i].x,path[i].y,path[i].z);
+                path[i] = FixPos(path[i]);
             }
-            if (dis > LandOffset) //末尾开始再飞
+            if (dis > LandOffset*2) //末尾开始再飞
             {
                 var nextpath = FindAirPath(path[path.Count - 1], endPos, moveStepLength);
-                path.AddRange(nextpath);
+              
+                if (nextpath.Count > 0 )
+                {
+                    var enddis = Vector3.Distance(nextpath[nextpath.Count - 1], endPos);
+                    if (enddis <= LandOffset)
+                    {
+                        if (path[path.Count - 1].Equals(nextpath[0]))
+                        {
+                            nextpath.RemoveAt(0);
+                        }
+                        path.AddRange(nextpath);
+                    }
+                    else
+                    {
+                        path.Clear();
+                        return path;
+                    }
+                }
+                else
+                {
+                    path.Clear();
+                    return path;
+                }
+                
             }
-
-            //能直达目标点
-            dis = Vector3.Distance(startpos, path[0]);
-            if (dis <= LandOffset) //走普通寻路
-            {
-                _moveState = MoveStateType.Moving;
-            }
+           
             else
             {
-                var nextpath = FindAirPath(startpos, path[0], moveStepLength);
-
-                if (nextpath.Count > 0)
+                //能直达普通寻路起点
+             
+                if (!Physics.Linecast(startpos, path[0], m_LayerMask))
                 {
-                    nextpath.AddRange(path);
-                    path = nextpath;
                     _moveState = MoveStateType.Moving;
                 }
                 else
                 {
-                    _moveState = MoveStateType.Failure;
-                }
+                    var nextpath = FindAirPath(startpos, path[0], moveStepLength);
+
+                    if (nextpath.Count > 0)
+                    {
+                        var lastpos = nextpath[nextpath.Count - 1];
+                        
+                        if (!Physics.Linecast(lastpos,path[0],out RaycastHit hit,m_LayerMask))
+                        {
+                            if (nextpath[nextpath.Count - 1].Equals(path[0]))
+                            {
+                                path.RemoveAt(0);
+                            }
+                            nextpath.AddRange(path);
+                            path = nextpath;
+                            _moveState = MoveStateType.Moving;
+                        }
+
+                        else
+                        {//飞行接地面失败 
+                            _moveState = MoveStateType.Failure;
+                        }
+                    }
+                    else
+                    {
+                        var startpath = event_FindGroundPath != null ?event_FindGroundPath(startBottomPos,endPos):FindPath(startBottomPos, endPos); //正向飞行地面寻路
+                        if (startpath.Count > 0)
+                        {
+                            for (int i = 0;i< startpath.Count;i++)
+                            {
+                                startpath[i] = FixPos(startpath[i]);
+                            }
+                            nextpath = FindAirPath(startpos, startpath[0], moveStepLength);
+                            if (nextpath.Count == 0)
+                            {
+                                _moveState = MoveStateType.Failure;
+                            }
+                            else
+                            {
+                                bool isSuccessfind = false;
+                                for (int i = startpath.Count - 1;i>=0;i--)
+                                {
+                                    var point = startpath[i];
+                                    var tempnextpath = FindAirPath(point, path[0], moveStepLength);
+                                    if (tempnextpath.Count > 0)
+                                    {
+                                        if (tempnextpath[tempnextpath.Count - 1].Equals(path[0]))
+                                        {
+                                            path.RemoveAt(0);
+                                        }
+                                        tempnextpath.AddRange(path);
+                                    
+
+                                        var tempstartpath = startpath.GetRange(0, i);
+                                        if (nextpath[nextpath.Count - 1].Equals(tempstartpath[0]))
+                                        {
+                                            tempstartpath.RemoveAt(0);
+                                        }
+                                        nextpath.AddRange(tempstartpath);
+                                        if (nextpath[nextpath.Count - 1].Equals(tempnextpath[0]))
+                                        {
+                                            tempnextpath.RemoveAt(0);
+                                        }
+                                        nextpath.AddRange(tempnextpath);
+                                        path = nextpath;
+                                        isSuccessfind = true;
+                                        break;
+                                    }
+
+
+                                }
+                                if (!isSuccessfind)
+                                {
+                                    _moveState = MoveStateType.Failure;
+                                }
+                                else
+                                {
+                                    _moveState = MoveStateType.Moving;
+                                }
+//                                var lastpoint = startpath[startpath.Count - 1];
+//                                var tempnextpath = FindAirPath(lastpoint, path[0], moveStepLength);
+//                                if (tempnextpath.Count > 0)
+//                                {
+//                                    if (tempnextpath[tempnextpath.Count - 1].Equals(path[0]))
+//                                    {
+//                                        path.RemoveAt(0);
+//                                    }
+//                                    tempnextpath.AddRange(path);
+//                                    if (nextpath[nextpath.Count - 1].Equals(startpath[0]))
+//                                    {
+//                                        startpath.RemoveAt(0);
+//                                    }
+//                                    nextpath.AddRange(startpath);
+//                                    if (nextpath[nextpath.Count - 1].Equals(tempnextpath[0]))
+//                                    {
+//                                        tempnextpath.RemoveAt(0);
+//                                    }
+//                                    nextpath.AddRange(tempnextpath);
+//                                    path = nextpath;
+//                                    _moveState = MoveStateType.Moving;
+//                                }
+//                                else
+//                                {
+//                                    _moveState = MoveStateType.Failure;
+//                                }
+                            
+                            }
+                        
+                        }
+                        else
+                            _moveState = MoveStateType.Failure;
+                    }
                 
+                }
             }
+            
             
         }
         else
@@ -944,35 +1222,35 @@ public class ClientFlyPath
         }
         
 //*******************************************
-        if (path.Count == 0)
+        if (path.Count == 0 || _moveState == MoveStateType.Failure)
         {
+            path.Clear();
             return path;
         }
 
-        var srcPath = new FlyPath() {path = path[0]};
+        var srcPath = new FlyPath() {path = startpos};
         var flypath = srcPath;
        
         if (path.Count > 0 && !path[path.Count - 1].Equals(m_EndPos))
         {
             var lastpath = path[path.Count - 1];
-            var lastdis = Vector3.Distance(lastpath , m_EndPos);
-            if (lastdis < LandOffset)//强制修正
+            //var lastdis = Vector3.Distance(lastpath , m_EndPos);
+            if (!Physics.Linecast(lastpath,m_EndPos))//强制修正
             {
                 path.Add(m_EndPos);
             }
         }
-        for (int i = 1;i< path.Count;i++)
+        for (int i = 0;i< path.Count;i++)
         {
-            var nextflypath = new FlyPath();
-            nextflypath.path = path[i];
-            nextflypath.prev = flypath;
+            var nextflypath = new FlyPath {path = path[i], prev = flypath};
             flypath.next = nextflypath;
             flypath = nextflypath;
         }
+        
         optimization(srcPath);
         path.Clear();
-        stopwatch.Stop();
-        Debug.Log("cost findpath time" + stopwatch.ElapsedMilliseconds / 1000f);
+//        stopwatch.Stop();
+//        Debug.Log("cost findpath time" + stopwatch.ElapsedMilliseconds / 1000f);
        
         if (srcPath.next != null)
         {
@@ -1019,11 +1297,11 @@ public class ClientFlyPath
             
         }
 
-        var index = 0;
-        foreach (var data in path)
-        {
-         Debug.Log("AllPath[" + index++ + "]="+data);   
-        }
+//        var index = 0;
+//        foreach (var data in path)
+//        {
+//         Debug.Log("AllPath[" + index++ + "]="+data);   
+//        }
         return path;
     }
 
@@ -1040,14 +1318,18 @@ public class ClientFlyPath
             while (nextflypath.next != null)
             {
                 var endpos = nextflypath.next.path;
-                var dir = endpos - startpos;
-                dir.Normalize();
-                var dis = Vector3.Distance(startpos, endpos);
-                var dirRet = GetNewDir(startpos, dir, dir, dis);
-                if (!dirRet.Item1)
+                if (!Physics.Linecast(startpos,endpos,m_LayerMask))
                 {
                     flypath.next = nextflypath.next;
                 }
+//                var dir = endpos - startpos;
+//                dir.Normalize();
+//                var dis = Vector3.Distance(startpos, endpos);
+//                var dirRet = GetNewDir(startpos, dir, dir, dis);
+//                if (!dirRet.Item1)
+//                {
+//                    flypath.next = nextflypath.next;
+//                }
 
                 nextflypath = nextflypath.next;
             }

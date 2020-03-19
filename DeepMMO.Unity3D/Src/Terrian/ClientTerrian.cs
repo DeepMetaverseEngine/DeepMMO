@@ -199,7 +199,7 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 List<ClientMapNode> mapnodes = new List<ClientMapNode>();
                 List<NavMeshWayPoint> waypoints = new List<NavMeshWayPoint>();
-
+                
                 foreach (var point in path)
                 {
                     var zonepoint = BattleUtils.UnityPos2ZonePos(TerrainHeight, point);
@@ -221,7 +221,7 @@ namespace DeepMMO.Unity3D.Terrain
                     
                 });
 
-                for (int i = 0;i< waypoints.Count - 1;i++)
+                for (int i = 0;i< mapnodes.Count - 1;i++)
                 {
                     waypoints[i].LinkNext(waypoints[i + 1]);
                 }
@@ -280,7 +280,10 @@ namespace DeepMMO.Unity3D.Terrain
             return false;
         }
 
-
+        public ILayerWayPoint ConverToLayerWayPoint(List<UnityEngine.Vector3> NavPathPoints)
+        {
+           return NavMeshClientWayPoint.CreateFromVoxel(GenNavMeshWayPoint(NavPathPoints)); 
+        }
         public ILayerWayPoint FindAirPath(Vector3 src, Vector3 dst)
         {
             var srctounitypos = src.ConvertToUnityPos(TerrainHeight);
@@ -408,10 +411,11 @@ namespace DeepMMO.Unity3D.Terrain
                     var lpVec2 = new UnityEngine.Vector2(lastPoint.x,lastPoint.z);
                     var dstVec2 = new UnityEngine.Vector2(dsttounitypos.x,dsttounitypos.z);
                     float distance =  UnityEngine.Vector2.Distance(lpVec2,dstVec2);
+                    var dis3D = UnityEngine.Vector3.Distance(lastPoint,dsttounitypos);
                     if (!b_ReadyToFly)
                     {
                         //寻路修正 高度单独处理修正
-                        if ((distance>= 0.5f && Mathf.Abs(lastPoint.y - dsttounitypos.y) < 1f && distance <= FindPathDistance))
+                        if ((dis3D > 0f && Mathf.Abs(lastPoint.y - dsttounitypos.y) < 1f && distance <= FindPathDistance))
                         {
                             var point1 = lastPoint;
                             var point2 = dsttounitypos;
@@ -432,24 +436,24 @@ namespace DeepMMO.Unity3D.Terrain
                                 }
                                 if(!hasobstacle)
                                     NavPathPoints.Add(dsttounitypos);
-                                else
-                                {
-                                    return null;
-                                }
+//                                else
+//                                {
+//                                    return null;
+//                                }
                             }
-                            else
-                            {
-                                return null;
-                            }
+//                            else
+//                            {
+//                                return null;
+//                            }
                         }
 
                         else
                         {
-                            var dis = UnityEngine.Vector3.Distance(lastPoint,dsttounitypos);
-                            if (dis > FindPathDistance) //地面寻路专用
-                            {
-                                return null;
-                            }
+//                            var dis = UnityEngine.Vector3.Distance(lastPoint,dsttounitypos);
+//                            if (dis > FindPathDistance) //地面寻路专用
+//                            {
+//                                return null;
+//                            }
                             
                         }
                     }
@@ -672,8 +676,10 @@ namespace DeepMMO.Unity3D.Terrain
 
             public void LinkNext(NavMeshClientWayPoint next)
             {
-                (Tail as NavMeshClientWayPoint).Next = next;
-                next.Prev = (Tail as NavMeshClientWayPoint);
+                this.Next = next;
+                next.Prev = this;
+//                (Tail as NavMeshClientWayPoint).Next = next;
+//                next.Prev = (Tail as NavMeshClientWayPoint);
             }
             public static NavMeshClientWayPoint CreateFromVoxel(NavMeshWayPoint p)
             {
