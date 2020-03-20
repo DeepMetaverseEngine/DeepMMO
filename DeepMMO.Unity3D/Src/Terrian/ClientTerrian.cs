@@ -595,8 +595,9 @@ namespace DeepMMO.Unity3D.Terrain
                 }
 
                 
-                else if (unit.Info.UType == UnitInfo.UnitType.TYPE_NPC || !unit.SyncInfo.HasPlayerUUID)//npc为什么会有playeruuid了？暂时没时间跟踪
+                else //npc为什么会有playeruuid了？暂时没时间跟踪
                 {
+                    
                     if (Mathf.Abs(src.Z - remotePos.Z)<= StepIntercept/2)
                     {
                         vobj.Transport(new Vector3(ret.X, ret.Y, src.Z));
@@ -605,12 +606,18 @@ namespace DeepMMO.Unity3D.Terrain
                     {
                         vobj.Transport(ret);
                     }
-                    return true;
+
+                    if (unit.Info.UType == UnitInfo.UnitType.TYPE_NPC || !unit.SyncInfo.HasPlayerUUID)
+                    {
+                        return true;
+                    }
+                    
                 }
-                else
-                {
-                    vobj.Transport(ret);
-                }
+                
+//                else
+//                {
+//                    vobj.Transport(ret);
+//                }
                 return Math.Abs(ret.X - src.X) < 0.01f && Math.Abs(ret.Y - src.Y) < 0.01f && Mathf.Abs(src.Z - ret.Z)<= StepIntercept;
             }
 
