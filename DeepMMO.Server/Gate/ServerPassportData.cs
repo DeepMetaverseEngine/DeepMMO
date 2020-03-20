@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DeepMMO.Data;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,17 +7,12 @@ namespace DeepMMO.Server.Gate
 {
     public class ServerPassportData
     {
-        private readonly bool verified;
-
-        private readonly byte privilege;
-
-        public ServerPassportData(bool verified, byte privilege)
+        public bool Verified;
+        public RolePrivilege Privilege;
+        public ServerPassportData(bool verified, RolePrivilege privilege)
         {
-            this.verified = verified;
-            this.privilege = privilege;
+            this.Verified = verified;
+            this.Privilege = privilege;
         }
-        public bool Verified => verified;
-
-        public byte Privilege => privilege;
     }
 }

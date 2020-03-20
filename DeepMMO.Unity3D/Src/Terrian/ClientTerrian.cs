@@ -593,19 +593,17 @@ namespace DeepMMO.Unity3D.Terrain
                     vobj.Transport(new Vector3(ret.X,ret.Y,src.Z));
                 }
 
-                else if (unit.Info.UType == UnitInfo.UnitType.TYPE_NPC) //先黑一下?
+                
+                else if (unit.Info.UType == UnitInfo.UnitType.TYPE_NPC || !unit.SyncInfo.HasPlayerUUID)//npc为什么会有playeruuid了？暂时没时间跟踪
                 {
-                    if (Mathf.Abs(src.Z - remotePos.Z) < 0.3f)
+                    if (Mathf.Abs(src.Z - remotePos.Z)<= StepIntercept/2)
                     {
-                        return true;
+                        vobj.Transport(new Vector3(ret.X, ret.Y, src.Z));
                     }
-
-                    vobj.Transport(ret);
-                    
-                }
-                else if (!unit.SyncInfo.HasPlayerUUID)//npc为什么会有playeruuid了？暂时没时间跟踪
-                {
-                    vobj.Transport(new Vector3(ret.X, ret.Y, src.Z));
+                    else
+                    {
+                        vobj.Transport(ret);
+                    }
                     return true;
                 }
                 else
