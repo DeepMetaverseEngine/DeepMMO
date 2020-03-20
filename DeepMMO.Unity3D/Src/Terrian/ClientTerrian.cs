@@ -245,7 +245,8 @@ namespace DeepMMO.Unity3D.Terrain
                 upward = zonepos.Z;
                 return true;
             }
-            upward = float.MaxValue;
+
+            upward = pos.Z - 1;
             return false;
         }
 
