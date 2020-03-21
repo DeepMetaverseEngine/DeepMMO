@@ -46,10 +46,12 @@ namespace DeepMMO.Server.Area
             this.enter = enter;
             this.client_event_route = TypeCodec.GetAttributeRoute(typeof(ClientBattleEvent));
         }
+#if DEBUG
         ~AreaZonePlayer()
         {
             Alloc.RecordDestructor(this.GetType());
         }
+#endif
         protected override void Disposing()
         {
             Alloc.RecordDispose(this.GetType());

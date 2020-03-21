@@ -46,10 +46,12 @@ namespace DeepMMO.Server.Area
             this.uuid = create.managerZoneUUID;
             this.node = CreateZoneNode(create);
         }
+#if DEBUG
         ~AreaZoneNode()
         {
             Alloc.RecordDestructor(GetType().ToVisibleName() + ":" + map_temp.id);
         }
+#endif
         public virtual void rpc_Handle(ISerializable msg, OnRpcReturn<ISerializable> cb)
         {
             zone_rpc_call_handler?.Invoke(msg, (rsp, err) => { cb(rsp as ISerializable, err); });
