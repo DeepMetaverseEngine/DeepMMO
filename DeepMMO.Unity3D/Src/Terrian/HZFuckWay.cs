@@ -9,6 +9,7 @@ using DeepCore.Game3D.Slave.Layer;
 using DeepCore.GameData.Helper;
 using DeepCore.GameData.Zone.ZoneEditor;
 using DeepCore.Vector;
+using UnityEngine;
 using UnityEngine.AI;
 using Debug = UnityEngine.Debug;
 using Vector2 = UnityEngine.Vector2;
@@ -77,6 +78,7 @@ namespace DeepMMO.Unity3D.Terrain
         private bool m_IsFlying;
         private bool b_ReadyToFly = false;
         private float LandOffset = 0.5f;
+        private Vector3 LastPos;
        
         public enum FlyState
         {
@@ -622,6 +624,15 @@ namespace DeepMMO.Unity3D.Terrain
             this.m_IsFlying = Owner.IsZeroGravityFly;
             cur_dir = Owner.Direction;
             cur_pos = Owner.GetUnityPos();
+
+
+            if (mNavPathPoints.Count > 0)
+            {
+                for (int i = 1; i < mNavPathPoints.Count; i++)
+                {
+                    Debug.DrawLine(mNavPathPoints[i-1],mNavPathPoints[i],Color.red);
+                }
+            }
             if (checkTargetDistance())
             {
                 StopAutoRun();
@@ -777,7 +788,15 @@ namespace DeepMMO.Unity3D.Terrain
                     Owner.SendUnitAxisAngle(cur_dir, length, cur_dir);
                     
                 }
-                    
+
+                if (LastPos.Equals(cur_pos))
+                {
+                    StopAutoRun();
+                }
+                else
+                {
+                    LastPos = cur_pos;
+                }
 
 
             }

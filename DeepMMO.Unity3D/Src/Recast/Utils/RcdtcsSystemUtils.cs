@@ -805,6 +805,32 @@ public static partial class RcdtcsUnityUtils{
 			
 			return new Tuple<bool, Vector3>(true,new Vector3(res[0],res[1],res[2]));
 		}
+		
+		
+		public Tuple<bool,Vector3> GetClosestPointOnNavMeshForUnity(Vector3 pos,float distance,Detour.dtQueryFilter filter = null)
+		{
+			var startpos = new[] {pos.x,pos.y,pos.z };
+			
+			float[] extents = new float[3];
+			for (int i = 0; i < 3; ++i) {
+				extents[i] = distance;
+			}
+
+			if (filter == null)
+			{
+				filter = new Detour.dtQueryFilter();
+			}
+			
+			dtPolyRef startRef = 0;
+			float[] res = new float[3];
+			var ret = m_navQuery.findNearestPolyForUnity(startpos, extents, filter, ref startRef, ref res);
+			if (ret != Detour.DT_SUCCESS)
+			{
+				return new Tuple<bool, Vector3>(false,Vector3.zero);
+			}
+			
+			return new Tuple<bool, Vector3>(true,new Vector3(res[0],res[1],res[2]));
+		}
 		public float[] GetClosestPointOnNavMesh(float[] pos){
 			return RcdtcsUnityUtils.GetClosestPointOnNavMesh(m_navQuery, pos);
 		}

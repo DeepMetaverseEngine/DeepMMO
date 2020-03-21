@@ -351,14 +351,24 @@ namespace DeepMMO.Unity3D.Terrain
         {
             var srctounitypos = src.ConvertToUnityPos(TerrainHeight);
             var dsttounitypos = dst.ConvertToUnityPos(TerrainHeight);
+           
 
             if (m_System == null)
             {
                 return null;
             }
 
+            srctounitypos.y += m_System.GetNavMeshParams().m_cellHeight;
+            dsttounitypos.y += m_System.GetNavMeshParams().m_cellHeight;
+            List<UnityEngine.Vector3> NavPathPoints = new List<UnityEngine.Vector3>();
+            if (!Physics.Linecast(srctounitypos,dsttounitypos))
+            {
+                NavPathPoints.Add(dsttounitypos);
+                return NavMeshClientWayPoint.CreateFromVoxel(GenNavMeshWayPoint(NavPathPoints)); 
+            }
             
-            var haspos = m_System.GetClosestPointOnNavMesh(srctounitypos,FindPathDistance);
+            
+            var haspos = m_System.GetClosestPointOnNavMeshForUnity(srctounitypos,FindPathDistance);
             if (haspos.Item1)
             {
                 srctounitypos = haspos.Item2;
@@ -373,14 +383,10 @@ namespace DeepMMO.Unity3D.Terrain
                     {
                         return null;
                     }
-                    else
-                    {
-                        dsttounitypos = targetBottomPos;
-                    }
-
+                    dsttounitypos = targetBottomPos;
                 }
             }
-            List<UnityEngine.Vector3> NavPathPoints = new List<UnityEngine.Vector3>();
+            
             var m_SmoothPath = RcdtcsUnityUtils.ComputeSmoothPath(m_System.m_navQuery, srctounitypos, dsttounitypos);
             if (m_SmoothPath != null && m_SmoothPath.m_smoothPath != null && m_SmoothPath.m_nsmoothPath >= 1 && m_SmoothPath.m_smoothPath.Length > 3)
             {

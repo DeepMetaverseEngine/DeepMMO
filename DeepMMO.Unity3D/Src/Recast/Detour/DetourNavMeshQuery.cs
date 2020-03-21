@@ -852,6 +852,93 @@ public static partial class Detour{
 	        return DT_FAILURE | DT_INVALID_PARAM;
         }
 
+        
+        public dtStatus findNearestPolyForUnity(float[] center, float[] extents,
+										         dtQueryFilter filter,
+										         ref dtPolyRef nearestRef, ref float[] nearestPt) 
+        {
+	        Debug.Assert(m_nav != null);
+
+	        nearestRef = 0;
+	
+	        // Get nearby polygons from proximity grid.
+	        dtPolyRef[] polys = new dtPolyRef[128];
+	        int polyCount = 0;
+	        if (dtStatusFailed(queryPolygons(center, extents, filter, polys, ref polyCount, 128)))
+		        return DT_FAILURE | DT_INVALID_PARAM;
+	        if (polyCount == 0)
+		        return DT_FAILURE;
+	        
+	        
+		
+	        // Find nearest polygon amongst the nearby polygons.
+	        dtPolyRef nearest = 0;
+	        float nearestDistanceSqr = float.MaxValue;
+	        
+//	        var gameObject = GameObject.Find("TestFlyObject");
+//                
+//	        if (gameObject != null)
+//	        {
+//		        GameObject.DestroyImmediate(gameObject);
+//	        }
+//	        gameObject = new GameObject("TestFlyObject");
+	        
+	        
+	        for (int i = 0; i < polyCount; ++i)
+	        {
+		        dtPolyRef polyRef = polys[i];
+		        float[] closestPtPoly = new float[3];
+		        float[] diff = new float[3];
+		        bool posOverPoly = false;
+		        float d = 0;
+		        closestPointOnPoly(polyRef, center, closestPtPoly, ref posOverPoly);
+
+		        // If a point is directly over a polygon and closer than
+		        // climb height, favor that instead of straight line nearest point.
+		        var startpos = new Vector3(center[0], center[1], center[2]);
+		        var endpos = new Vector3(closestPtPoly[0], closestPtPoly[1], closestPtPoly[2]);
+		        if (Physics.Linecast(startpos,endpos))
+		        {
+			        continue;
+		        }
+//		        var Sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+//		        var collider = Sphere.GetComponent<SphereCollider>();
+//		        if (collider != null)
+//		        {
+//			        collider.enabled = false;
+//		        }
+//		        Sphere.transform.position = new Vector3(closestPtPoly[0],closestPtPoly[1],closestPtPoly[2]);
+//		        Sphere.transform.parent = gameObject.transform;
+		       
+		        dtVsub(diff, center, closestPtPoly);
+		        if (posOverPoly)
+		        {
+			        dtMeshTile tile = null;
+			        dtPoly poly = null;
+			        m_nav.getTileAndPolyByRefUnsafe(polys[i], ref tile, ref poly);
+			        d = (float)(Math.Abs(diff[1]) - tile.header.walkableClimb);
+			        d = d > 0 ? d*d : 0;			
+		        }
+		        else
+		        {
+			        d = dtVlenSqr(diff);
+		        }
+		
+		        if (d < nearestDistanceSqr)
+		        {
+			        //if (nearestPt != null)
+                    dtVcopy(nearestPt, closestPtPoly);
+
+			        nearestDistanceSqr = d;
+			        nearest = polyRef;
+		        }
+	        }
+	
+	        //if (nearestRef)
+		    nearestRef = nearest;
+	
+	        return DT_SUCCESS;
+        }
         /// @}
         /// @name Local Query Functions
         ///@{
@@ -891,6 +978,10 @@ public static partial class Detour{
 	        // Find nearest polygon amongst the nearby polygons.
 	        dtPolyRef nearest = 0;
 	        float nearestDistanceSqr = float.MaxValue;
+	        
+	       
+	        
+	        
 	        for (int i = 0; i < polyCount; ++i)
 	        {
 		        dtPolyRef polyRef = polys[i];
@@ -900,8 +991,6 @@ public static partial class Detour{
 		        float d = 0;
 		        closestPointOnPoly(polyRef, center, closestPtPoly, ref posOverPoly);
 
-		        // If a point is directly over a polygon and closer than
-		        // climb height, favor that instead of straight line nearest point.
 		        dtVsub(diff, center, closestPtPoly);
 		        if (posOverPoly)
 		        {
