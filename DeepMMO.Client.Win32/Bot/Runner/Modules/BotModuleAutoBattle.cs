@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using DeepCore;
 using DeepCore.Game3D.Slave;
 using DeepCore.Game3D.Slave.Layer;
+using DeepCore.Game3D.Voxel;
 using DeepCore.Reflection;
 
 namespace DeepMMO.Client.BotTest.Runner.Modules
@@ -53,7 +54,8 @@ namespace DeepMMO.Client.BotTest.Runner.Modules
                             var tp = vt.World.Terrain.FindNearRandomMoveableNode(random, layer, size);
                             //if (pos != null)
                             {
-                                obj.SendUnitAttackMoveTo(tp.UpwardCenterPos, false);
+                                //var pos = Terrain.GetUpwardCenterPos(tp);//layer.UpwardCenterPos
+                                obj.SendUnitAttackMoveTo(tp.UpwardCenterPos(vt.World.Terrain), false);
                             }
                         }
                     }
