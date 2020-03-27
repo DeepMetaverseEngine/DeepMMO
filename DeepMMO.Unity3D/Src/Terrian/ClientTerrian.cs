@@ -600,17 +600,27 @@ namespace DeepMMO.Unity3D.Terrain
                     vobj.Transport(new Vector3(ret.X,ret.Y,src.Z));
                 }
 
+                //其他玩家
+                if (unit.Info.UType == UnitInfo.UnitType.TYPE_PLAYER && unit.SyncInfo.HasPlayerUUID && Math.Abs(remotePos.X - src.X) < 0.01f && Math.Abs(remotePos.Y - src.Y) < 0.01f && Mathf.Abs(src.Z - remotePos.Z)<= StepIntercept)
+                {
+                      return true;
+                }
                 
                 else //npc为什么会有playeruuid了？暂时没时间跟踪
                 {
                     
-                    if (Mathf.Abs(src.Z - remotePos.Z)<= StepIntercept/2)
+                    if (Mathf.Abs(src.Z - remotePos.Z)<= StepIntercept)
                     {
                         vobj.Transport(new Vector3(ret.X, ret.Y, src.Z));
                     }
                     else
                     {
-                        vobj.Transport(ret);
+                        if (unit.Info.UType == UnitInfo.UnitType.TYPE_PLAYER)
+                        {
+                            vobj.Transport(new Vector3(ret.X, ret.Y, src.Z));
+                        }
+                        else
+                            vobj.Transport(ret);
                     }
 
                     if (unit.Info.UType == UnitInfo.UnitType.TYPE_NPC || !unit.SyncInfo.HasPlayerUUID)
