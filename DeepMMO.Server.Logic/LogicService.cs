@@ -43,7 +43,6 @@ namespace DeepMMO.Server.Logic
 
         public ClientInfo clientInfo { get; private set; }
 
-        public Logger log { get; private set; }
         public IRemoteService session { get; private set; }
         public LanguageManager Language { get => roleModule.Language; }
         public EventManager EventMgr { get; private set; }
@@ -69,7 +68,6 @@ namespace DeepMMO.Server.Logic
 
         public LogicService(ServiceStartInfo start) : base(start)
         {
-            this.log = LoggerFactory.GetLogger(start.Address.ServiceName);
             this.sessionName = start.Config["sessionName"].ToString();
             this.sessionNode = start.Config["sessionNode"].ToString();
             this.accountID = start.Config["accountID"].ToString();
