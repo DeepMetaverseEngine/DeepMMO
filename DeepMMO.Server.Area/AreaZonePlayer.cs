@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using DeepCore.Game3D.Host.Instance;
 using DeepCore.Game3D.Host.ZoneServer;
 using DeepCore.Game3D.Host.ZoneServer.Interface;
+using DeepCore.GameData;
 
 namespace DeepMMO.Server.Area
 {
@@ -183,7 +184,7 @@ namespace DeepMMO.Server.Area
                 object action;
                 // Drop 4 for head message id //
                 clientBattleAction.Position += 4;
-                if (node.ZoneNode.Codec.doDecode(clientBattleAction, out action))
+                if (service.BattleClientCodec.doDecode(clientBattleAction, out action))
                 {
                     OnHandleClientMessage(action as IMessage);
                 }
@@ -200,7 +201,7 @@ namespace DeepMMO.Server.Area
                 object action;
                 // Drop 4 for head message id //
                 //clientBattleAction.Position += 4;
-                if (node.ZoneNode.Codec.doDecode(new ArraySegment<byte>(clientBattleAction.Array, clientBattleAction.Offset + 4, clientBattleAction.Count - 4), out action))
+                if (service.BattleClientCodec.doDecode(new ArraySegment<byte>(clientBattleAction.Array, clientBattleAction.Offset + 4, clientBattleAction.Count - 4), out action))
                 {
                     OnHandleClientMessage(action as IMessage);
                 }
@@ -215,7 +216,7 @@ namespace DeepMMO.Server.Area
             try
             {
                 // Drop Head 4 bytes //
-                if (node.ZoneNode.Codec.doDecode(new ArraySegment<byte>(clientBattleAction, 4, clientBattleAction.Length - 4), out var action))
+                if (service.BattleClientCodec.doDecode(new ArraySegment<byte>(clientBattleAction, 4, clientBattleAction.Length - 4), out var action))
                 {
                     OnHandleClientMessage(action as IMessage);
                 }
@@ -229,7 +230,7 @@ namespace DeepMMO.Server.Area
         {
             try
             {
-                if (node.ZoneNode.Codec.doDecode(new ArraySegment<byte>(msg.c2s_battleAction), out var action))
+                if (service.BattleClientCodec.doDecode(new ArraySegment<byte>(msg.c2s_battleAction), out var action))
                 {
                     OnHandleClientMessage(action as IMessage);
                 }
@@ -316,7 +317,7 @@ namespace DeepMMO.Server.Area
                 mSendingQueue.events.Add(msg.message);
             }
         }
-        void IZoneNodePlayer.ClientFlush()
+        void IZoneNodePlayer.ClientFlush(BattleCodec codec)
         {
             try
             {
@@ -340,7 +341,7 @@ namespace DeepMMO.Server.Area
                         {
                             try
                             {
-                                if (node.ZoneNode.Codec.doEncodeWithHead(mSendingQueue, buffer))
+                                if (codec.doEncodeWithHead(mSendingQueue, buffer))
                                 {
                                     var notify = BinaryMessage.FromBuffer(client_event_route, buffer);
                                     remote_session?.WormholeTransport(notify);

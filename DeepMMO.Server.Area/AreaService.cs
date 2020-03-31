@@ -16,20 +16,21 @@ using DeepCore.GameEvent.Message;
 using DeepCore.Game3D.Host.Instance;
 using System.Collections.Concurrent;
 using System.IO;
+using DeepCore.GameData;
 
 namespace DeepMMO.Server.Area
 {
     public class AreaService : IService
     {
-        public Logger log { get; private set; }
         public Random random { get; private set; } = new Random();
         public IDisposable sync_state_timer { get; private set; }
         public IRemoteService area_manager;
         private TypeCodec session_battle_codec;
+        public BattleCodec BattleClientCodec { get; }
 
         public AreaService(ServiceStartInfo start) : base(start)
         {
-            this.log = LoggerFactory.GetLogger(start.Address.ServiceName);
+            this.BattleClientCodec = new BattleCodec(RPGServerBattleManager.Templates);
             this.session_battle_codec = base.ServerCodec.Factory.GetCodec(typeof(SessionBattleAction));
         }
         protected override void OnDisposed()
