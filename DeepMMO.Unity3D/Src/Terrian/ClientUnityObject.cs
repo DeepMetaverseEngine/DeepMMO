@@ -46,14 +46,13 @@ namespace DeepMMO.Unity3D.Terrain
 
         private UnityEngine.Vector3 ConvertToUnityPos(Vector3 pos)
         {
-            var ret = pos.ConvertToUnityPos(TotalHeight);
-            return ret + ScreenOffset;
+            var ret = pos.ConvertToRealUnityPos(TotalHeight);
+            return ret;
         }
 
         private Vector3 UnityPos2ZonePos(UnityEngine.Vector3 pos)
         {
-            pos = pos - ScreenOffset;
-            return BattleUtils.UnityPos2ZonePos(TotalHeight,pos);
+            return BattleUtils.UnityPos2RealZonePos(TotalHeight,pos);
         }
         
         public float UnityX { get => ConvertToUnityPos(currentPos).x; }
@@ -348,7 +347,11 @@ namespace DeepMMO.Unity3D.Terrain
             Gravity = gravity;
         }
 
-        public float Upward { get; private set; } = float.NaN;
+        private float _UpWard;
+        public float Upward {
+            get { return _UpWard; }
+            set { _UpWard = value - ScreenOffset.y; } 
+        }
 
         protected virtual void ProcessGravity(int intervalMS)
         {
@@ -363,14 +366,14 @@ namespace DeepMMO.Unity3D.Terrain
             }
             else
             {
-                Upward = float.NaN;
+                Upward = float.NegativeInfinity;
             }
 
             
             Physics.queriesHitBackfaces = true;
             var toprayhit = mCheckBoxTouchComponent.RayHit(currentUnityPos + UnityEngine.Vector3.up * height, UnityEngine.Vector3.up, 100);
             Physics.queriesHitBackfaces = false;
-            if (toprayhit.Item1 && topHeight >= bottomHeight + height)// 顶
+            if (toprayhit.Item1 && topHeight >= bottomHeight  + height)// 顶
             {
                 topHeight = toprayhit.Item2.point.y;
             }
@@ -428,10 +431,10 @@ namespace DeepMMO.Unity3D.Terrain
                         hitpos.y = bottomHeight;
                     }
                     var bottomzonepos = UnityPos2ZonePos(hitpos);
-                    if (currentPos.Z < bottomzonepos.Z)
+                    if (currentPos.Z < bottomzonepos.Z )
                     {   
                         //UnityEngine.Debug.Log("bottomhit.Item2===="+bottomzonepos.Z + " currentPos.Z==="+ Z);
-                        currentPos.Z = bottomzonepos.Z;
+                        currentPos.Z = bottomzonepos.Z ;
                         zspeed = 0;
                     }
                 }

@@ -107,6 +107,7 @@ namespace DeepMMO.Unity3D.Terrain
         private RcdtcsUnityUtils.SystemHelper m_System = new RcdtcsUnityUtils.SystemHelper();
         public ClientFlyPath clientFlyPath;
         public float LandOffSet = 0.5f;
+//        public GameObject cubeobj;
         public NavMeshClientTerrain3D(string scenePathFindFileName,float terrainWidth,float terrainheight,int terrainGridCellSize,float stepIntercept,float findPathDistance = 3f)
         {
             TerrainWidth = terrainWidth;
@@ -139,6 +140,9 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 LandOffset = LandOffSet, event_FindGroundPath = event_FindGroundPath
             };
+            
+//            cubeobj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+//            cubeobj.GetComponent<Collider>().enabled = false;
 
         }
             
@@ -234,31 +238,37 @@ namespace DeepMMO.Unity3D.Terrain
         {
             throw new System.NotImplementedException();
         }
+
+        
         public bool TryGetVoxelUpRange(Vector3 pos, out float upward)
         {
-            var _unitypos = pos.ConvertToUnityPos(TerrainHeight);
-            _unitypos.y += 0.1f;
+            
+            var _unitypos = pos.ConvertToRealUnityPos(TerrainHeight);
+             _unitypos.y +=  0.1f;
+//            cubeobj.transform.position = _unitypos;
             var downhit = Physics.Raycast(_unitypos, UnityEngine.Vector3.down,out RaycastHit hitInfo, 400, layMasks);
             if (downhit)
             {
-                var zonepos = BattleUtils.UnityPos2ZonePos(TotalHeight,hitInfo.point);
+
+                var point = hitInfo.point;
+                var zonepos = BattleUtils.UnityPos2RealZonePos(TotalHeight,point);
                 upward = zonepos.Z;
                 return true;
             }
 
-            upward = pos.Z - 1;
+            upward = float.NegativeInfinity;
             return false;
         }
 
         public bool TryGetVoxelTopRange(Vector3 pos, out float top)
         {
-            var _unitypos = pos.ConvertToUnityPos(TerrainHeight);
-            
+            var _unitypos = pos.ConvertToRealUnityPos(TerrainHeight);
+//            _unitypos.y += ClientUnityObject.ScreenOffset.y;
             var uphit = Physics.Raycast(_unitypos, UnityEngine.Vector3.up, out RaycastHit hitInfo,400, layMasks);
             if (uphit)
             {
-                var zonepos = BattleUtils.UnityPos2ZonePos(TotalHeight,hitInfo.point);
-                top = zonepos.Z;
+                var zonepos = BattleUtils.UnityPos2RealZonePos(TotalHeight,hitInfo.point);
+                top = zonepos.Z ;
                 return true;
             }
             top = float.MaxValue;
