@@ -55,7 +55,7 @@ namespace DeepMMO.Client.BotTest.Runner.Modules
                             //if (pos != null)
                             {
                                 //var pos = Terrain.GetUpwardCenterPos(tp);//layer.UpwardCenterPos
-                                obj.SendUnitAttackMoveTo(tp.UpwardCenterPos(vt.World.Terrain), false);
+                                obj.SendUnitAttackMoveTo(tp.UpwardCenterPos, false);
                             }
                         }
                     }

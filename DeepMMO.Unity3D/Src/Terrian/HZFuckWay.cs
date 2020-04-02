@@ -630,7 +630,7 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 for (int i = 1; i < mNavPathPoints.Count; i++)
                 {
-                    Debug.DrawLine(mNavPathPoints[i-1],mNavPathPoints[i],Color.red);
+                    Debug.DrawLine(mNavPathPoints[i-1].CurrentUnityPos2GlobalPos(),mNavPathPoints[i].CurrentUnityPos2GlobalPos(),Color.red);
                 }
             }
             if (checkTargetDistance())
@@ -789,7 +789,8 @@ namespace DeepMMO.Unity3D.Terrain
                     
                 }
 
-                if (LastPos.Equals(cur_pos))
+                var _dis = Vector3.Distance(LastPos, cur_pos);
+                if (_dis<0.01f)
                 {
                     StopAutoRun();
                 }

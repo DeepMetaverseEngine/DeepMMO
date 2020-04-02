@@ -131,6 +131,11 @@ namespace DeepMMO.Unity3D
         {
             return new Vector3(pos.x - ClientUnityObject.ScreenOffset.x, pos.y - ClientUnityObject.ScreenOffset.y, pos.z - ClientUnityObject.ScreenOffset.z);
         }
+        
+        public static Vector3 CurrentUnityPos2GlobalPos(this Vector3 pos)
+        {
+            return new Vector3(pos.x + ClientUnityObject.ScreenOffset.x, pos.y + ClientUnityObject.ScreenOffset.y, pos.z + ClientUnityObject.ScreenOffset.z);
+        }
         public static DeepCore.Geometry.Vector3 UnityPos2RealZonePos(float h, Vector3 pos)
         {
             return new DeepCore.Geometry.Vector3(pos.x - ClientUnityObject.ScreenOffset.x, h - pos.z + ClientUnityObject.ScreenOffset.z, pos.y - ClientUnityObject.ScreenOffset.y);

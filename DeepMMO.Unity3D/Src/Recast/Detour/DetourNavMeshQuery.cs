@@ -883,7 +883,7 @@ public static partial class Detour{
 //	        }
 //	        gameObject = new GameObject("TestFlyObject");
 	        
-	        
+	        var startpos = new Vector3(center[0], center[1], center[2]);
 	        for (int i = 0; i < polyCount; ++i)
 	        {
 		        dtPolyRef polyRef = polys[i];
@@ -892,13 +892,14 @@ public static partial class Detour{
 		        bool posOverPoly = false;
 		        float d = 0;
 		        closestPointOnPoly(polyRef, center, closestPtPoly, ref posOverPoly);
-
+		       
 		        // If a point is directly over a polygon and closer than
 		        // climb height, favor that instead of straight line nearest point.
-		        var startpos = new Vector3(center[0], center[1], center[2]);
+		        
 		        var endpos = new Vector3(closestPtPoly[0], closestPtPoly[1], closestPtPoly[2]);
 		        if (Physics.Linecast(startpos,endpos))
 		        {
+//			        UnityEngine.Debug.Log("closestPointOnPoly "+(i+1)+" = "+endpos);
 			        continue;
 		        }
 //		        var Sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);

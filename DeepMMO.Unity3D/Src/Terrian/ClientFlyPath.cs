@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using DeepCore;
+using DeepMMO.Unity3D;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 using Object = UnityEngine.Object;
@@ -83,6 +84,8 @@ public class ClientFlyPath
     }
     public Vector3 CheckMoveNewDir(Vector3 pos, Vector3 end, List<Vector3> dirlist)
     {
+        pos = pos.CurrentUnityPos2GlobalPos();
+        end = end.CurrentUnityPos2GlobalPos();
         RaycastHit hit;
         var dir = Vector3.back;
         if (end.y > pos.y)
@@ -349,15 +352,7 @@ public class ClientFlyPath
             return false;
         }
 
-        foreach (var data in vector3list)
-        {
-            if (data.Equals(pos))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return vector3list.Contains(pos);
     }
 
 
@@ -389,7 +384,7 @@ public class ClientFlyPath
         var distance = Vector3.Distance(endPos, startpos);
         var forward = dirforward;
 
-        if(!Physics.Linecast(startpos,endPos,m_LayerMask))
+        if(!Physics.Linecast(startpos.CurrentUnityPos2GlobalPos(),endPos.CurrentUnityPos2GlobalPos(),m_LayerMask))
         {
             var dis = Vector3.Distance(startpos, endPos);
             var fixTimeLimit = (int)(dis / steplength);
@@ -422,15 +417,6 @@ public class ClientFlyPath
             return;
         }
 
-//        var dirret = GetNewDir(startpos, dir, dir, distance, true); //判断是否直接能到
-//        if (!dirret.Item1) //可以直达 不玩花
-//        {
-//            flypath.path = endPos;
-//            srcPath.next = flypath;
-//            result = true;
-//            return;
-//        }
-
         var dirret = GetNewDir(startpos, dir, forward, movestep + CheckRadius + CheckWidth, true);
         dir = dirret.Item2;
 
@@ -444,9 +430,9 @@ public class ClientFlyPath
         }
 
 
-        if (Physics.Raycast(startpos, dir.normalized, out hit, movestep + CheckRadius + CheckWidth, m_LayerMask))
+        if (Physics.Raycast(startpos.CurrentUnityPos2GlobalPos(), dir.normalized, out hit, movestep + CheckRadius + CheckWidth, m_LayerMask))
         {
-            var dis = Vector3.Distance(startpos, hit.point);
+            var dis = Vector3.Distance(startpos.CurrentUnityPos2GlobalPos(), hit.point);
             if (movestep + CheckRadius + CheckWidth > dis)
             {
                 movestep = dis - CheckRadius - CheckWidth;
@@ -530,7 +516,8 @@ public class ClientFlyPath
     // 判断周围有没有障碍物
     private bool CheckAround(Vector3 startpos,Vector3 orgpos, out Vector3 Closestpos, out Collider collider)
     {
-        
+        startpos = startpos.CurrentUnityPos2GlobalPos();
+        orgpos = orgpos.CurrentUnityPos2GlobalPos();
         collider = null;
         Closestpos = Vector3.zero;
         var centerpos = orgpos;
@@ -551,7 +538,7 @@ public class ClientFlyPath
                     isTouch = true;
                     MaxDis = dis;
                     collider = halfhit[i];
-                    Closestpos = pos;
+                    Closestpos = pos.GlobalPos2CurrentUnityPos();
                 }
             }
         }
@@ -572,11 +559,13 @@ public class ClientFlyPath
         RaycastHit hit;
         var srcPath = flyPath;
         var isHit = CheckAround(srcPath.path, orgpos, out Vector3 closetpos, out Collider trans);
-        if (!isHit && Physics.Linecast(srcPath.path,orgpos,out hit, m_LayerMask))
+        if (!isHit && Physics.Linecast(srcPath.path.CurrentUnityPos2GlobalPos(),orgpos.CurrentUnityPos2GlobalPos(),out hit, m_LayerMask))
         {
             trans = hit.collider;
             isHit = true;
         }
+
+        orgpos = orgpos.CurrentUnityPos2GlobalPos();
         while (isHit || GetContainPos(pointList, orgpos))
         {
             if (isHit)
@@ -589,30 +578,42 @@ public class ClientFlyPath
             }
 
             var dirList = m_ComputeDirList[orgpos];
+            bool isExist = false;
             if (!dirList.Contains(Vector3.up) && !Physics.Raycast(orgpos, Vector3.up, out hit, stepLength, m_LayerMask))
             {
                 orgpos = orgpos + Vector3.up * stepLength;
                 dir = Vector3.up;
+                isExist = true;
             }
             else if (!dirList.Contains(Vector3.left) &&
                      !Physics.Raycast(orgpos, Vector3.left, out hit, stepLength, m_LayerMask))
             {
                 orgpos = orgpos + Vector3.left * stepLength;
                 dir = Vector3.left;
+                isExist = true;
             }
             else if (!dirList.Contains(Vector3.right) &&
                      !Physics.Raycast(orgpos, Vector3.right, out hit, stepLength, m_LayerMask))
             {
                 orgpos = orgpos + Vector3.right * stepLength;
                 dir = Vector3.right;
+                isExist = true;
             }
             else if (!dirList.Contains(Vector3.down) &&
                      !Physics.Raycast(orgpos, Vector3.down, out hit, stepLength, m_LayerMask))
             {
                 orgpos = orgpos + Vector3.down * stepLength;
                 dir = Vector3.down;
+                isExist = true;
             }
 
+            if (!isExist)
+            {
+                orgpos = srcPath.prev.path;
+                srcPath = srcPath.prev;
+                isHit = CheckAround(srcPath.path, orgpos, out  closetpos, out  trans);
+                continue;
+            }
             if (!dirList.Contains(dir))
             {
                 dirList.Add(dir);
@@ -633,14 +634,15 @@ public class ClientFlyPath
             }
         }
 
-
-        return orgpos;
+        
+        return orgpos.GlobalPos2CurrentUnityPos();
     }
 
   
     private Tuple<bool, Vector3> GetNewDir(Vector3 startpos, Vector3 dir, Vector3 dirforward, float stepLength,
         bool isforceParallel = false)
     {
+        startpos = startpos.CurrentUnityPos2GlobalPos();
         var newdir = dir;
         RaycastHit hit;
         var rightpos = startpos;
@@ -688,6 +690,8 @@ public class ClientFlyPath
 
     public Tuple<Vector3, Vector3> GetTopBottom(Vector3 targetpos, float distance)
     {
+        targetpos = targetpos.CurrentUnityPos2GlobalPos();
+        
         var toppos = Vector3.positiveInfinity;
         var bottompos = Vector3.negativeInfinity;
         var upward = Vector3.up;
@@ -712,7 +716,7 @@ public class ClientFlyPath
         }
         
 
-        return new Tuple<Vector3, Vector3>(toppos, bottompos);
+        return new Tuple<Vector3, Vector3>(toppos.GlobalPos2CurrentUnityPos(), bottompos.GlobalPos2CurrentUnityPos());
     }
 
 
@@ -728,6 +732,8 @@ public class ClientFlyPath
     }
     private Vector3 GetMoveDir(Vector3 startpos, Vector3 forward, Vector3 targetPos)
     {
+        startpos = startpos.CurrentUnityPos2GlobalPos();
+        targetPos = targetPos.CurrentUnityPos2GlobalPos();
         var dir = targetPos - startpos;
         var dis = Vector3.Distance(targetPos, startpos);
         RaycastHit hit;
@@ -740,16 +746,16 @@ public class ClientFlyPath
     }
 
 
-    private bool HasObstacle(Vector3 pos, Vector3 endpos)
-    {
-        RaycastHit hit;
-        if (Physics.Linecast(pos, endpos, out hit, m_LayerMask))
-        {
-            return true;
-        }
-
-        return false;
-    }
+//    private bool HasObstacle(Vector3 pos, Vector3 endpos)
+//    {
+//        RaycastHit hit;
+//        if (Physics.Linecast(pos, endpos, out hit, m_LayerMask))
+//        {
+//            return true;
+//        }
+//
+//        return false;
+//    }
 
     
 
@@ -766,16 +772,6 @@ public class ClientFlyPath
     public List<Vector3> FindPath(Vector3 startpos,Vector3 endpos)
     {
         var pathlist = new List<Vector3>();
-//        var retEnd = GetTopBottom(endpos, CheckNavMaxHeight);
-//        var targetBottomPos = retEnd.Item2;
-//        if (targetBottomPos.Equals( Vector3.positiveInfinity))
-//        {
-//            return pathlist;
-//        }
-//
-//        var retStart = GetTopBottom(startpos, CheckNavMaxHeight);
-//        var startBottomPos = retStart.Item2;
-       
 
 
         if (pathtype == PathType.Smooth)
@@ -984,6 +980,7 @@ public class ClientFlyPath
 
     public Vector3 FixPos(Vector3 pos)
     {
+        pos = pos.CurrentUnityPos2GlobalPos();
         var newpos = pos;
         newpos.y += LandOffset;
         RaycastHit hit;
@@ -1002,7 +999,7 @@ public class ClientFlyPath
             
         }
 
-        return newpos;
+        return newpos.GlobalPos2CurrentUnityPos();
     }
     private List<Vector3> RecomputePath(Vector3 startpos, Vector3 endPos, float moveStepLength)
     {
@@ -1017,7 +1014,7 @@ public class ClientFlyPath
         }
 //******************************************
         //能直达目标点
-        if (!Physics.Linecast(startpos,endPos,m_LayerMask))
+        if (!Physics.Linecast(startpos.CurrentUnityPos2GlobalPos(),endPos.CurrentUnityPos2GlobalPos(),m_LayerMask))
         {
             path.Add(endPos);
             _moveState = MoveStateType.Moving;
@@ -1025,9 +1022,8 @@ public class ClientFlyPath
         }
         var retEnd = GetTopBottom(endPos, CheckNavMaxHeight);
         var targetBottomPos = retEnd.Item2;
-        if (targetBottomPos.Equals( Vector3.positiveInfinity))
+        if (targetBottomPos.Equals( Vector3.positiveInfinity) || targetBottomPos.Equals(Vector3.negativeInfinity))
         {
-            
             return path;
         }
 
@@ -1076,7 +1072,7 @@ public class ClientFlyPath
             {
                 //能直达普通寻路起点
              
-                if (!Physics.Linecast(startpos, path[0], m_LayerMask))
+                if (!Physics.Linecast(startpos.CurrentUnityPos2GlobalPos(), path[0].CurrentUnityPos2GlobalPos(), m_LayerMask))
                 {
                     _moveState = MoveStateType.Moving;
                 }
@@ -1088,7 +1084,7 @@ public class ClientFlyPath
                     {
                         var lastpos = nextpath[nextpath.Count - 1];
                         
-                        if (!Physics.Linecast(lastpos,path[0],out RaycastHit hit,m_LayerMask))
+                        if (!Physics.Linecast(lastpos.CurrentUnityPos2GlobalPos(),path[0].CurrentUnityPos2GlobalPos(),out RaycastHit hit,m_LayerMask))
                         {
                             if (nextpath[nextpath.Count - 1].Equals(path[0]))
                             {
@@ -1160,32 +1156,6 @@ public class ClientFlyPath
                                 {
                                     _moveState = MoveStateType.Moving;
                                 }
-//                                var lastpoint = startpath[startpath.Count - 1];
-//                                var tempnextpath = FindAirPath(lastpoint, path[0], moveStepLength);
-//                                if (tempnextpath.Count > 0)
-//                                {
-//                                    if (tempnextpath[tempnextpath.Count - 1].Equals(path[0]))
-//                                    {
-//                                        path.RemoveAt(0);
-//                                    }
-//                                    tempnextpath.AddRange(path);
-//                                    if (nextpath[nextpath.Count - 1].Equals(startpath[0]))
-//                                    {
-//                                        startpath.RemoveAt(0);
-//                                    }
-//                                    nextpath.AddRange(startpath);
-//                                    if (nextpath[nextpath.Count - 1].Equals(tempnextpath[0]))
-//                                    {
-//                                        tempnextpath.RemoveAt(0);
-//                                    }
-//                                    nextpath.AddRange(tempnextpath);
-//                                    path = nextpath;
-//                                    _moveState = MoveStateType.Moving;
-//                                }
-//                                else
-//                                {
-//                                    _moveState = MoveStateType.Failure;
-//                                }
                             
                             }
                         
@@ -1235,7 +1205,7 @@ public class ClientFlyPath
         {
             var lastpath = path[path.Count - 1];
             //var lastdis = Vector3.Distance(lastpath , m_EndPos);
-            if (!Physics.Linecast(lastpath,m_EndPos))//强制修正
+            if (!Physics.Linecast(lastpath.CurrentUnityPos2GlobalPos(),m_EndPos.CurrentUnityPos2GlobalPos()))//强制修正
             {
                 path.Add(m_EndPos);
             }
@@ -1318,7 +1288,7 @@ public class ClientFlyPath
             while (nextflypath.next != null)
             {
                 var endpos = nextflypath.next.path;
-                if (!Physics.Linecast(startpos,endpos,m_LayerMask))
+                if (!Physics.Linecast(startpos.CurrentUnityPos2GlobalPos(),endpos.CurrentUnityPos2GlobalPos(),m_LayerMask))
                 {
                     flypath.next = nextflypath.next;
                 }

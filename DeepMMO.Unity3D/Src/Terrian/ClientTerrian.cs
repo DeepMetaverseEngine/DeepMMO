@@ -368,16 +368,19 @@ namespace DeepMMO.Unity3D.Terrain
                 return null;
             }
 
-            srctounitypos.y += m_System.GetNavMeshParams().m_cellHeight;
-            dsttounitypos.y += m_System.GetNavMeshParams().m_cellHeight;
+            var dirStartUnitypos = srctounitypos;
+            var dirEndUnitypos = dsttounitypos;
+            dirStartUnitypos.y  += StepIntercept/2;
+            dirEndUnitypos.y += StepIntercept/2;
             List<UnityEngine.Vector3> NavPathPoints = new List<UnityEngine.Vector3>();
-            if (!Physics.Linecast(srctounitypos,dsttounitypos))
+            if (!Physics.Linecast(dirStartUnitypos.CurrentUnityPos2GlobalPos(),dirEndUnitypos.CurrentUnityPos2GlobalPos()))
             {
                 NavPathPoints.Add(dsttounitypos);
                 return NavMeshClientWayPoint.CreateFromVoxel(GenNavMeshWayPoint(NavPathPoints)); 
             }
             
-            
+            srctounitypos.y += m_System.GetNavMeshParams().m_cellHeight;
+            dsttounitypos.y += m_System.GetNavMeshParams().m_cellHeight;
             var haspos = m_System.GetClosestPointOnNavMeshForUnity(srctounitypos,FindPathDistance);
             if (haspos.Item1)
             {
@@ -426,7 +429,7 @@ namespace DeepMMO.Unity3D.Terrain
                     {
                         var endpos = dsttounitypos;
                         endpos.y += m_System.GetNavMeshParams().m_cellHeight;
-                        if (!Physics.Linecast(lastPoint,endpos,layMasks))
+                        if (!Physics.Linecast(lastPoint.CurrentUnityPos2GlobalPos(),endpos.CurrentUnityPos2GlobalPos(),layMasks))
                         {
                             NavPathPoints.Add(dsttounitypos);
                             lastPoint = dsttounitypos;
