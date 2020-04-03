@@ -373,11 +373,18 @@ namespace DeepMMO.Unity3D.Terrain
             dirStartUnitypos.y  += StepIntercept/2;
             dirEndUnitypos.y += StepIntercept/2;
             List<UnityEngine.Vector3> NavPathPoints = new List<UnityEngine.Vector3>();
-            if (!Physics.Linecast(dirStartUnitypos.CurrentUnityPos2GlobalPos(),dirEndUnitypos.CurrentUnityPos2GlobalPos()))
+            var dir = dirEndUnitypos - dirStartUnitypos;
+            var dis = UnityEngine.Vector3.Distance(dirStartUnitypos, dirEndUnitypos);
+            if (!Physics.Raycast(dirStartUnitypos.CurrentUnityPos2GlobalPos(),dir.normalized,out RaycastHit hit1,dis,layMasks))
             {
                 NavPathPoints.Add(dsttounitypos);
                 return NavMeshClientWayPoint.CreateFromVoxel(GenNavMeshWayPoint(NavPathPoints)); 
             }
+            // if (!Physics.Linecast(dirStartUnitypos.CurrentUnityPos2GlobalPos(),dirEndUnitypos.CurrentUnityPos2GlobalPos(),layMasks))
+            // {
+            //     NavPathPoints.Add(dsttounitypos);
+            //     return NavMeshClientWayPoint.CreateFromVoxel(GenNavMeshWayPoint(NavPathPoints)); 
+            // }
             
             srctounitypos.y += m_System.GetNavMeshParams().m_cellHeight;
             dsttounitypos.y += m_System.GetNavMeshParams().m_cellHeight;

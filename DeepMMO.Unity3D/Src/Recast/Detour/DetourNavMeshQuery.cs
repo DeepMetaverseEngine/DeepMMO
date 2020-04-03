@@ -61,7 +61,7 @@ public static partial class Detour{
         public float[] m_areaCost = new float[DT_MAX_AREAS];		//< Cost per area type. (Used by default implementation.)
         public ushort m_includeFlags;		//< Flags for polygons that can be visited. (Used by default implementation.)
         public ushort m_excludeFlags;		//< Flags for polygons that should not be visted. (Used by default implementation.)
-
+        
         public dtQueryFilter()
         {
             m_includeFlags=0xffff;
@@ -228,6 +228,8 @@ public static partial class Detour{
         private dtNodePool m_nodePool;		//< Pointer to node pool.
         private dtNodeQueue m_openList;		//< Pointer to open list queue.
 
+        public LayerMask layerMask;
+        
         public dtNavMeshQuery()
         {
         }
@@ -291,7 +293,7 @@ public static partial class Detour{
 	        {
 		        m_openList.clear();
 	        }
-	
+	        layerMask = LayerMask.NameToLayer("NavLayer");
 	        return DT_SUCCESS;
         }
 
@@ -852,7 +854,7 @@ public static partial class Detour{
 	        return DT_FAILURE | DT_INVALID_PARAM;
         }
 
-        
+     
         public dtStatus findNearestPolyForUnity(float[] center, float[] extents,
 										         dtQueryFilter filter,
 										         ref dtPolyRef nearestRef, ref float[] nearestPt) 
@@ -897,7 +899,8 @@ public static partial class Detour{
 		        // climb height, favor that instead of straight line nearest point.
 		        
 		        var endpos = new Vector3(closestPtPoly[0], closestPtPoly[1], closestPtPoly[2]);
-		        if (Physics.Linecast(startpos,endpos))
+		        
+		        if (Physics.Linecast(startpos,endpos,layerMask))
 		        {
 //			        UnityEngine.Debug.Log("closestPointOnPoly "+(i+1)+" = "+endpos);
 			        continue;

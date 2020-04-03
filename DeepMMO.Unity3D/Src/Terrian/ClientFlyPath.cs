@@ -607,7 +607,7 @@ public class ClientFlyPath
                 isExist = true;
             }
 
-            if (!isExist)
+            if (!isExist && srcPath.prev != null)
             {
                 orgpos = srcPath.prev.path;
                 srcPath = srcPath.prev;
@@ -1205,7 +1205,7 @@ public class ClientFlyPath
         {
             var lastpath = path[path.Count - 1];
             //var lastdis = Vector3.Distance(lastpath , m_EndPos);
-            if (!Physics.Linecast(lastpath.CurrentUnityPos2GlobalPos(),m_EndPos.CurrentUnityPos2GlobalPos()))//强制修正
+            if (!Physics.Linecast(lastpath.CurrentUnityPos2GlobalPos(),m_EndPos.CurrentUnityPos2GlobalPos(),m_LayerMask))//强制修正
             {
                 path.Add(m_EndPos);
             }

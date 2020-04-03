@@ -94,9 +94,11 @@ namespace DeepMMO.Unity3D.Terrain
         public delegate FlyState FlyStateHandle(FlyState state);
         public event BeginHandle event_BeginFlyHandle;
         public event FlyStateHandle event_FlyStateHandle;
+        public bool isCrossMap = false;
         public HZFuckWay(
             Vector3 targetpos,
             bool _FlyAbility,
+            bool isCrossMap = false,
             float endDistance = 0.05f,
             Predicate<LayerEditorPoint> select = null,
             bool autoAdjust = true,
@@ -108,6 +110,7 @@ namespace DeepMMO.Unity3D.Terrain
             this.targetpos = targetpos;
             this.select = select;
             this.m_FlyAbility = _FlyAbility;
+            this.isCrossMap = isCrossMap;
 
         }
 
@@ -621,6 +624,10 @@ namespace DeepMMO.Unity3D.Terrain
         
         protected override void BeginUpdate(int intervalMS)
         {
+            if (!Owner.IsReady)
+            {
+                return;
+            }
             this.m_IsFlying = Owner.IsZeroGravityFly;
             cur_dir = Owner.Direction;
             cur_pos = Owner.GetUnityPos();
