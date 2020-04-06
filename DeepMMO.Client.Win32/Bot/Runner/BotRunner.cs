@@ -79,7 +79,16 @@ namespace DeepMMO.Client.BotTest.Runner
                     client.GameClient.Request<ClientPong>(new ClientPing(), (s, a) => { });
                 }
             });
+            client.OnZoneActorEntered += Client_OnZoneActorEntered;
         }
+        private void Client_OnZoneActorEntered(DeepCore.Game3D.Slave.Layer.LayerPlayer obj)
+        {
+            obj.Parent.QueueTask(t=>
+            {
+                obj.SendReady();
+            });
+        }
+
         protected override void Disposing()
         {
             lock (this)
