@@ -121,6 +121,7 @@ namespace DeepMMO.Protocol.Client
     public class ClientEnterGameRequest : Request, ISessionProtocol, INetProtocolBotIgnore
     {
         public string c2s_roleUUID;
+        public string c2s_sdkToken;
     }
     [MessageType(Constants.SESSION_START + 14)]
     public class ClientEnterGameResponse : Response, ISessionProtocol, INetProtocolBotIgnore

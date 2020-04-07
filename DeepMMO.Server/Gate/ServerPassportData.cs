@@ -14,5 +14,9 @@ namespace DeepMMO.Server.Gate
             this.Verified = verified;
             this.Privilege = privilege;
         }
+    } public class ServerPassportEnterGame
+    {
+        public bool Verified;
+        public string Message;
     }
 }

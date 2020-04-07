@@ -60,6 +60,7 @@ namespace DeepMMO.Server.Connect
             this.session_battle_action_codec = base.ServerCodec.Factory.GetCodec(typeof(SessionBattleAction));
             this.Channel = start.Config["channel"]?.ToString();
         }
+
         protected override void OnDisposed()
         {
             this.accountSave.Dispose();
@@ -78,12 +79,19 @@ namespace DeepMMO.Server.Connect
             this.queryRoleDataStatusSnap = null;
             this.accountRoleSnapSave = null;
         }
+
         protected override async Task OnStartAsync()
         {
-            this.accountSave = new MappingReference<AccountData>(RPGServerPersistenceManager.TYPE_ACCOUNT_DATA, accountID, this);
-            this.queryRoleSnap = new QueryMappingReference<RoleSnap>(RPGServerPersistenceManager.TYPE_ROLE_SNAP_DATA, this);
-            this.accountRoleSnapSave = new MappingReference<AccountRoleSnap>(RPGServerPersistenceManager.TYPE_ACCOUNT_ROLE_SNAP_DATA, accountID, this);
-            this.queryRoleDataStatusSnap = new QueryMappingReference<RoleDataStatusSnap>(RPGServerPersistenceManager.TYPE_ROLE_DATA_STATUS_SNAP_DATA, this);
+            this.accountSave =
+                new MappingReference<AccountData>(RPGServerPersistenceManager.TYPE_ACCOUNT_DATA, accountID, this);
+            this.queryRoleSnap =
+                new QueryMappingReference<RoleSnap>(RPGServerPersistenceManager.TYPE_ROLE_SNAP_DATA, this);
+            this.accountRoleSnapSave =
+                new MappingReference<AccountRoleSnap>(RPGServerPersistenceManager.TYPE_ACCOUNT_ROLE_SNAP_DATA,
+                    accountID, this);
+            this.queryRoleDataStatusSnap =
+                new QueryMappingReference<RoleDataStatusSnap>(
+                    RPGServerPersistenceManager.TYPE_ROLE_DATA_STATUS_SNAP_DATA, this);
 
             this.heartbeat_timer = base.Provider.CreateTimer(CheckHeartbeat, this,
                 TimeSpan.FromSeconds(TimerConfig.timer_sec_SessionKeepTimeout / 2),
@@ -96,10 +104,15 @@ namespace DeepMMO.Server.Connect
         protected override async Task OnStopAsync(ServiceStopInfo reason)
         {
             this.heartbeat_timer.Dispose();
-            if (session != null) { this.session.socket.Disconnect(reason.Reason); }
+            if (session != null)
+            {
+                this.session.socket.Disconnect(reason.Reason);
+            }
+
             await ShutdownLogicServiceAsync("session destroy");
             await this.accountSave.FlushAsync();
         }
+
         protected void CheckHeartbeat(object state)
         {
             if (DateTime.Now - last_heartbeat > TimeSpan.FromSeconds(TimerConfig.timer_sec_SessionKeepTimeout))
@@ -117,8 +130,9 @@ namespace DeepMMO.Server.Connect
             var logic = remote_logic_service;
             if (logic != null)
             {
-                logic.Invoke(new SessionDisconnectNotify() { sessionName = SelfAddress.ServiceName, });
+                logic.Invoke(new SessionDisconnectNotify() {sessionName = SelfAddress.ServiceName,});
             }
+
             this.ShutdownSelf(shutdown.reason);
         }
 
@@ -141,18 +155,21 @@ namespace DeepMMO.Server.Connect
         [RpcHandler(typeof(LocalBindSessionRequest), typeof(LocalBindSessionResponse), ServerNames.ConnectServerType)]
         public virtual async Task<LocalBindSessionResponse> connect_rpc_Handle(LocalBindSessionRequest bind)
         {
-            if (!string.IsNullOrEmpty(bind.enter.c2s_session_token) && !string.IsNullOrEmpty(this.sessionToken) && bind.enter.c2s_session_token != this.sessionToken)
+            if (!string.IsNullOrEmpty(bind.enter.c2s_session_token) && !string.IsNullOrEmpty(this.sessionToken) &&
+                bind.enter.c2s_session_token != this.sessionToken)
             {
                 this.sessionToken = null;
-                return (new LocalBindSessionResponse() { s2c_code = Response.CODE_ERROR });
+                return (new LocalBindSessionResponse() {s2c_code = Response.CODE_ERROR});
             }
+
             var savedLoginToken = await accountSave.LoadFieldAsync<string>(nameof(AccountData.lastLoginToken));
             var savedServerGroup = await accountSave.LoadFieldAsync<string>(nameof(AccountData.lastLoginServerGroupID));
             if (savedLoginToken != bind.enter.c2s_login_token)
             {
                 this.sessionToken = null;
-                return (new LocalBindSessionResponse() { s2c_code = Response.CODE_ERROR });
+                return (new LocalBindSessionResponse() {s2c_code = Response.CODE_ERROR});
             }
+
             var old_session = this.session;
             if (old_session != null)
             {
@@ -165,12 +182,14 @@ namespace DeepMMO.Server.Connect
                 {
                     disconnect.roleID = enter_game.c2s_roleUUID;
                 }
+
                 //老Session暂停发包//
                 var logic = this.remote_logic_service;
                 if (logic != null)
                 {
                     logic.Invoke(disconnect);
                 }
+
                 //log.Log("Reconnect");
                 //老Session踢下线//
                 old_session.socket.Disconnect("New Session Reconnect");
@@ -179,6 +198,7 @@ namespace DeepMMO.Server.Connect
             {
                 //log.Log("Connect");
             }
+
             this.session = bind.session;
             this.enter = bind.enter;
             //登录成功后，产生新的Token用于断线重连//
@@ -192,6 +212,7 @@ namespace DeepMMO.Server.Connect
                 serverGroupID = savedServerGroup,
             });
         }
+
         /// <summary>
         /// 用户断线
         /// </summary>
@@ -199,8 +220,6 @@ namespace DeepMMO.Server.Connect
         [RpcHandler(typeof(SessionDisconnectNotify), ServerNames.ConnectServerType)]
         public virtual void connect_rpc_Handle(SessionDisconnectNotify disconnect)
         {
-
-
             //log.Log("Disconnect");
             last_heartbeat = DateTime.Now;
             disconnect.sessionName = SelfAddress.ServiceName;
@@ -208,6 +227,7 @@ namespace DeepMMO.Server.Connect
             {
                 disconnect.roleID = enter_game.c2s_roleUUID;
             }
+
             //             var area = remote_area_service;
             //             if (area != null)
             //             {
@@ -233,7 +253,8 @@ namespace DeepMMO.Server.Connect
         /// <param name="route_codec"></param>
         /// <param name="binary"></param>
         /// <param name="cb"></param>
-        public void connect_OnReceivedBinaryImmediately(TypeCodec route_codec, BinaryMessage binary, OnRpcBinaryReturn cb = null)
+        public void connect_OnReceivedBinaryImmediately(TypeCodec route_codec, BinaryMessage binary,
+            OnRpcBinaryReturn cb = null)
         {
             last_heartbeat = DateTime.Now;
             if (client_battle_action_codec.MessageID == route_codec.MessageID)
@@ -243,6 +264,7 @@ namespace DeepMMO.Server.Connect
             else
             {
                 this.Provider.Execute(new Action(do_async_OnReceivedBinaryImmediately));
+
                 void do_async_OnReceivedBinaryImmediately()
                 {
                     SendToLogic(route_codec, binary, cb);
@@ -258,20 +280,36 @@ namespace DeepMMO.Server.Connect
         [RpcHandler(typeof(ClientEnterGameRequest), typeof(ClientEnterGameResponse), ServerNames.ConnectServerType)]
         public virtual async Task<ClientEnterGameResponse> client_rpc_Handle(ClientEnterGameRequest enter)
         {
+            //第三方/一号通验证//
+            var serverPassportResult = await RPGServerManager.Instance.Passport.VerifyEnterGameAsync(this.enter, enter);
+            if (!serverPassportResult.Verified)
+            {
+                return new ClientEnterGameResponse()
+                {
+                    s2c_code = ClientEnterGameResponse.CODE_ROLE_SUSPEND,
+                    s2c_msg = serverPassportResult.Message
+                };
+            }
+
             //log.Log("ClientEnterGameRequest");
+
             #region 账号封停验证.
+
             var statusSnap = await queryRoleDataStatusSnap.LoadDataAsync(enter.c2s_roleUUID);
             if (statusSnap != null)
             {
                 //没过期代表已封停.
                 if (!((DateTime.UtcNow - statusSnap.SuspendDate).TotalMilliseconds > 0))
                 {
-                    return (new ClientEnterGameResponse() { s2c_code = ClientEnterGameResponse.CODE_ROLE_SUSPEND, s2c_suspendTime = statusSnap.SuspendDate });
+                    return (new ClientEnterGameResponse()
+                    {
+                        s2c_code = ClientEnterGameResponse.CODE_ROLE_SUSPEND, s2c_suspendTime = statusSnap.SuspendDate
+                    });
                 }
             }
 
-
             #endregion
+
             last_heartbeat = DateTime.Now;
             this.enter_game = enter;
             bool reconnect = false;
@@ -282,13 +320,15 @@ namespace DeepMMO.Server.Connect
             {
                 rec.roleID = enter_game.c2s_roleUUID;
             }
+
             var logic = remote_logic_service;
             if (logic != null)
             {
                 var oldRoleID = logic.Config["roleID"].ToString();
                 if (oldRoleID != enter.c2s_roleUUID)
                 {
-                    log.WarnFormat(string.Format("Role Already Login : Acc={0} : Role={1} -> {2}", accountID, oldRoleID, enter.c2s_roleUUID));
+                    log.WarnFormat(string.Format("Role Already Login : Acc={0} : Role={1} -> {2}", accountID, oldRoleID,
+                        enter.c2s_roleUUID));
                     //cb(new ClientEnterGameResponse() { s2c_code = ClientEnterGameResponse.CODE_LOGIC_ALREADY_LOGIN });
                     await logic.ShutdownAsync("switch role");
                     logic = await this.CreateLogicServiceAsync(enter);
@@ -306,6 +346,7 @@ namespace DeepMMO.Server.Connect
                 log.InfoFormat(string.Format("Role Connect : Acc={0} : Role={1}", accountID, enter.c2s_roleUUID));
                 logic = await this.CreateLogicServiceAsync(enter);
             }
+
             if (logic != null)
             {
                 accountSave.SetField(nameof(AccountData.lastLoginRoleID), enter.c2s_roleUUID);
@@ -327,9 +368,10 @@ namespace DeepMMO.Server.Connect
             }
             else
             {
-                return (new ClientEnterGameResponse() { s2c_code = ClientEnterGameResponse.CODE_LOGIC_NOT_FOUND, });
+                return (new ClientEnterGameResponse() {s2c_code = ClientEnterGameResponse.CODE_LOGIC_NOT_FOUND,});
             }
         }
+
         /// <summary>
         /// 玩家离开游戏
         /// </summary>
@@ -356,6 +398,7 @@ namespace DeepMMO.Server.Connect
                 remote_area_service = t.GetResultAs();
             });
         }
+
         [RpcHandler(typeof(SessionUnbindAreaNotify), ServerNames.AreaServiceType)]
         public virtual void area_rpc_Handle(SessionUnbindAreaNotify msg)
         {
@@ -374,6 +417,7 @@ namespace DeepMMO.Server.Connect
                 session.SocketSend(msg);
             }
         }
+
         public override void OnWormholeTransported(RemoteAddress from, object message)
         {
             var session = this.session;
@@ -388,7 +432,6 @@ namespace DeepMMO.Server.Connect
                     session.socket.Send(ser);
                 }
             }
-
         }
 
         //--------------------------------------------------------------------------------------------------------------------------------------------
@@ -420,8 +463,8 @@ namespace DeepMMO.Server.Connect
             {
                 log.Error(err);
             }
-
         }
+
         /// <summary>
         /// 逻辑协议发往LogicService
         /// </summary>
@@ -447,10 +490,12 @@ namespace DeepMMO.Server.Connect
         protected virtual async Task<IRemoteService> CreateLogicServiceAsync(ClientEnterGameRequest enter_game)
         {
             var cfg = await InitConfig();
-            var ret = await this.Provider.CreateAsync(ServerNames.GetLogicServiceAddress(enter_game.c2s_roleUUID, this.SelfAddress.ServiceNode), cfg);
+            var ret = await this.Provider.CreateAsync(
+                ServerNames.GetLogicServiceAddress(enter_game.c2s_roleUUID, this.SelfAddress.ServiceNode), cfg);
             this.remote_logic_service = ret;
             return ret;
         }
+
         protected virtual async Task ShutdownLogicServiceAsync(string reason)
         {
             var logic = remote_logic_service;
@@ -469,6 +514,7 @@ namespace DeepMMO.Server.Connect
                 {
                     log.Error(err.Message, err);
                 }
+
                 try
                 {
                     var result = await logic.ShutdownAsync(reason);
@@ -520,7 +566,6 @@ namespace DeepMMO.Server.Connect
     }
 
 
-
     /// <summary>
     /// Connect 进程内，通知SessionService绑定ViewSession
     /// </summary>
@@ -529,11 +574,11 @@ namespace DeepMMO.Server.Connect
         public ConnectServer.ViewSession session;
         public ClientEnterServerRequest enter;
     }
+
     public class LocalBindSessionResponse : Response, IRpcNoneSerializable
     {
         public SessionService session;
         public string sessionToken;
         public string serverGroupID;
     }
-
 }
