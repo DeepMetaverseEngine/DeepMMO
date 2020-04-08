@@ -165,9 +165,10 @@ public class ClientFlyPath
         var dir = pos - m_StartPos;
         var moveStep = MoveSpeed;
         var dis = Vector3.Distance(pos, m_StartPos);
-        if (dis < MoveSpeed)
+        if (dis <= MoveSpeed)
         {
             moveStep = dis;
+            
         }
             
 //        Debug.Log("pos ="+ pos +" position"+this.transform.position );
@@ -176,6 +177,7 @@ public class ClientFlyPath
         {
             m_MovePoint.Add(pos);
         }
+        
 
         return pos;
     }
@@ -184,7 +186,6 @@ public class ClientFlyPath
         var dis = 0f;
         RaycastHit hit;
         var pos = m_StartPos;
-        //var dir = m_EndPos - m_StartPos;
         var enddis = Vector3.Distance(m_StartPos, m_EndPos);
         if (enddis > MoveSpeed && CheckAround(m_StartPos, m_StartPos, out Vector3 Closestpos, out Collider trans))
         {
@@ -194,16 +195,6 @@ public class ClientFlyPath
                 m_HitList.Add(trans.transform.GetInstanceID());
             }
         }
-//        if (enddis > MoveSpeed &&  Physics.Raycast(m_StartPos,dir.normalized,out hit,MoveSpeed,m_LayerMask))
-//        {
-//            if (!m_HitList.Contains(hit.transform.GetInstanceID()))
-//            {
-//                m_Path = RecomputePath(m_StartPos, m_EndPos, Step);
-//               
-//                m_HitList.Add(hit.transform.GetInstanceID());
-//            }
-//        }
-        
         var targetdis = Vector3.Distance(m_StartPos, m_EndPos);
         int Count = m_Path.Count;
         if (Count == 0 && targetdis > 0.3f)
@@ -234,13 +225,6 @@ public class ClientFlyPath
                 
             }
         }
-
-//        else if (!CheckAround(m_StartPos, out Vector3 ClosestPos, out collider) && !HasObstacle(m_StartPos, m_EndPos))
-//        {
-//            pos = m_EndPos;
-//            m_Path.Clear();
-//            m_Path.Add(m_EndPos);
-//        }
         else
         {
             Count = m_Path.Count;
@@ -252,7 +236,7 @@ public class ClientFlyPath
                     pos = m_Path[0];
                     dis = Vector3.Distance(m_StartPos, pos);
 					                   
-                    if (dis <= 0.1f ||  GetContainPos(m_MovePoint, pos))
+                    if (dis <= MoveSpeed + 0.2f ||  GetContainPos(m_MovePoint, pos))
                     {
                         m_Path.RemoveAt(0);
                         Count--;
@@ -526,12 +510,23 @@ public class ClientFlyPath
             Quaternion.identity,
             m_LayerMask);
         bool isTouch = false;
+        bool hasClosestPoint = false;
         var MaxDis = 9999f;
         if (halfhit != null && halfhit.Length > 0)
         {
             for (int i = 0; i < halfhit.Length; i++)
             {
+                collider = halfhit[i];
+                if (collider is MeshCollider mc) 
+                {
+                    if (mc.convex)
+                    {
+                        
+                    }
+                }
+
                 var pos = halfhit[i].ClosestPoint(orgpos);
+                
                 var dis = Vector3.Distance(orgpos, pos);
                 if (dis < MaxDis && startpos.y < pos.y)
                 {

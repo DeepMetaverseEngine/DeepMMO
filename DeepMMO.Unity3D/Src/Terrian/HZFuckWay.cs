@@ -77,7 +77,7 @@ namespace DeepMMO.Unity3D.Terrain
         private bool m_FlyAbility;
         private bool m_IsFlying;
         private bool b_ReadyToFly = false;
-        private float LandOffset = 0.5f;
+        public float LandOffset = 0.5f;
         private Vector3 LastPos;
        
         public enum FlyState
@@ -635,10 +635,12 @@ namespace DeepMMO.Unity3D.Terrain
 
             if (mNavPathPoints.Count > 0)
             {
+                #if UNITY_EDITOR
                 for (int i = 1; i < mNavPathPoints.Count; i++)
                 {
                     Debug.DrawLine(mNavPathPoints[i-1].CurrentUnityPos2GlobalPos(),mNavPathPoints[i].CurrentUnityPos2GlobalPos(),Color.red);
                 }
+                #endif
             }
             if (checkTargetDistance())
             {

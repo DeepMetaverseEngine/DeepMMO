@@ -355,6 +355,7 @@ namespace DeepMMO.Unity3D.Terrain
 
         protected virtual void ProcessGravity(int intervalMS)
         {
+            
             LastPosition = currentUnityPos;
             var topHeight = float.MaxValue;
             var bottomHeight = 0f;

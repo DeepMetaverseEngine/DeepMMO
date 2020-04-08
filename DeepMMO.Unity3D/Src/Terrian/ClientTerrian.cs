@@ -609,56 +609,28 @@ namespace DeepMMO.Unity3D.Terrain
                 
                 var src = vobj.Position;
 
-                if (Math.Abs(remotePos.X - src.X) < 0.01f && Math.Abs(remotePos.Y - src.Y) < 0.01f && Mathf.Abs(src.Z - remotePos.Z)<= 0.2f)//精度有点问题
-                {
-                    return true;
-                }
-
                 var ret = Vector3.Lerp(src, remotePos, amount);
-                if (unit.CurrentState == UnitActionStatus.Jump)//黑科技一下？
+                var fixHeight = StepIntercept;
+                if (unit.Info.UType == UnitInfo.UnitType.TYPE_PLAYER)
                 {
-                    vobj.Transport(new Vector3(ret.X,ret.Y,src.Z));
+                    fixHeight = StepIntercept / 3;
                 }
-
-                //其他玩家
-                if (unit.Info.UType == UnitInfo.UnitType.TYPE_PLAYER && unit.SyncInfo.HasPlayerUUID && Math.Abs(remotePos.X - src.X) < 0.01f && Math.Abs(remotePos.Y - src.Y) < 0.01f && Mathf.Abs(src.Z - remotePos.Z)<= StepIntercept)
+                if (Mathf.Abs(src.Z - remotePos.Z)<= fixHeight)//精度有点问题
                 {
-                      return true;
+                    ret.Z = Math.Max(ret.Z, src.Z);
                 }
+                vobj.Transport(ret);
                 
-                else //npc为什么会有playeruuid了？暂时没时间跟踪
-                {
-                    
-                    if (Mathf.Abs(src.Z - remotePos.Z)<= StepIntercept)
-                    {
-                        vobj.Transport(new Vector3(ret.X, ret.Y, src.Z));
-                    }
-                    else
-                    {
-                        if (unit.Info.UType == UnitInfo.UnitType.TYPE_PLAYER)
-                        {
-                            vobj.Transport(new Vector3(ret.X, ret.Y, src.Z));
-                        }
-                        else
-                            vobj.Transport(ret);
-                    }
-
-                    if (unit.Info.UType == UnitInfo.UnitType.TYPE_NPC || !unit.SyncInfo.HasPlayerUUID)
-                    {
-                        return true;
-                    }
-                    
-                }
-                
-//                else
-//                {
-//                    vobj.Transport(ret);
-//                }
                 return Math.Abs(ret.X - src.X) < 0.01f && Math.Abs(ret.Y - src.Y) < 0.01f && Mathf.Abs(src.Z - ret.Z)<= StepIntercept;
             }
 
             public virtual void Update(int intervalMS)
             {
+                // if (unit.Info.UType == UnitInfo.UnitType.TYPE_NPC || !unit.SyncInfo.HasPlayerUUID)
+                // {
+                //     return;
+                // }
+                
                 vobj.Update(intervalMS);
                 
             }
@@ -686,12 +658,14 @@ namespace DeepMMO.Unity3D.Terrain
         {
 
             private float AsyncUnitPosModifyMinRange = 20f;
+
+            private float StepIntercept;
             //单位，地图高度 ，台阶高度，格子尺寸，碰撞半径
             public ClientPlayerPosition(LayerUnit unit,float totalwidth,float totalHeigt,float stepIntercept,float gridcellsize,float radius = 0.5f):base(
                  unit, totalwidth,totalHeigt, stepIntercept, gridcellsize, radius )
             {
                 AsyncUnitPosModifyMinRange = unit.Parent.AsyncUnitPosModifyMinRange;
-
+                StepIntercept = stepIntercept;
             }
             
             public void Move(float addX, float addY)
@@ -718,6 +692,37 @@ namespace DeepMMO.Unity3D.Terrain
                         return TryMoveToMapBorderResult.TOUCH;
                 }
                 return TryMoveToMapBorderResult.ARRIVE;
+            }
+
+            public override bool FixLerp(Vector3 remotePos, float amount)
+            {
+                var src = vobj.Position;
+
+                var ret = Vector3.Lerp(src, remotePos, amount);
+                if (Math.Abs(remotePos.X - src.X) < 0.01f && Math.Abs(remotePos.Y - src.Y) < 0.01f && Mathf.Abs(src.Z - remotePos.Z)<= 0.2f)//精度有点问题
+                {
+                    return true;
+                }
+                
+                if (unit.CurrentState == UnitActionStatus.Jump)//黑科技一下？
+                {
+                    vobj.Transport(new Vector3(ret.X,ret.Y,src.Z));
+                }
+
+
+                if (Mathf.Abs(src.Z - remotePos.Z) <= StepIntercept)
+                {
+                    vobj.Transport(new Vector3(ret.X, ret.Y, src.Z));
+                }
+                else
+                {
+                   vobj.Transport(ret);
+                }
+
+                
+                return true;
+
+
             }
 
             public override void Update(int intervalMS)
