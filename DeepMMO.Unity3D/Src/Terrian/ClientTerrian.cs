@@ -106,7 +106,20 @@ namespace DeepMMO.Unity3D.Terrain
         private float FindPathDistance;//最近路点采样距离
         private RcdtcsUnityUtils.SystemHelper m_System = new RcdtcsUnityUtils.SystemHelper();
         public ClientFlyPath clientFlyPath;
-        public float LandOffSet = 0.5f;
+        private float _LandOffset = 0.5f;
+
+        public float LandOffSet
+        {
+            get { return _LandOffset; }
+            set
+            {
+                _LandOffset = value;
+                if (clientFlyPath != null)
+                {
+                    clientFlyPath.LandOffset = value;
+                }
+            }
+        }
 //        public GameObject cubeobj;
         public NavMeshClientTerrain3D(string scenePathFindFileName,float terrainWidth,float terrainheight,int terrainGridCellSize,float stepIntercept,float findPathDistance = 3f)
         {
@@ -375,7 +388,7 @@ namespace DeepMMO.Unity3D.Terrain
             List<UnityEngine.Vector3> NavPathPoints = new List<UnityEngine.Vector3>();
             var dir = dirEndUnitypos - dirStartUnitypos;
             var dis = UnityEngine.Vector3.Distance(dirStartUnitypos, dirEndUnitypos);
-            if (!Physics.Raycast(dirStartUnitypos.CurrentUnityPos2GlobalPos(),dir.normalized,out RaycastHit hit1,dis,layMasks))
+            if (!clientFlyPath.CheckBoxCast(dirStartUnitypos.CurrentUnityPos2GlobalPos(),dir.normalized,out RaycastHit hit1,dis,layMasks))
             {
                 NavPathPoints.Add(dsttounitypos);
                 return NavMeshClientWayPoint.CreateFromVoxel(GenNavMeshWayPoint(NavPathPoints)); 

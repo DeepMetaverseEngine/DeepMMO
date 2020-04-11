@@ -41,7 +41,7 @@ namespace DeepMMO.Server.AreaManager
             {
                 EventMgr.PutObject("Service", this);
                 EventMgr.Start();
-                mTimer = Provider.CreateTimer(OnEventTick, this, 
+                mTimer = Provider.CreateTimer(OnEventTick, this,
                     TimeSpan.FromSeconds(0),
                     TimeSpan.FromSeconds(TimerConfig.timer_sec_EventUpdateTime));
             }
@@ -88,6 +88,12 @@ namespace DeepMMO.Server.AreaManager
 
         //------------------------------------------------------------------------------------------------------------------------------------
         #region RPC
+        [RpcHandler(typeof(BatchCreateZoneLineRequest), typeof(BatchCreateZoneLineResponse))]
+        public virtual Task<BatchCreateZoneLineResponse> logic_rpc_Handle(BatchCreateZoneLineRequest create)
+        {
+            //log.Info(create);
+            return BatchCreateZoneLine(create);
+        }
 
         [RpcHandler(typeof(CreateZoneNodeRequest), typeof(CreateZoneNodeResponse))]
         public virtual Task<CreateZoneNodeResponse> logic_rpc_Handle(CreateZoneNodeRequest create)
@@ -159,7 +165,7 @@ namespace DeepMMO.Server.AreaManager
         public virtual void logic_rpc_Handle(RoleNameChangedNotify ntf)
         {
             var role = GetRole(ntf.roleId);
-            if(role != null)
+            if (role != null)
             {
                 role.enter.roleDisplayName = ntf.newName;
             }
@@ -170,7 +176,7 @@ namespace DeepMMO.Server.AreaManager
         public virtual void logic_rpc_Handle(GetAllRoleRequest req, OnRpcReturn<GetAllRoleResponse> cb)
         {
             RoleInfo[] roleList = GetAllRoles();
-            HashMap<string,OnlinePlayerData> uuidMap = new HashMap<string, OnlinePlayerData>();
+            HashMap<string, OnlinePlayerData> uuidMap = new HashMap<string, OnlinePlayerData>();
             for (int i = 0; i < roleList.Length; ++i)
             {
                 var rold = roleList[i];
@@ -252,7 +258,7 @@ namespace DeepMMO.Server.AreaManager
             resp.zoneUUID = zone.uuid;
             return resp;
         }
-        
+
         #endregion
         //------------------------------------------------------------------------------------------------------------------------------------
         #region ZoneManager
@@ -651,6 +657,26 @@ namespace DeepMMO.Server.AreaManager
                 return (new DestoryZoneNodeResponse() { s2c_code = Response.CODE_ERROR, });
             }
         }
+
+        /// <summary>
+        /// 批量创建场景分线
+        /// </summary>
+        /// <param name="create"></param>
+        /// <returns></returns>
+        public virtual async Task<BatchCreateZoneLineResponse> BatchCreateZoneLine(BatchCreateZoneLineRequest create)
+        {
+            BatchCreateZoneLineResponse response = new BatchCreateZoneLineResponse();
+            response.zoneList = new List<CreateZoneNodeResponse>();
+
+            foreach (var item in create.zoneList)
+            {
+                var result = await CreateZone(item);
+                response.zoneList.Add(result);
+            }
+
+            return response;
+        }
+
         public virtual void DestoryZone(AreaZoneDestoryNotify stop)
         {
             try

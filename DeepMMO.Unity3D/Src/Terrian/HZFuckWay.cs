@@ -165,7 +165,9 @@ namespace DeepMMO.Unity3D.Terrain
             if (m_IsFlying)//已经在飞行
             {
                 clientTerrain.SetReadyToFly(false);
+                clientTerrain.LandOffSet = this.LandOffset;
                 points = clientTerrain.FindAirPath(beginpos, endpos);
+                
             }
             else
             {
@@ -433,11 +435,11 @@ namespace DeepMMO.Unity3D.Terrain
         /// <summary>
         /// 再次开始
         /// </summary>
-        public void Start()
+        public bool Start()
         {
             var stopwatch = Stopwatch.StartNew();
             this.m_IsFlying = Owner.IsZeroGravityFly;
-//            UnityEngine.Debug.Log("targetpos1" + targetpos);
+           // UnityEngine.Debug.Log("targetpos1" + targetpos);
             targetpos = FixPos(targetpos);
 //            UnityEngine.Debug.Log("targetpos2" + targetpos);
             var ret = CalculatePath(Owner.GetUnityPos(),targetpos);
@@ -454,7 +456,7 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 stopwatch.Stop();
                 Debug.Log("cost time ====== "+stopwatch.ElapsedMilliseconds / 1000f);
-                return;
+                return false;
             }
             if (m_FlyAbility && !m_IsFlying)//地面寻路 接空中寻路
             {
@@ -472,6 +474,7 @@ namespace DeepMMO.Unity3D.Terrain
                 else
                 {
                     StopAutoRun();
+                    return false;
                 }
                 
             }
@@ -480,12 +483,13 @@ namespace DeepMMO.Unity3D.Terrain
                 if (dis > EndDistance)
                 {
                     StopAutoRun();
+                    return false;
                 }
 
             }
             stopwatch.Stop();
             Debug.Log("cost time ====== "+stopwatch.ElapsedMilliseconds / 1000f);
-            
+            return true;
         }
 
 
@@ -754,23 +758,19 @@ namespace DeepMMO.Unity3D.Terrain
                             StopAutoRun();
                             return;
                         }
+                        //Debug.Log(" nextpos3d=========="+nextpos+" maxSpeedXY= "+maxSpeedXY + " maxSpeedZ= "+maxSpeedZ +" distance="+distance);
                         Owner.SendUnit3DAxisAngle(cur_dir,distance, cur_dir,maxSpeedZ, maxSpeedXY);
-                        
-                        //Debug.Log(" nextpos1=========="+pos +" dis======="+dis);
-
-                        //length 需要优化
-//                        var length2d = dis;
-//                        var dir = MathVector.getDegree(ownerpos.X, ownerpos.Y, zonepos.X, zonepos.Y);
-//                        if (dir != 0)
-//                        {
-//                            cur_dir = dir;
-//                        }
-//                        
-//                        Debug.Log("cur_pos= "+cur_pos+" targetpos= "+nextpos +" length2d= " + length2d);
-//                       
-//                        var speedz = (zonepos.Z - ownerpos.Z)*1000f / intervalMS;
-//                        Owner.SendUnit3DAxisAngle(cur_dir, length2d, cur_dir,speedz);
-                      
+// 底层3daxis实现--------------------------
+                        // var absSpeed = Math.Min(Math.Abs(axis3D.ZControlSpeed), MoveSpeedSEC);
+                        // var zSpeed = CMath.GetDirect(axis3D.ZControlSpeed) * absSpeed;
+                        // ZeroGravityFly.ZMove(zSpeed, intervalMS);
+                        // if (axis3D.distance != 0)
+                        // {
+                        //     var xySpeed = axis3D.XYControlSpeed == 0 ? MoveSpeedSEC : axis3D.XYControlSpeed;
+                        //     xySpeed = Math.Min(xySpeed, MoveSpeedSEC);
+                        //     MoveBlockTo(axis3D.angle, CMath.GetDirect(axis3D.distance) * xySpeed, intervalMS);
+                        // }
+//-----------------------------------------
                     }
                 }
                 else
@@ -799,9 +799,9 @@ namespace DeepMMO.Unity3D.Terrain
                 }
 
                 var _dis = Vector3.Distance(LastPos, cur_pos);
-                if (_dis<0.01f)
-                {
-                    StopAutoRun();
+                if (_dis<0.001f)
+                { 
+                    Start();
                 }
                 else
                 {

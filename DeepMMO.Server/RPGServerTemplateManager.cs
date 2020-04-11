@@ -247,6 +247,12 @@ namespace DeepMMO.Server
             return null;
         }
 
+        public virtual List<string> GetAllServerGroupIdList()
+        {
+            var groupIds = groupList.Keys.ToGenericList<string>();
+            return groupIds;
+        }
+
         /// <summary>
         ///组对应的服务器ID.
         /// </summary>
