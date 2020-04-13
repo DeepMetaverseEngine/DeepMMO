@@ -51,7 +51,7 @@ namespace DeepMMO.Client.BotTest.Runner.Modules
                         if (vt.World.Terrain.TryGetVoxelLayerByObject(ref pos, out var cell, out var layer))
                         {
                             int size = Math.Max(1, (int)(Config.RandomMoveDistance / vt.World.Terrain.GridCellSize));
-                            var tp = vt.World.Terrain.FindNearRandomMoveableNode(random, layer, size);
+                            var tp = vt.World.FindNearRandomMoveableNode(random, layer, size);
                             //if (pos != null)
                             {
                                 //var pos = Terrain.GetUpwardCenterPos(tp);//layer.UpwardCenterPos
