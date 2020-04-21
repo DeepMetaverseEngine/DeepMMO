@@ -234,6 +234,52 @@ namespace DeepMMO.Server.AreaManager
             cb(rsp);
         }
 
+        /// <summary>
+        /// 批量获取场景分线
+        /// </summary>
+        /// <param name="req"></param>
+        /// <param name="cb"></param>
+
+        [RpcHandler(typeof(GetBatchZonesInfoRequest), typeof(GetBatchZonesInfoResponse))]
+        public virtual void logic_rpc_Handle(GetBatchZonesInfoRequest req, OnRpcReturn<GetBatchZonesInfoResponse> cb)
+        {
+            GetBatchZonesInfoResponse rsp = new GetBatchZonesInfoResponse();
+            rsp.snapDic = new HashMap<int, List<ZoneInfoSnap>>();
+
+            foreach (var item in req.mapIDList)
+            {
+                var lt = GetZoneList(req.servergroupID, item);
+
+                if (lt != null)
+                {
+                    ZoneInfoSnap snap = null;
+                    ZoneInfo info = null;
+
+                    List<ZoneInfoSnap> snaps = new List<ZoneInfoSnap>();
+
+                    for (int i = 0; i < lt.Count; i++)
+                    {
+                        //获取所有线的信息.
+                        info = lt[i];
+                        if (info != null && info.close == false)
+                        {
+                            snap = new ZoneInfoSnap();
+                            snap.curPlayerCount = info.currentRoleCount;
+                            snap.playerMaxCount = info.map_data.max_players;
+                            snap.lineIndex = info.lineIndex;
+                            snap.playerFullCount = info.map_data.full_players;
+                            snap.uuid = info.uuid;
+                            snaps.Add(snap);
+                        }
+                    }
+                    rsp.snapDic.Add(item, snaps);
+                }
+            }
+            cb(rsp);
+        }
+
+
+
         [RpcHandler(typeof(GetRolePositionRequest), typeof(GetRolePositionResponse))]
         public virtual async Task<GetRolePositionResponse> logic_rpc_Handle(GetRolePositionRequest req)
         {

@@ -256,6 +256,7 @@ namespace DeepMMO.Server.AreaManager
         public string zoneUUID;
         public string areaName;
         public string areaNode;
+        public int TemplateID;
     }
     [ProtocolRoute("*", "AreaManager -> Area")]
     public class DestoryZoneNodeRequest : Request
@@ -365,6 +366,25 @@ namespace DeepMMO.Server.AreaManager
     public class BatchCreateZoneLineResponse : Response
     {
         public List<CreateZoneNodeResponse> zoneList;
+    }
+
+    /// <summary>
+    /// 获得场景信息快照.
+    /// </summary>
+    [ProtocolRoute("logic", "AreaManager")]
+    public class GetBatchZonesInfoRequest : Request
+    {
+        public string servergroupID;
+        public List<int> mapIDList;
+    }
+
+    /// <summary>
+    /// 获得场景信息快照.
+    /// </summary>
+    [ProtocolRoute("AreaManager", "logic")]
+    public class GetBatchZonesInfoResponse : Response
+    {
+        public HashMap<int, List<ZoneInfoSnap>> snapDic;
     }
 }
 

@@ -202,7 +202,8 @@ namespace DeepMMO.Server.Area
                 {
                     areaName = SelfAddress.ServiceName,
                     areaNode = SelfAddress.ServiceNode,
-                    zoneUUID = zoneUUID
+                    zoneUUID = zoneUUID,
+                    TemplateID = maptemp.zone_template_id,
                 });
             }
             catch (Exception e)
