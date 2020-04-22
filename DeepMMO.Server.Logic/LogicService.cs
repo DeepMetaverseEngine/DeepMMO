@@ -99,9 +99,9 @@ namespace DeepMMO.Server.Logic
                     //定期存数据.
                     int interval = TimerConfig.timer_minute_SaveDataTimer;
                     interval = Math.Max(5, interval);
-                    interval += (int)(interval * (0.25 * new Random().NextDouble()));
-                    this.mSaveDataTimer = Provider.CreateTimer(OnFlushDataTick, this,
-                        TimeSpan.FromMinutes(interval),
+                    this.mSaveDataTimer = Provider.CreateTimer(
+                        OnFlushDataTickAsync, 
+                        this,
                         TimeSpan.FromMinutes(interval));
                 }
                 if (stopwatch.ElapsedMilliseconds > LOAD_EXPECT_TIME_LIMIT)
@@ -126,9 +126,9 @@ namespace DeepMMO.Server.Logic
             EventMgr?.Update();
         }
 
-        private void OnFlushDataTick(object state)
+        private Task OnFlushDataTickAsync(object state)
         {
-            this.OnModulesSaveDataAsync().NoWait();
+            return this.OnModulesSaveDataAsync();
         }
 
         protected override async Task OnStopAsync(ServiceStopInfo reason)
