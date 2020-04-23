@@ -93,6 +93,11 @@ namespace DeepMMO.Server.Connect
                 new QueryMappingReference<RoleDataStatusSnap>(
                     RPGServerPersistenceManager.TYPE_ROLE_DATA_STATUS_SNAP_DATA, this);
 
+            this.Provider.AutoDispose(accountSave);
+            this.Provider.AutoDispose(queryRoleSnap);
+            this.Provider.AutoDispose(accountRoleSnapSave);
+            this.Provider.AutoDispose(queryRoleDataStatusSnap);
+
             this.heartbeat_timer = base.Provider.CreateTimer(CheckHeartbeat, this,
                 TimeSpan.FromSeconds(TimerConfig.timer_sec_SessionKeepTimeout / 2),
                 TimeSpan.FromSeconds(TimerConfig.timer_sec_SessionKeepTimeout / 2));
