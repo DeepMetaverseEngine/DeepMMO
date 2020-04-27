@@ -1,5 +1,6 @@
 ﻿
 using DeepCore;
+using DeepCore.Geometry;
 using DeepCore.IO;
 using System;
 
@@ -54,6 +55,11 @@ namespace DeepMMO.Server.AreaManager
         public string from_flag_name;
         public int to_map_id;
         public string to_flag_name;
+        public Vector3 to_flag_pos;
+        public override string ToString()
+        {
+            return $"from_flag_name={from_flag_name} to_map_id={to_map_id} to_flag_name={to_flag_name}";
+        }
     }
 
     public class SceneNextLinkParser : ListParser<SceneNextLink>

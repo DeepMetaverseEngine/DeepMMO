@@ -1,5 +1,8 @@
 ﻿using DeepCore;
 using DeepCore.Astar;
+using DeepCore.GameData.Zone.ZoneEditor;
+using DeepCore.Geometry;
+using DeepCore.Log;
 using System;
 using System.Collections.Generic;
 
@@ -10,6 +13,7 @@ namespace DeepMMO.Server.AreaManager
     /// </summary>
     public class MapSceneGrapAstar : Astar<MapSceneGrapAstar.SceneGraphNode, MapSceneGrapAstar.SceneGraphPath>
     {
+        private static Logger log = new LazyLogger(nameof(MapSceneGrapAstar));
         private SceneGraphMap terrain;
         public MapSceneGrapAstar(MapTemplateData[] nodes)
         {
@@ -133,7 +137,19 @@ namespace DeepMMO.Server.AreaManager
                         if (next_node != null)
                         {
                             if (!nexts.ContainsKey(next_node.MapID))
-                                nexts.Add(next_node.MapID, next);
+                            {
+                                var ds = RPGServerBattleManager.Instance.GetSceneAsCache(next_node.Data.zone_template_id);
+                                if (ds != null && ds.Regions.TryFind(e => e.Name == next.to_flag_name, out var next_rg))
+                                {
+                                    next.to_flag_pos = new Vector3(next_rg.X, next_rg.Y, next_rg.Z);
+                                    nexts.Add(next_node.MapID, next);
+                                }
+                                else
+                                {
+                                    //throw new Exception($"Next Link Data Error : MapID={MapID} : {next}");
+                                    log.Error($"Next Link Data Error : MapID={MapID} : {next}");
+                                }
+                            }
                             list.Add(next_node);
                         }
                     }
