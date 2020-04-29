@@ -53,6 +53,7 @@ namespace DeepMMO.Server.AreaManager
     public class SceneNextLink : ISerializable
     {
         public string from_flag_name;
+        public Vector3 from_flag_pos;
         public int to_map_id;
         public string to_flag_name;
         public Vector3 to_flag_pos;

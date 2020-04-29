@@ -11,7 +11,7 @@ namespace DeepMMO.Data
     /// 表示一个场景的位置，实际坐标或者FlagName
     /// </summary>
     [MessageType(Constants.DATA_START + 1)]
-    public class ZonePosition : ISerializable,IStructMapping
+    public class ZonePosition : ISerializable, IStructMapping
     {
         [PersistField]
         public string flagName;
@@ -79,6 +79,10 @@ namespace DeepMMO.Data
         /// 场景ID.
         /// </summary>
         public string uuid;
+        /// <summary>
+        /// 活动服批量创建分线返回结果需要场景模板ID
+        /// </summary>
+        public int TemplateID;
     }
 
     /// <summary>

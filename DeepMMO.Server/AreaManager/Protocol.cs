@@ -252,7 +252,6 @@ namespace DeepMMO.Server.AreaManager
     {
         [MessageCodeAttribute("地图尚未开放！")]
         public const int CODE_ERROR_MAP_NOT_OPEN = 501;
-
         public string zoneUUID;
         public string areaName;
         public string areaNode;
@@ -365,7 +364,7 @@ namespace DeepMMO.Server.AreaManager
     [ProtocolRoute("Area -> AreaManager", "*")]
     public class BatchCreateZoneLineResponse : Response
     {
-        public List<CreateZoneNodeResponse> zoneList;
+        public List<ZoneInfoSnap> zoneList;
     }
 
     /// <summary>

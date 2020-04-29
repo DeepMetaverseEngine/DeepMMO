@@ -712,12 +712,17 @@ namespace DeepMMO.Server.AreaManager
         public virtual async Task<BatchCreateZoneLineResponse> BatchCreateZoneLine(BatchCreateZoneLineRequest create)
         {
             BatchCreateZoneLineResponse response = new BatchCreateZoneLineResponse();
-            response.zoneList = new List<CreateZoneNodeResponse>();
+
+            response.zoneList = new List<ZoneInfoSnap>();
 
             foreach (var item in create.zoneList)
             {
                 var result = await CreateZone(item);
-                response.zoneList.Add(result);
+                ZoneInfoSnap zone = new ZoneInfoSnap();
+                zone.lineIndex = GetZone(result.zoneUUID).lineIndex;
+                zone.TemplateID = result.TemplateID;
+                zone.uuid = result.zoneUUID;
+                response.zoneList.Add(zone);
             }
 
             return response;

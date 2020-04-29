@@ -23,6 +23,20 @@ namespace DeepMMO.Server.AreaManager
         public override SceneGraphPath GenWayPoint(SceneGraphNode node)
         {
             return new SceneGraphPath(node);
+        }         
+        /// <summary>
+                     /// 找到最近的入口
+                     /// </summary>
+                     /// <param name="pos"></param>
+                     /// <returns></returns>
+        public SceneNextLink GetNearEntry(int mapID, Vector3 pos)
+        {
+            var node = terrain.GetNode(mapID);
+            if (node != null)
+            {
+                return node.GetNearEntry(pos);
+            }
+            return null;
         }
         protected override void SetTempNode(IMapNode node, ITempMapNode temp)
         {
@@ -38,8 +52,9 @@ namespace DeepMMO.Server.AreaManager
         /// </summary>
         /// <param name="srcMapID"></param>
         /// <param name="dstMapID"></param>
+        /// <param name="dstMapNearPos">目标场景最近点</param>
         /// <returns></returns>
-        public ArrayList<SceneNextLink> FindPath(int srcMapID, int dstMapID)
+        public ArrayList<SceneNextLink> FindPath(int srcMapID, int dstMapID, Vector3? dstMapNearPos)
         {
             var snode = terrain.GetNode(srcMapID);
             if (snode == null) return null;
@@ -56,6 +71,14 @@ namespace DeepMMO.Server.AreaManager
                     {
                         var info = wp.Node.GetNextInfo(next.Node.MapID);
                         ret.Add(info);
+                    }
+                }
+                if (ret.Count > 0 && dstMapNearPos.HasValue)
+                {
+                    var near = dnode.GetNearEntry(dstMapNearPos.Value);
+                    if (near != ret[ret.Count - 1])
+                    {
+                        ret.Add(near);
                     }
                 }
                 return ret;
@@ -101,9 +124,15 @@ namespace DeepMMO.Server.AreaManager
         }
         public class SceneGraphNode : IMapNode
         {
+            /// <summary>
+            /// 下个场景连接点
+            /// </summary>
             private SceneGraphNode[] nexts_array;
             private HashMap<int, SceneNextLink> nexts = new HashMap<int, SceneNextLink>(1);
-
+            /// <summary>
+            /// 当前场景所有入口
+            /// </summary>
+            private List<SceneNextLink> current_entries = new List<SceneNextLink>();
             public int MapID { get; private set; }
             public MapTemplateData Data { get; private set; }
             public override IMapNode[] Nexts { get { return nexts_array; } }
@@ -128,11 +157,22 @@ namespace DeepMMO.Server.AreaManager
             internal void InitNexts(SceneGraphMap map)
             {
                 nexts.Clear();
+                current_entries.Clear();
                 var list = new List<SceneGraphNode>(1);
                 if (Data.connect != null)
                 {
+                    this.current_entries.AddRange(Data.connect);
                     foreach (var next in Data.connect)
                     {
+                        var ss = RPGServerBattleManager.Instance.GetSceneAsCache(Data.zone_template_id);
+                        if (ss != null && ss.Regions.TryFind(e => e.Name == next.from_flag_name, out var from_rg))
+                        {
+                            next.from_flag_pos = new Vector3(from_rg.X, from_rg.Y, from_rg.Z);
+                        }
+                        else
+                        {
+                            throw new Exception($"Currernt Link Data Error : MapID={MapID} : {next}");
+                        }
                         var next_node = map.GetNode(next.to_map_id);
                         if (next_node != null)
                         {
@@ -152,6 +192,10 @@ namespace DeepMMO.Server.AreaManager
                             }
                             list.Add(next_node);
                         }
+                        else
+                        {
+                            log.Error($"Next Link Data Error : MapID={MapID} : {next}");
+                        }
                     }
                 }
                 this.nexts_array = list.ToArray();
@@ -159,6 +203,26 @@ namespace DeepMMO.Server.AreaManager
             internal SceneNextLink GetNextInfo(int mapID)
             {
                 return nexts.Get(mapID);
+            }
+            /// <summary>
+            /// 找到最近的入口
+            /// </summary>
+            /// <param name="pos"></param>
+            /// <returns></returns>
+            internal SceneNextLink GetNearEntry(Vector3 pos)
+            {
+                SceneNextLink ret = null;
+                var min = float.MaxValue;
+                foreach (var entry in current_entries)
+                {
+                    var d = Vector3.DistanceSquared(entry.from_flag_pos, pos);
+                    if (d < min)
+                    {
+                        ret = entry;
+                        min = d;
+                    }
+                }
+                return ret;
             }
         }
         public class SceneGraphPath : IWayPoint<SceneGraphNode, SceneGraphPath>
