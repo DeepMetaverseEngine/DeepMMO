@@ -386,7 +386,7 @@ namespace DeepMMO.Server.AreaManager
             #region 返回上一个场景.
 
             //返回上一次的场景，如果没有统一返回上一次的公共场景.
-            if (req.expectZoneUUID != null)
+            if (!string.IsNullOrEmpty(req.expectZoneUUID))
             {
                 //根据提供的UUID寻找场景//
                 ZoneInfo zone = GetZone(req.expectZoneUUID);

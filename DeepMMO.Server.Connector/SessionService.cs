@@ -308,7 +308,8 @@ namespace DeepMMO.Server.Connect
                 {
                     return (new ClientEnterGameResponse()
                     {
-                        s2c_code = ClientEnterGameResponse.CODE_ROLE_SUSPEND, s2c_suspendTime = statusSnap.SuspendDate
+                        s2c_code = ClientEnterGameResponse.CODE_ROLE_SUSPEND, 
+                        s2c_suspendTime = statusSnap.SuspendDate
                     });
                 }
             }

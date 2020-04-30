@@ -34,8 +34,6 @@ namespace DeepMMO.Protocol
     /// </summary>
     public abstract class Response : INetProtocol, INetProtocolS2C
     {
-        [MessageCodeAttribute("不飘错误信息")]
-        public const int CODE_NO_SHOW_MESSAGE = 1;
         [MessageCodeAttribute("成功")]
         public const int CODE_OK = 200;
         [MessageCodeAttribute("未知错误")]
@@ -52,15 +50,7 @@ namespace DeepMMO.Protocol
         /// 内部消息，用于一个系统的反馈，传递给原始请求
         /// </summary>
         public Response InnerResponse;
-
-        /// <summary>
-        /// 是否显示消息（用于控制客户端是否飘错误信息）
-        /// </summary>
-        public bool ShowMessage
-        {
-            get { return s2c_code != CODE_NO_SHOW_MESSAGE; }
-        }
-
+ 
         /// <summary>
         /// 请求是否成功
         /// </summary>
