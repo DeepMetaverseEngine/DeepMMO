@@ -29,6 +29,7 @@ namespace DeepMMO.Server.Logic
         public virtual void OnSaveData(IObjectTransaction trans) { }
         public virtual Task OnClientEnterGameAsync() { return Task.CompletedTask; }
         public virtual void OnSessionReconnect() { }
+        public virtual void OnSessionDisconnect() { }
 
     }
 }

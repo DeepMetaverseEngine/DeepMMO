@@ -379,6 +379,24 @@ namespace DeepMMO.Server.Logic
             }
         }
 
+        private void OnModulesSessionDisconnect()
+        {
+            using (var list = CollectionObjectPool<ILogicModule>.AllocList(modules))
+            {
+                foreach (var module in list)
+                {
+                    try
+                    {
+                        module.OnSessionDisconnect();
+                    }
+                    catch (Exception err)
+                    {
+                        log.Error(err.Message, err);
+                    }
+                }
+            }
+        }
+
         private string ErrorBaseInfo()
         {
             return string.Format("ServerID:{0}|AccountID:{1}|RoleID:{2} ", serverID, accountID, roleID);
@@ -431,6 +449,7 @@ namespace DeepMMO.Server.Logic
                 disconnect.roleID = this.roleID;
                 area.Invoke(disconnect);
             }
+            this.OnModulesSessionDisconnect();;
         }
         /// <summary>
         /// 玩家重新连接
@@ -451,6 +470,7 @@ namespace DeepMMO.Server.Logic
             OnSessionReconnect?.Invoke();
         }
 
+        
         [RpcHandler(typeof(SessionBeginLeaveRequest), typeof(SessionBeginLeaveResponse), ServerNames.SessionServiceType)]
         public virtual void session_rpc_Handle(SessionBeginLeaveRequest disconnect, OnRpcReturn<SessionBeginLeaveResponse> cb)
         {
