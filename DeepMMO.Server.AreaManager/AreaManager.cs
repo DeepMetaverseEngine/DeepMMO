@@ -325,7 +325,7 @@ namespace DeepMMO.Server.AreaManager
             try
             {
                 var zone = await this.LookingForExpectZone(req);
-                if (zone == null)
+                if (zone == null || zone.close)
                 {
                     roles.Remove(req.roleUUID);
                     return (new RoleEnterZoneResponse() { s2c_code = RoleEnterZoneResponse.CODE_ZONE_NOT_EXIST });
@@ -383,14 +383,15 @@ namespace DeepMMO.Server.AreaManager
 
         public virtual async Task<ZoneInfo> LookingForExpectZone(RoleEnterZoneRequest req)
         {
+            ZoneInfo zone = null;
             #region 返回上一个场景.
 
             //返回上一次的场景，如果没有统一返回上一次的公共场景.
             if (!string.IsNullOrEmpty(req.expectZoneUUID))
             {
                 //根据提供的UUID寻找场景//
-                ZoneInfo zone = GetZone(req.expectZoneUUID);
-                if (zone != null)
+                zone = GetZone(req.expectZoneUUID);
+                if (zone != null && !zone.close)
                 {
                     if (zone.currentRoleCount < zone.map_data.max_players)
                     {
@@ -408,12 +409,11 @@ namespace DeepMMO.Server.AreaManager
                 {
                     return await LookingForPublicZone(req.lastPublicMapUUID, req.lastPublicMapID, new ZonePosition(), req);
                 }
-                ZoneInfo zone = null;
                 //优先判断公会场景//
                 if (!string.IsNullOrEmpty(req.guildUUID))
                 {
                     ZoneInfo guildZone = GetGuildZone(req.guildUUID);
-                    if (guildZone != null)
+                    if (guildZone != null && !guildZone.close)
                     {
                         if (guildZone.currentRoleCount < guildZone.map_data.max_players)
                         {
@@ -454,7 +454,7 @@ namespace DeepMMO.Server.AreaManager
                 if (!string.IsNullOrEmpty(req.roomKey))
                 {
                     zone = GetRoomZone(req.roomKey);
-                    if (zone != null)
+                    if (zone != null && !zone.close)
                     {
                         return (zone);
                     }
@@ -469,7 +469,7 @@ namespace DeepMMO.Server.AreaManager
                                z.map_data.zone_template_id == req.expectMapTemplateID &&
                                z.ContainTeamID(req.teamID);
                     });
-                    if (zone != null)
+                    if (zone != null && !zone.close)
                     {
                         return (zone);
                     }
@@ -511,7 +511,7 @@ namespace DeepMMO.Server.AreaManager
             //没有统一返回上一次的公共场景.
             req.roleScenePos = pos;
             ZoneInfo zone = GetZone(publicmapUUID);
-            if (zone != null)
+            if (zone != null && !zone.close)
             {
                 if (zone.currentRoleCount < zone.map_data.max_players)
                 {
@@ -534,7 +534,7 @@ namespace DeepMMO.Server.AreaManager
                 if (req.roleSessionNode == b.nodeName) return 1;
                 return 0;
             });
-            if (zone != null)
+            if (zone != null && !zone.close)
             {
                 return (zone);
             }
@@ -813,7 +813,7 @@ namespace DeepMMO.Server.AreaManager
             var ret = new List<RoleInfo>(roles.Values);
             return ret.ToArray();
         }
-        public ZoneInfo[] GetAllZones()
+        public List<ZoneInfo> GetAllZones()
         {
             return zones.GetAllZones();
         }
@@ -994,7 +994,7 @@ namespace DeepMMO.Server.AreaManager
 
                 if (roomZones.TryGetValue(roomKey, out var ret))
                 {
-                    if (ret.close != true)
+                    //if (ret.close != true)
                         return ret;
                 }
 
@@ -1040,18 +1040,18 @@ namespace DeepMMO.Server.AreaManager
                 zonesLineMap.Clear();
                 roomZones.Clear();
             }
-//             public Dictionary<string, ZoneInfo> Values()
-//             {
-//                 return zones;
-//             }
+            //             public Dictionary<string, ZoneInfo> Values()
+            //             {
+            //                 return zones;
+            //             }
             public ZoneInfo GetZone(string uuid)
             {
                 ZoneInfo ret = null;
 
                 if (!string.IsNullOrEmpty(uuid) && zones.TryGetValue(uuid, out ret))
                 {
-                    if (ret.close != true)
-                        return ret;
+                    //if (ret.close != true)
+                    return ret;
                 }
 
                 return null;
@@ -1071,8 +1071,8 @@ namespace DeepMMO.Server.AreaManager
                 ZoneInfo ret = null;
                 if (zonesMap.TryGetValue(serverGroupID, out map) && map.TryGetValue(uuid, out ret))
                 {
-                    if (ret.close != true)
-                        return ret;
+                    //if (ret.close != true)
+                    return ret;
                 }
 
                 return null;
@@ -1081,40 +1081,11 @@ namespace DeepMMO.Server.AreaManager
             {
                 return zones.TryGetValue(uuid, out zoneinfo);
             }
-            public Dictionary<string, ZoneInfo> GetZoneMap(string serverGroupID)
+            public void SetZoneCloseFlag(string uuid)
             {
-                if (string.IsNullOrEmpty(serverGroupID)) return null;
-                zonesMap.TryGetValue(serverGroupID, out var ret);
-                return new Dictionary<string, ZoneInfo>(ret);
-            }
-            /// <summary>
-            /// 获取当前Group内，指定场景的分线信息.
-            /// </summary>
-            /// <param name="serverGroupID"></param>
-            /// <param name="mapID"></param>
-            /// <returns></returns>
-            public List<ZoneInfo> GetZoneList(string serverGroupID, int mapID)
-            {
-                Dictionary<int, List<ZoneInfo>> lineMap = null;
-                if (zonesLineMap.TryGetValue(serverGroupID, out lineMap))
-                {
-                    List<ZoneInfo> lt;
-                    List<ZoneInfo> ret;
-                    if (lineMap.TryGetValue(mapID, out lt))
-                    {
-                        ret = new List<ZoneInfo>();
-
-                        for (int i = 0; i < lt.Count; i++)
-                        {
-                            if (lt[i] != null && lt[i].close != true)
-                            {
-                                ret.Add(lt[i]);
-                            }
-                        }
-                        return ret;
-                    }
-                }
-                return null;
+                var zone = GetZone(uuid);
+                if (zone != null)
+                    zone.close = true;
             }
             private int AddLine(ZoneInfo zone, List<ZoneInfo> lt)
             {
@@ -1198,31 +1169,60 @@ namespace DeepMMO.Server.AreaManager
                     foreach (var item in submap)
                     {
                         ret = item.Value;
-                        if (ret.close != true)
-                            return ret;
+                        //if (ret.close != true)
+                        return ret;
                     }
 
                 }
                 return null;
             }
-            public void SetZoneCloseFlag(string uuid)
+            /// <summary>
+            /// 获取当前Group内，指定场景的分线信息.
+            /// </summary>
+            /// <param name="serverGroupID"></param>
+            /// <param name="mapID"></param>
+            /// <returns></returns>
+            public List<ZoneInfo> GetZoneList(string serverGroupID, int mapID)
             {
-                var zone = GetZone(uuid);
-                if (zone != null)
-                    zone.close = true;
+                Dictionary<int, List<ZoneInfo>> lineMap = null;
+                if (zonesLineMap.TryGetValue(serverGroupID, out lineMap))
+                {
+                    List<ZoneInfo> lt;
+                    List<ZoneInfo> ret;
+                    if (lineMap.TryGetValue(mapID, out lt))
+                    {
+                        ret = new List<ZoneInfo>();
+
+                        for (int i = 0; i < lt.Count; i++)
+                        {
+                            if (lt[i] != null /*&& lt[i].close != true*/)
+                            {
+                                ret.Add(lt[i]);
+                            }
+                        }
+                        return ret;
+                    }
+                }
+                return null;
             }
-            public ZoneInfo[] GetZone(int templateID)
+            public Dictionary<string, ZoneInfo> GetZoneMap(string serverGroupID)
+            {
+                if (string.IsNullOrEmpty(serverGroupID)) return null;
+                zonesMap.TryGetValue(serverGroupID, out var ret);
+                return new Dictionary<string, ZoneInfo>(ret);
+            }
+            public List<ZoneInfo> GetZones(int templateID)
             {
                 var all = new List<ZoneInfo>(this.zones.Values);
                 var ret = new List<ZoneInfo>();
                 foreach (var zoneInfo in all)
                 {
-                    if (zoneInfo.map_data.id == templateID && zoneInfo.close != true)
+                    if (zoneInfo.map_data.id == templateID /*&& zoneInfo.close != true*/)
                     {
                         ret.Add(zoneInfo);
                     }
                 }
-                return ret.ToArray();
+                return ret;
             }
             public List<ZoneInfo> GetAllZones()
             {
@@ -1230,7 +1230,7 @@ namespace DeepMMO.Server.AreaManager
                 var ret = new List<ZoneInfo>();
                 foreach (var zoneInfo in all)
                 {
-                    if (zoneInfo.close != true)
+                    // if (zoneInfo.close != true)
                     {
                         ret.Add(zoneInfo);
                     }
