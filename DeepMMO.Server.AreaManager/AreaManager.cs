@@ -1040,10 +1040,10 @@ namespace DeepMMO.Server.AreaManager
                 zonesLineMap.Clear();
                 roomZones.Clear();
             }
-            public Dictionary<string, ZoneInfo> Values()
-            {
-                return zones;
-            }
+//             public Dictionary<string, ZoneInfo> Values()
+//             {
+//                 return zones;
+//             }
             public ZoneInfo GetZone(string uuid)
             {
                 ZoneInfo ret = null;
@@ -1084,9 +1084,8 @@ namespace DeepMMO.Server.AreaManager
             public Dictionary<string, ZoneInfo> GetZoneMap(string serverGroupID)
             {
                 if (string.IsNullOrEmpty(serverGroupID)) return null;
-                Dictionary<string, ZoneInfo> ret = null;
-                zonesMap.TryGetValue(serverGroupID, out ret);
-                return ret;
+                zonesMap.TryGetValue(serverGroupID, out var ret);
+                return new Dictionary<string, ZoneInfo>(ret);
             }
             /// <summary>
             /// 获取当前Group内，指定场景的分线信息.
@@ -1214,7 +1213,7 @@ namespace DeepMMO.Server.AreaManager
             }
             public ZoneInfo[] GetZone(int templateID)
             {
-                var all = new List<ZoneInfo>(this.Values().Values);
+                var all = new List<ZoneInfo>(this.zones.Values);
                 var ret = new List<ZoneInfo>();
                 foreach (var zoneInfo in all)
                 {
@@ -1225,9 +1224,9 @@ namespace DeepMMO.Server.AreaManager
                 }
                 return ret.ToArray();
             }
-            public ZoneInfo[] GetAllZones()
+            public List<ZoneInfo> GetAllZones()
             {
-                var all = new List<ZoneInfo>(this.Values().Values);
+                var all = new List<ZoneInfo>(this.zones.Values);
                 var ret = new List<ZoneInfo>();
                 foreach (var zoneInfo in all)
                 {
@@ -1236,7 +1235,7 @@ namespace DeepMMO.Server.AreaManager
                         ret.Add(zoneInfo);
                     }
                 }
-                return ret.ToArray();
+                return ret;
             }
         }
 
