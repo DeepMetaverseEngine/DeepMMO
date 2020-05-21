@@ -527,7 +527,12 @@ namespace DeepMMO.Server.AreaManager
             }
             zone = LookingForExpectServerGroupZone(req.servergroupID, z =>
             {
-                return z.currentRoleCount < temp.full_players && z.map_data.zone_template_id == temp.id && req.roleSessionNode == z.nodeName;
+                return z.currentRoleCount < temp.full_players && z.map_data.zone_template_id == temp.id;
+            }, (a, b) =>
+            {
+                if (req.roleSessionNode == a.nodeName) return -1;
+                if (req.roleSessionNode == b.nodeName) return 1;
+                return 0;
             });
             if (zone != null)
             {
@@ -556,19 +561,44 @@ namespace DeepMMO.Server.AreaManager
         /// <summary>
         /// 根据地图ID，和Area名字选择合适Zone
         /// </summary>
-        protected virtual ZoneInfo LookingForExpectServerGroupZone(string serverGroupID, Predicate<ZoneInfo> condition)
+        /// <param name="serverGroupID"></param>
+        /// <param name="condition">必要条件</param>
+        /// <param name="expect">可选条件</param>
+        /// <returns></returns>
+        protected ZoneInfo LookingForExpectServerGroupZone(string serverGroupID, Predicate<ZoneInfo> condition, Comparison<ZoneInfo> expect = null)
         {
             Dictionary<string, ZoneInfo> map = zones.GetZoneMap(serverGroupID);
             if (map != null)
             {
-                // TODO 场景最大人数负载
-                foreach (var z in map.Values)
+                var zones = new List<ZoneInfo>(map.Values);
+                return LookingForExpectZone(zones, condition, expect);
+            }
+            return null;
+        }
+        /// <summary>
+        /// 选取预期场景
+        /// </summary>
+        /// <param name="zones"></param>
+        /// <param name="condition">必要条件</param>
+        /// <param name="expect">可选条件</param>
+        /// <returns></returns>
+        protected virtual ZoneInfo LookingForExpectZone(List<ZoneInfo> zones, Predicate<ZoneInfo> condition, Comparison<ZoneInfo> expect = null)
+        {
+            for (int i = zones.Count - 1; i >= 0; --i)
+            {
+                var z = zones[i];
+                if (z.close || !condition(z))
                 {
-                    if (!z.close && condition(z))
-                    {
-                        return z;
-                    }
+                    zones.RemoveAt(i);
                 }
+            }
+            if (zones.Count > 0)
+            {
+                if (expect != null)
+                {
+                    zones.Sort(expect);
+                }
+                return zones[0];
             }
             return null;
         }
