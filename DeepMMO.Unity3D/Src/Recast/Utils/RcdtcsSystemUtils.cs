@@ -364,6 +364,17 @@ public static partial class RcdtcsUnityUtils{
 			return true;
 		}
 
+		public bool GetPolyHeight(Vector2 pos,ref float height)
+		{
+			if (m_navQuery != null)
+			{
+				var _pos = new[] {pos.x, pos.y};
+				var ds = m_navQuery.getPolyHeight(0, _pos, ref height);
+				return ds == Detour.DT_SUCCESS;
+			}
+
+			return false;
+		}
 		public void OnGUI()
 		{
 			OnProgress(progress);

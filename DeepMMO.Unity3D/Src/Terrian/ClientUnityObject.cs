@@ -1,5 +1,6 @@
 using System;
 using DeepCore;
+using DeepCore.Game3D.Slave.Layer;
 using DeepCore.Game3D.Voxel;
 using UnityEngine;
 using UnityEngine.AI;
@@ -114,6 +115,11 @@ namespace DeepMMO.Unity3D.Terrain
             return new Vector2(bx,by);
         }
 
+        public Tuple<bool,UnityEngine.Vector3> IsInWater(UnityEngine.Vector3 unityPos)
+        {
+            var IsInWater = mCheckBoxTouchComponent.IsInWater(unityPos);
+            return IsInWater;
+        }
         public Tuple<bool,UnityEngine.Vector3> IsSidehit(UnityEngine.Vector3 startpos,UnityEngine.Vector3 unityPos)
         {
             var isSidehit = mCheckBoxTouchComponent.IsSideHit(startpos,unityPos);
@@ -131,6 +137,8 @@ namespace DeepMMO.Unity3D.Terrain
             var isTophit = mCheckBoxTouchComponent.IsTopHit(unityPos);
             return isTophit;
         }
+        
+       
 
         [Flags]
         public enum TouchType
@@ -139,6 +147,7 @@ namespace DeepMMO.Unity3D.Terrain
             Bottom = 2,
             Side = 4,
             Top = 8,
+            InSide = 16,
         };
 
         private const bool isDebug = false;
@@ -154,28 +163,23 @@ namespace DeepMMO.Unity3D.Terrain
             var newpos = new Vector3(target.X, target.Y, Z);
             var newunitypos = ConvertToUnityPos(newpos);
            
-//            var topHeight = float.MaxValue;
-//            var bottomHeight = newunitypos.y;
-//            var bottomrayhit = mCheckBoxTouchComponent.RayHit(newunitypos + UnityEngine.Vector3.up * height/2, UnityEngine.Vector3.down, 100);
-//            if (bottomrayhit.Item1)// 底
-//            {
-//                bottomHeight = bottomrayhit.Item2.point.y;
-//            }
-//
-//            Physics.queriesHitBackfaces = true;
-//            var toprayhit = mCheckBoxTouchComponent.RayHit(newunitypos + UnityEngine.Vector3.up * height/2, UnityEngine.Vector3.up, 100);
-//            Physics.queriesHitBackfaces = false;
-//            if (toprayhit.Item1 && topHeight >= bottomHeight + height)// 顶
-//            {
-//                topHeight = toprayhit.Item2.point.y;
-//            }
-            
+
            
             var touchFlag = TouchType.None;
             var tophit = IsTophit(newunitypos);
-            if (tophit.Item1 )
+            if (tophit.Item1)
             {
                 touchFlag |= TouchType.Top;
+            }
+            
+            var touchInWater = IsInWater(newunitypos);
+            if (touchInWater.Item1)
+            {
+                touchFlag |= TouchType.InSide;
+                newunitypos.y = touchInWater.Item2.y;
+                var zonepos = UnityPos2ZonePos(newunitypos);
+                this.currentPos = zonepos;
+                return VoxelObject.MoveResult.Arrive;
             }
             
             var bottomhit = IsBottomhit(newunitypos);
@@ -187,7 +191,7 @@ namespace DeepMMO.Unity3D.Terrain
 
             if (tophit.Item1 && bottomhit.Item1)
             {
-                if (Mathf.Abs(tophit.Item2.y - bottomhit.Item2.y) < height)//身高不够卡路来凑
+                if (Mathf.Abs(tophit.Item2.y - bottomhit.Item2.y) < height)//下一格空间不够卡路来凑
                 {
                     if (isDebug)
                         UnityEngine.Debug.Log("Blocked======"+currentPos);
@@ -230,7 +234,7 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 this.currentPos.X = target.X;
                 this.currentPos.Y = target.Y;
-                var zonepos = UnityPos2ZonePos( bottomhit.Item2);
+                var zonepos = UnityPos2ZonePos(bottomhit.Item2);
                 if ((Mathf.Abs(zonepos.Z - this.currentPos.Z) <= StepIntercept) && !IsMidair)
                 {
                     this.currentPos = zonepos;
@@ -251,10 +255,18 @@ namespace DeepMMO.Unity3D.Terrain
             var isSide = touchFlag & TouchType.Side;
             if (land && isSide == 0)
             {
-                var zonepos = UnityPos2ZonePos( bottomhit.Item2);
-                if (Mathf.Abs(zonepos.Z - this.currentPos.Z) <= StepIntercept)
+               
+                var zonepos = UnityPos2ZonePos(bottomhit.Item2);
+                
+                if (this.currentPos.Z > zonepos.Z || Mathf.Abs(zonepos.Z - this.currentPos.Z) <= StepIntercept)
                 {
-                    this.currentPos = zonepos;
+                    //从高到低
+                    if (this.currentPos.Z > zonepos.Z && newunitypos.z - bottomhit.Item2.z > height)
+                    { 
+                        this.currentPos = UnityPos2ZonePos(newunitypos);
+                    }
+                    else
+                       this.currentPos = zonepos;
                     if (isDebug)
                     UnityEngine.Debug.Log("land======"+currentPos);
                     return VoxelObject.MoveResult.Arrive;
@@ -305,9 +317,12 @@ namespace DeepMMO.Unity3D.Terrain
                     this.currentPos.X = target.X;
                 }
             }
-            
+
             if (isDebug)
-            UnityEngine.Debug.Log("MoveResultBlocked======"+currentPos);
+            {
+                UnityEngine.Debug.Log("MoveResultBlocked======"+currentPos);
+            }
+             
             
             //不可行走面//
             return VoxelObject.MoveResult.Blocked;
@@ -324,7 +339,7 @@ namespace DeepMMO.Unity3D.Terrain
 
        
         private UnityEngine.Vector3 LastPosition = UnityEngine.Vector3.zero;
-        
+       
         public void fixPostion()
         {
             if (LastPosition != currentUnityPos)
@@ -353,9 +368,27 @@ namespace DeepMMO.Unity3D.Terrain
             set { _UpWard = value - ScreenOffset.y; } 
         }
 
+        private bool mInitPos = false;
+        private UnityEngine.Vector3 mInitVector3 = UnityEngine.Vector3.zero;
         protected virtual void ProcessGravity(int intervalMS)
         {
-            
+         
+            if(!mInitPos)
+            {
+                if (mInitVector3 == UnityEngine.Vector3.zero && currentUnityPos != UnityEngine.Vector3.zero)
+                {
+                    mInitVector3 = currentUnityPos;
+                }
+                else
+                {
+                    if (!mInitVector3.Equals(currentUnityPos))
+                    {
+                        mInitPos = true;
+                    }
+                }
+                
+            }
+           
             LastPosition = currentUnityPos;
             var topHeight = float.MaxValue;
             var bottomHeight = 0f;
@@ -404,22 +437,23 @@ namespace DeepMMO.Unity3D.Terrain
 
                 hitpos.y = bottomHeight;
                 var bottomzonepos = UnityPos2ZonePos(hitpos);
-                if (currentPos.Z < bottomzonepos.Z)
+                if (currentPos.Z <= bottomzonepos.Z)
                 {
                     currentPos.Z = bottomzonepos.Z;
-                    
-                   
-                    //UnityEngine.Debug.Log("bottomhit.Item1===="+currentPos);
                     if (zspeed != 0)
                     {
                         event_OnFallenDown?.Invoke(this, zspeed);
                         zspeed = 0;
                         mIsInAir = false;
                     }
-
                     return;
                 }
-                zspeed -= CMath.GetSpeedDistance(intervalMS, Gravity);
+
+                if (mInitPos)
+                {
+                    zspeed -= CMath.GetSpeedDistance(intervalMS, Gravity);
+                }
+                
                
             }
             else

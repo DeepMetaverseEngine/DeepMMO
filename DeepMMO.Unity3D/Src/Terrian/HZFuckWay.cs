@@ -49,6 +49,11 @@ namespace DeepMMO.Unity3D.Terrain
                 {
                     return way_points[0];
                 }
+
+                if (m_FlyPathWayPoint != null && m_FlyPathWayPoint.Count > 0)
+                {
+                    return m_FlyPathWayPoint[0];
+                }
                 return null;
             }
         }
@@ -95,6 +100,11 @@ namespace DeepMMO.Unity3D.Terrain
         public event BeginHandle event_BeginFlyHandle;
         public event FlyStateHandle event_FlyStateHandle;
         public bool isCrossMap = false;
+        private Vector3 m_TouchPoint;
+        private int MaxTryTime = 5;
+        private int m_tryTime;
+        private List<ILayerWayPoint> m_FlyPathWayPoint;
+
         public HZFuckWay(
             Vector3 targetpos,
             bool _FlyAbility,
@@ -464,12 +474,13 @@ namespace DeepMMO.Unity3D.Terrain
                 targetpos = FixPos(targetpos);
                 var ret1 = CalculatePath(startpos,targetpos);
                 var _NavPathPoints = ret1.Item1;
-                if (_NavPathPoints.Count > 0 && GetEndDistance(_NavPathPoints[_NavPathPoints.Count - 1]) <= EndDistance )
+                if (_NavPathPoints.Count > 0 && GetEndDistance(_NavPathPoints[_NavPathPoints.Count - 1]) <= EndDistance + LandOffset )
                 {
                     b_ReadyToFly = true;
                     m_CurFlyState = FlyState.ReadyToFly;
                     m_IsFlying = false;
-                   
+                    m_FlyPathWayPoint = ret1.Item2;
+
                 }
                 else
                 {
@@ -480,7 +491,7 @@ namespace DeepMMO.Unity3D.Terrain
             }
             else
             {
-                if (dis > EndDistance)
+                if (dis > EndDistance + (m_IsFlying?LandOffset:0))
                 {
                     StopAutoRun();
                     return false;
@@ -582,15 +593,12 @@ namespace DeepMMO.Unity3D.Terrain
         }
         private bool checkTargetDistance()
         {
-          
-            float distance = Vector3.Distance(cur_pos, targetpos);
-                
-            if (distance <= (m_IsFlying?0.2f:EndDistance))
-            {
-                return true;
-            }
-
-            return false;
+            var cur2dPos = cur_pos.GetToUnitPosSimpleNumberVector2(2);
+            var end2dPos = targetpos.GetToUnitPosSimpleNumberVector2(2);
+            var distance = Vector2.Distance(cur2dPos, end2dPos);
+            if (!(distance <= EndDistance)) return false;
+            if (!m_IsFlying) return true;
+            return Math.Abs(cur_pos.y-targetpos.y) <= LandOffset;
         }
 
         private void FixMove(ref Vector2 srcpos,Vector2 targetpos,float length)
@@ -620,19 +628,43 @@ namespace DeepMMO.Unity3D.Terrain
             }
         }
 
-        private void StopAutoRun()
+        private void StopAutoRun(bool isFinish = true)
         {
-            mFinish = true;
+            mFinish = isFinish;
             Stop();
         }
-        
+
+        private bool hasSameEnd(Action<int> cb = null)
+        {
+            var _dis = Vector3.Distance(LastPos, cur_pos);
+            if (_dis<0.001f)
+            {
+                if (cur_pos.GetSimpleNumber(2).Equals(m_TouchPoint))
+                {
+                    m_tryTime++;
+                    if (m_tryTime > MaxTryTime)
+                    {
+                        m_tryTime = 0;
+                        return true;
+                    }
+                }
+                m_TouchPoint = cur_pos.GetSimpleNumber(2);
+                cb?.Invoke(m_tryTime);
+            }
+            else
+            {
+                LastPos = cur_pos;
+            }
+
+            return false;
+        }
         protected override void BeginUpdate(int intervalMS)
         {
             if (!Owner.IsReady)
             {
                 return;
             }
-            this.m_IsFlying = Owner.IsZeroGravityFly;
+           
             cur_dir = Owner.Direction;
             cur_pos = Owner.GetUnityPos();
 
@@ -659,6 +691,7 @@ namespace DeepMMO.Unity3D.Terrain
                 var ret = CalculatePath(cur_pos + LandOffset*Vector3.up ,targetpos);
                 mNavPathPoints = ret.Item1;
                 way_points = ret.Item2;
+                m_FlyPathWayPoint?.Clear();
                 if (mNavPathPoints == null || mNavPathPoints.Count == 0 ||event_BeginFlyHandle == null)
                 {
                     StopAutoRun();
@@ -682,6 +715,10 @@ namespace DeepMMO.Unity3D.Terrain
                     {
                         StopAutoRun();
                     }
+                    else if (m_CurFlyState > FlyState.WaitToFly)
+                    {
+                        this.m_IsFlying = Owner.IsZeroGravityFly;
+                    }
                     
                 }
                 else
@@ -695,6 +732,14 @@ namespace DeepMMO.Unity3D.Terrain
                 if (b_hasTransport)
                 {
                     Owner.SendUnitAxisAngle(cur_dir, 0, cur_dir);
+                }
+                else
+                {
+                    if (hasSameEnd())
+                    {
+                        StopAutoRun(false);
+                    }
+                   
                 }
                 
             }
@@ -797,16 +842,37 @@ namespace DeepMMO.Unity3D.Terrain
                     Owner.SendUnitAxisAngle(cur_dir, length, cur_dir);
                     
                 }
-
-                var _dis = Vector3.Distance(LastPos, cur_pos);
-                if (_dis<0.001f)
-                { 
-                    Start();
-                }
-                else
+                
+                if (hasSameEnd((times) =>
                 {
-                    LastPos = cur_pos;
+                    Start();
+                }))
+                {
+                    StopAutoRun(false);
                 }
+                // var _dis = Vector3.Distance(LastPos, cur_pos);
+                // if (_dis<0.001f)
+                // {
+                //     if (cur_pos.GetSimpleNumber(2).Equals(m_TouchPoint))
+                //     {
+                //         m_tryTime++;
+                //         if (m_tryTime > MaxTryTime)
+                //         {
+                //             m_tryTime = 0;
+                //             StopAutoRun(false);
+                //             return;
+                //             
+                //         }
+                //        
+                //     }
+                //     m_TouchPoint = cur_pos.GetSimpleNumber(2);
+                //     
+                //    
+                // }
+                // else
+                // {
+                //     LastPos = cur_pos;
+                // }
 
 
             }

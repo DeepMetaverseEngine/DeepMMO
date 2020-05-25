@@ -24,13 +24,14 @@ public class ClientFlyPath
     [Tooltip("最小高度，这个范围内遇到障碍物不可寻路")] public float CheckNavMinHeight = 10;
     [Tooltip("角度可用范围，这个范围内遇到障碍物不可寻路")] public float CheckMinErrorAngle = 60;
     public float CheckMaxErrorAngle = 120;
-    [Tooltip("检测次数")] public int CheckMaxTime = 30;
+    [Tooltip("检测次数")] public int CheckMaxTime = 50;
     [Tooltip("检测半径")] public float CheckRadius = 1f;
-    [Tooltip("检测碰撞宽度")] public float CheckWidth = 0.5f;
+    [Tooltip("检测碰撞宽度x")] public float CheckWidth = 0.5f;
+    [Tooltip("检测碰撞宽度Z")] public float CheckWidthZ = 0.2f;
     [Tooltip("检测碰撞高度")] public float CheckHeight = 2f;
     [Tooltip("检测步长")] public float Step = 3f;
     [Tooltip("优化路点")] public bool isOptimization = true;
-    [Tooltip("迭代路点，当寻路不到位置时多次迭代")] public int IterTimes = 3;
+    [Tooltip("迭代路点，当寻路不到位置时多次迭代")] public int IterTimes = 2;
     private RcdtcsUnityUtils.SystemHelper m_System ;
     [Tooltip("移动速度")] public float MoveSpeed = 0.6f;
     [Tooltip("地面高度")] public float LandOffset = 0.5f;
@@ -313,10 +314,33 @@ public class ClientFlyPath
     public bool CheckBoxCast(Vector3 startpos,Vector3 dir,out RaycastHit hit,float MaxDistance,LayerMask laymask)
     {
         var pos = startpos;
-        pos.y += CheckHeight/2;
-        var halfext = new Vector3(CheckWidth/2, CheckHeight / 2, 0);
-        var isTouch = Physics.BoxCast(pos,halfext , dir, out hit,Quaternion.identity,MaxDistance,laymask);
-        return isTouch;
+        pos.y += CheckHeight / 2;
+        var halfext = new Vector3(CheckWidth, CheckHeight / 2, CheckWidthZ);
+        var quater = dir.Equals(Vector3.zero)?Quaternion.identity:Quaternion.LookRotation(dir);
+        hit  = new RaycastHit();
+        if (Physics.Raycast(pos, dir, out hit, MaxDistance, laymask))
+        {
+            return true;
+        }
+        
+       // hit  = new RaycastHit();
+        var hits = Physics.BoxCastAll(pos,halfext , dir, quater,MaxDistance,laymask);
+        if (hits != null)
+        {
+           
+            var mindistance = 9999f;
+            foreach (var _hit in hits)
+            {
+                if (_hit.distance < mindistance)
+                {
+                    mindistance = _hit.distance;
+                    hit = _hit;
+                    hit.point = pos + dir * (_hit.distance);
+                }
+            }
+        }
+        
+        return hits != null && hits.Length> 0;
     }
     public List<Vector3> GetPath()
     {
@@ -432,7 +456,7 @@ public class ClientFlyPath
         var dirret = GetNewDir(startpos, dir, forward, movestep + CheckRadius + CheckWidth, true);
         dir = dirret.Item2;
 
-        if (dir == Vector3.zero)
+        if (dir.Equals(Vector3.zero))
         {
 //            flypath.path = endPos;
 //            srcPath.next = flypath;
@@ -514,6 +538,10 @@ public class ClientFlyPath
         pointList.Add(startpos);
         checkTime++;
         CheckPath(flypath, dirforward, pointList, endPos, checkTime, movestep, ref result);
+        if (!result)
+        {
+            return;
+        }
         srcPath.next = flypath;
     }
 
@@ -534,7 +562,7 @@ public class ClientFlyPath
         Closestpos = Vector3.zero;
         var centerpos = orgpos;
         centerpos.y = orgpos.y + CheckHeight / 2;
-        var halfhit = Physics.OverlapBox(centerpos, new Vector3(CheckWidth, CheckHeight / 2, CheckWidth),
+        var halfhit = Physics.OverlapBox(centerpos, new Vector3(CheckWidth , CheckHeight / 2, CheckWidth),
             Quaternion.identity,
             m_LayerMask);
         bool isTouch = false;
@@ -679,6 +707,7 @@ public class ClientFlyPath
         var toppos = startpos;
         toppos.y += Offset.y;
         var isHit = false;
+        
         if (Physics.Raycast(startpos, dir, out hit, stepLength, m_LayerMask))
         {
             isHit = true;
@@ -703,12 +732,23 @@ public class ClientFlyPath
            
             AddHitAround(hit.collider);
            
-            if ( m_EndPos .y < startpos.y && angle >= 80 && angle <= 100)
+            if ( m_EndPos.y != startpos.y && angle >= 80 && angle <= 100)
             {
                 newdir = hit.normal + dirforward;
             }
             else
                 newdir = Vector3.Cross(hit.normal, Vector3.Cross(dirforward, hit.normal));
+
+            if (newdir.Equals(Vector3.zero) || newdir.Equals(dir))
+            {
+                return new Tuple<bool, Vector3>(true, Vector3.zero);
+            }
+
+            if (Physics.Raycast(startpos, newdir, out hit, stepLength, m_LayerMask))
+            {
+                return new Tuple<bool, Vector3>(true, Vector3.zero);
+            }
+            
         }
 
         return new Tuple<bool, Vector3>(isHit, newdir);
@@ -858,7 +898,27 @@ public class ClientFlyPath
         {
             _moveState = MoveStateType.Failure;
         }
-
+        else if(m_Path.Count > 1)
+        {
+            RaycastHit hit;
+            for (int i = 1;i< m_Path.Count;i++)
+            {
+                var dir = m_Path[i] - m_Path[i - 1];
+                var dis = Vector3.Distance(m_Path[i], m_Path[i - 1]);
+                if (CheckBoxCast(m_Path[i - 1], dir, out hit,dis,m_LayerMask))
+                {
+                    //路点检测
+                    if (hit.point.y > m_Path[i-1].y)
+                    {
+                        m_Path.Clear();
+                    }
+                  
+                    break;
+                }
+            }
+        }
+        
+        
         return m_Path;
 
     }
@@ -868,6 +928,10 @@ public class ClientFlyPath
         var curPath = new FlyPath() {path = startPos};
         bool Checkresult = false;
         CheckPath(curPath, dir.normalized, pointList, endPos, 0, moveStepLength, ref Checkresult);
+         if (!Checkresult)
+        {
+            return new Tuple<float,FlyPath>(-1,null);
+        }
         var distance = 0f;
         var temppath = curPath;
 
@@ -1024,11 +1088,99 @@ public class ClientFlyPath
         return newpos.GlobalPos2CurrentUnityPos();
     }
 
+    private List<Vector3> GetFixPosList(Vector3 startpos,Vector3 endpos,float moveStepLength)
+    {
+        var list = new List<Vector3>();
+        var dis = Vector3.Distance(startpos, endpos);
+        if (dis>moveStepLength)
+        {
+            var newsp = startpos;
+            var dir = endpos - startpos;
+            dir.Normalize();
+            for (int i = 0;i< dis/moveStepLength;i++)
+            {
+                var _dis = Vector3.Distance(newsp, endpos);
+                if (_dis > moveStepLength)
+                {
+                    newsp = newsp + dir * moveStepLength;
+                    list.Add(newsp);
+                }
+               
+            }
+        }
+        return list;
+
+    }
+
+    private List<Vector3> GetRangePath(int index,List<Vector3> startpath,List<Vector3> path,List<Vector3> nextpath,float moveStepLength)
+    {
+        if (index < 0 || index > startpath.Count - 1) return null;
+        var point = startpath[index];
+        var tempnextpath = FindAirPath(point, path[0], moveStepLength);
+        if (tempnextpath.Count > 0&& path.Count> 0)
+        {
+            if (tempnextpath[tempnextpath.Count - 1].Equals(path[0]))
+            {
+                path.RemoveAt(0);
+            }
+
+            if (path.Count > 0 && tempnextpath.Count> 0)
+            {
+                var fixpos = GetFixPosList(tempnextpath[tempnextpath.Count - 1], path[0], moveStepLength);
+                if (fixpos.Count > 0)
+                {
+                    tempnextpath.AddRange(fixpos);
+                }
+            }
+
+            tempnextpath.AddRange(path);
+
+
+            var tempstartpath = startpath.GetRange(0, index);
+            if (nextpath[nextpath.Count - 1].Equals(tempstartpath[0]))
+            {
+                tempstartpath.RemoveAt(0);
+            }
+
+            if (tempstartpath.Count > 0 && nextpath.Count> 0)
+            {
+                var fixpos = GetFixPosList(nextpath[nextpath.Count - 1], tempstartpath[0],
+                    moveStepLength);
+                if (fixpos.Count > 0)
+                {
+                    nextpath.AddRange(fixpos);
+                }
+            }
+
+            nextpath.AddRange(tempstartpath);
+            if (nextpath[nextpath.Count - 1].Equals(tempnextpath[0]))
+            {
+                tempnextpath.RemoveAt(0);
+            }
+
+            if (tempnextpath.Count > 0 && nextpath.Count> 0)
+            {
+                var fixpos = GetFixPosList(nextpath[nextpath.Count - 1], tempnextpath[0], moveStepLength);
+                if (fixpos.Count > 0)
+                {
+                    nextpath.AddRange(fixpos);
+                }
+            }
+
+            nextpath.AddRange(tempnextpath);
+            path = nextpath;
+            //isSuccessfind = true;
+            return path;
+        }
+
+       return null;
+    }
     private List<Vector3> RecomputePath(Vector3 startpos, Vector3 endPos, float moveStepLength)
     {
         
        
         //var stopwatch = Stopwatch.StartNew();
+        var orgpos = startpos;
         var path = new List<Vector3>();
         var noOptList = new List<Vector3>();
         if (m_System == null)
@@ -1037,12 +1189,26 @@ public class ClientFlyPath
         }
 //******************************************
         //能直达目标点
-        if (!CheckBoxCast(startpos.CurrentUnityPos2GlobalPos(),endPos.CurrentUnityPos2GlobalPos(),m_LayerMask))
+        if (!CheckBoxCast(startpos.CurrentUnityPos2GlobalPos(),endPos.CurrentUnityPos2GlobalPos(),out RaycastHit BoxHit,m_LayerMask))
         {
             path.Add(endPos);
             _moveState = MoveStateType.Moving;
             return path;
         }
+
+        if (BoxHit.distance > moveStepLength)
+        {
+            var newdir = (endPos - startpos).normalized;
+            var newStartpos = startpos.CurrentUnityPos2GlobalPos() + newdir * (BoxHit.distance - CheckRadius);
+        
+            if (!startpos.CurrentUnityPos2GlobalPos().Equals(newStartpos))
+            {
+                startpos = newStartpos.GlobalPos2CurrentUnityPos();
+                //path.Add(startpos);
+            }
+
+        }
+        
         var retEnd = GetTopBottom(endPos, CheckNavMaxHeight);
         var targetBottomPos = retEnd.Item2;
         if (targetBottomPos.Equals( Vector3.positiveInfinity) || targetBottomPos.Equals(Vector3.negativeInfinity))
@@ -1061,7 +1227,7 @@ public class ClientFlyPath
             for (int i = 0;i< path.Count;i++)
             {
                 path[i] = FixPos(path[i]);
-                // noOptList.Add(path[i]);
+                noOptList.Add(path[i]);
             }
             if (dis > LandOffset*2) //末尾开始再飞
             {
@@ -1076,7 +1242,19 @@ public class ClientFlyPath
                         {
                             nextpath.RemoveAt(0);
                         }
+
+                        if (path.Count > 0 && nextpath.Count > 0)
+                        {
+                            var fixpos = GetFixPosList(path[path.Count - 1], nextpath[0],moveStepLength);
+                            if (fixpos.Count>0)
+                            {
+                                path.AddRange(fixpos); 
+                            }
+                        }
+                        
+                        
                         path.AddRange(nextpath);
+                        _moveState = MoveStateType.Moving;
                     }
                     else
                     {
@@ -1114,6 +1292,16 @@ public class ClientFlyPath
                             {
                                 path.RemoveAt(0);
                             }
+
+                            if (nextpath.Count > 0 && path.Count > 0)
+                            {
+                                var fixpos = GetFixPosList(nextpath[nextpath.Count - 1], path[0],moveStepLength);
+                                if (fixpos.Count>0)
+                                {
+                                    nextpath.AddRange(fixpos); 
+                                }
+                            }
+                            
                             nextpath.AddRange(path);
                             path = nextpath;
                             _moveState = MoveStateType.Moving;
@@ -1131,8 +1319,8 @@ public class ClientFlyPath
                         {
                             for (int i = 0;i< startpath.Count;i++)
                             {
-                                startpath[i] = FixPos(startpath[i]);
-                                // noOptList.Add(startpath[i]);
+                                startpath[i] = FixPos(startpath[i]); 
+                                noOptList.Add(startpath[i]);
                             }
                             nextpath = FindAirPath(startpos, startpath[0], moveStepLength);
                             if (nextpath.Count == 0)
@@ -1141,46 +1329,95 @@ public class ClientFlyPath
                             }
                             else
                             {
-                                bool isSuccessfind = false;
-                                for (int i = startpath.Count - 1;i>=0;i--)
+                                //bool isSuccessfind = false;
+                                var number = startpath.Count;
+                                for (int i = number/2;i>=0;i--)
                                 {
-                                    var point = startpath[i];
-                                    var tempnextpath = FindAirPath(point, path[0], moveStepLength);
-                                    if (tempnextpath.Count > 0)
+                                    //var point = startpath[i];
+                                    var veclist = GetRangePath(i - (number%2 == 0?1:0), startpath, path, nextpath, moveStepLength);
+                                    if (veclist != null)
                                     {
-                                        if (tempnextpath[tempnextpath.Count - 1].Equals(path[0]))
-                                        {
-                                            path.RemoveAt(0);
-                                        }
-                                        tempnextpath.AddRange(path);
-                                    
-
-                                        var tempstartpath = startpath.GetRange(0, i);
-                                        if (nextpath[nextpath.Count - 1].Equals(tempstartpath[0]))
-                                        {
-                                            tempstartpath.RemoveAt(0);
-                                        }
-                                        nextpath.AddRange(tempstartpath);
-                                        if (nextpath[nextpath.Count - 1].Equals(tempnextpath[0]))
-                                        {
-                                            tempnextpath.RemoveAt(0);
-                                        }
-                                        nextpath.AddRange(tempnextpath);
-                                        path = nextpath;
-                                        isSuccessfind = true;
+                                        path = veclist;
                                         break;
                                     }
 
+                                    if ((number % 2 == 1 && i > 0) || number% 2 == 0)
+                                    {
+                                        veclist = GetRangePath(startpath.Count - (number/2 - i) - (number%2 == 0?1:0), startpath, path, nextpath, moveStepLength);
+                                        if (veclist != null)
+                                        {
+                                            path = veclist;
+                                            break;
+                                        }
+                                    }
+                                   
+                                    // var tempnextpath = FindAirPath(point, path[0], moveStepLength);
+                                    // if (tempnextpath.Count > 0)
+                                    // {
+                                    //     if (tempnextpath[tempnextpath.Count - 1].Equals(path[0]))
+                                    //     {
+                                    //         path.RemoveAt(0);
+                                    //     }
+                                    //
+                                    //     if (path.Count > 0)
+                                    //     {
+                                    //         var fixpos = GetFixPosList(tempnextpath[tempnextpath.Count - 1], path[0],moveStepLength);
+                                    //         if (fixpos.Count>0)
+                                    //         {
+                                    //             tempnextpath.AddRange(fixpos); 
+                                    //         } 
+                                    //     }
+                                    //     
+                                    //     tempnextpath.AddRange(path);
+                                    //
+                                    //
+                                    //     var tempstartpath = startpath.GetRange(0, i);
+                                    //     if (nextpath[nextpath.Count - 1].Equals(tempstartpath[0]))
+                                    //     {
+                                    //         tempstartpath.RemoveAt(0);
+                                    //     }
+                                    //
+                                    //     if (tempstartpath.Count > 0)
+                                    //     {
+                                    //         var fixpos = GetFixPosList(nextpath[nextpath.Count - 1], tempstartpath[0],
+                                    //             moveStepLength);
+                                    //         if (fixpos.Count > 0)
+                                    //         {
+                                    //             nextpath.AddRange(fixpos);
+                                    //         }
+                                    //     }
+                                    //
+                                    //     nextpath.AddRange(tempstartpath);
+                                    //     if (nextpath[nextpath.Count - 1].Equals(tempnextpath[0]))
+                                    //     {
+                                    //         tempnextpath.RemoveAt(0);
+                                    //     }
+                                    //
+                                    //     if (tempnextpath.Count > 0)
+                                    //     {
+                                    //         var fixpos = GetFixPosList(nextpath[nextpath.Count - 1], tempnextpath[0],moveStepLength);
+                                    //         if (fixpos.Count>0)
+                                    //         {
+                                    //             nextpath.AddRange(fixpos); 
+                                    //         } 
+                                    //     }
+                                    //     
+                                    //     nextpath.AddRange(tempnextpath);
+                                    //     path = nextpath;
+                                    //     //isSuccessfind = true;
+                                    //     break;
+                                    // }
+
 
                                 }
-                                if (!isSuccessfind)
-                                {
-                                    _moveState = MoveStateType.Failure;
-                                }
-                                else
-                                {
+                                // if (!isSuccessfind)
+                                // {
+                                //     _moveState = MoveStateType.Failure;
+                                // }
+                                // else
+                                // {
                                     _moveState = MoveStateType.Moving;
-                                }
+                                //}
                             
                             }
                         
@@ -1223,7 +1460,13 @@ public class ClientFlyPath
             return path;
         }
 
-        var srcPath = new FlyPath() {path = startpos};
+        var fixposlist = GetFixPosList(orgpos, path[0], moveStepLength);
+        if (fixposlist.Count > 0)
+        {
+            path.InsertRange(0,fixposlist);
+            //path.AddRange(fixposlist, 0, fixposlist.Count);
+        }
+        var srcPath = new FlyPath() {path = orgpos};
         var flypath = srcPath;
        
         if (path.Count > 0 && !path[path.Count - 1].Equals(m_EndPos))
@@ -1232,7 +1475,7 @@ public class ClientFlyPath
             //var lastdis = Vector3.Distance(lastpath , m_EndPos);
             if (!CheckBoxCast(lastpath.CurrentUnityPos2GlobalPos(),m_EndPos.CurrentUnityPos2GlobalPos(),m_LayerMask))//强制修正
             {
-                path.Add(m_EndPos);
+                path.Add(FixPos(m_EndPos));
             }
         }
         for (int i = 0;i< path.Count;i++)
@@ -1241,8 +1484,12 @@ public class ClientFlyPath
             flypath.next = nextflypath;
             flypath = nextflypath;
         }
+
+        if (!Test)
+        {
+            optimization(srcPath,noOptList);
+        }
         
-        optimization(srcPath,noOptList);
         path.Clear();
 //        stopwatch.Stop();
 //        Debug.Log("cost findpath time" + stopwatch.ElapsedMilliseconds / 1000f);

@@ -12,18 +12,19 @@ namespace DeepMMO.Unity3D.Terrain
         public System.Action<string, GameObject> mAction;
         public Vector3 currentUnityPos;
         private float StepIntercept;
-
+        private string[] LayerName =
+        {
+            "NavLayer",
+            "Water",
+            "Default",
+        };
         public CheckBoxTouchComponent(float stepIntercept)
         {
             laymask = LayerMask.GetMask(LayerName);
             StepIntercept = stepIntercept;
         }
 
-        private string[] LayerName =
-        {
-            "NavLayer",
-            "Default",
-        };
+     
 
 
         private Vector3 pointbottom;
@@ -49,20 +50,34 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 hitpos = bottomhit.Item2.point;
                 dis = Mathf.Abs(pointbottom.y - hitpos.y);
-            }
-    
-            if (isBottomhit)
-            {
                 isBottomhit = dis <= 0.02f || pointbottom.y < (hitpos.y);
-                //            if (isBottomhit)
-                //            {
-                //                Debug.Log("bottom=====dis "+dis+" bottom="+pointbottom.y+" hitpos="+(hitpos.y - StepIntercept - height/2));
-                //            }
                 bottompos = hitpos;
             }
-
-
+            
             return new Tuple<bool, Vector3>(isBottomhit, bottompos);
+        }
+
+        //Bounds
+        public Tuple<bool, Vector3> IsInWater(Vector3 pos)
+        {
+            pointtop = pos + Vector3.up * height/2;
+            Physics.queriesHitBackfaces = true;
+            var tophit = RayHit(pointtop, Vector3.up, 2);
+            Physics.queriesHitBackfaces = false;
+            if (tophit.Item1)
+            {
+                if (tophit.Item2.point.y >= pointtop.y
+                    &&tophit.Item2.transform.gameObject.layer == LayerMask.NameToLayer("Water"))
+                {
+                    var downhit = IsBottomHit(pos);
+                    if (!downhit.Item1 || (downhit.Item1 && Mathf.Abs(downhit.Item2.y - tophit.Item2.point.y)>= StepIntercept))
+                    {
+                        return new Tuple<bool, Vector3>(true, tophit.Item2.point);
+                    }
+                }
+               
+            }
+            return new Tuple<bool, Vector3>(false,pos);
         }
 
         public Tuple<bool, Vector3> IsTopHit(Vector3 pos)
@@ -74,9 +89,13 @@ namespace DeepMMO.Unity3D.Terrain
             bool isTophit = tophit.Item1;
             if (isTophit)
             {
-                var dis = Mathf.Abs(pointtop.y - tophit.Item2.point.y + StepIntercept / 2);
+                var dis = Mathf.Abs(pointtop.y - (tophit.Item2.point.y - StepIntercept / 2));
                 //Debug.Log("top=====dis "+dis+" pointtop="+pointtop.y+" toppos="+(tophit.Item2.point.y - StepIntercept/2));
-                isTophit = dis <= 0.2f || pointtop.y >= tophit.Item2.point.y - StepIntercept / 2;
+                isTophit = dis <= 0.2f || pointtop.y >= tophit.Item2.point.y - StepIntercept / 2; //头部超过天花板
+                if (tophit.Item2.transform.gameObject.layer == LayerMask.NameToLayer("Water"))
+                {
+                    isTophit = false;
+                }
             }
 
             return new Tuple<bool, Vector3>(isTophit, tophit.Item2.point);
@@ -89,13 +108,18 @@ namespace DeepMMO.Unity3D.Terrain
             var touchpos = startpos;
             var dir = (pointhalf - startpointhalf).normalized;
             var distance = UnityEngine.Vector3.Distance(pointhalf, startpos);
-            var iscollider = RayHit(startpointhalf, dir, distance);
+            var iscollider = RayHit(startpointhalf, dir, distance + bodySize);
             if (iscollider.Item1)
             {
+                if (iscollider.Item2.transform.gameObject.layer == LayerMask.NameToLayer("Water"))
+                {
+                    return new Tuple<bool, Vector3>(false,pos);
+                }
+                
                 //Debug.Log("iscollider1111111111111"+hit.point);
-                touchpos = iscollider.Item2.point - dir * bodySize;
-                touchpos.y = pos.y;
-                return new Tuple<bool, Vector3>(true, touchpos);
+               // touchpos = iscollider.Item2.point - dir * (iscollider.Item2.distance + bodySize);
+               // touchpos.y = pos.y;
+                return new Tuple<bool, Vector3>(true, startpos);
             }
 
             return new Tuple<bool, Vector3>(false, pos);
@@ -139,6 +163,20 @@ namespace DeepMMO.Unity3D.Terrain
             }
 
             return new Tuple<bool, RaycastHit>(isTouch, hit);
+        }
+        
+        public List<RaycastHit> RaycastHitAll(Vector3 pos, Vector3 dir, float dis)
+        {
+            var isTouch = Physics.RaycastAll(pos, dir, dis, laymask);
+            var list = new List<RaycastHit>();
+            foreach (var touch in isTouch)
+            {
+                if (touch.transform && !IgnoreVoxel.Contains(touch.transform))
+                {
+                    list.Add(touch);
+                }
+            }
+            return list;
         }
 
         private GameObject GetMinDistance(Collider[] hits)
