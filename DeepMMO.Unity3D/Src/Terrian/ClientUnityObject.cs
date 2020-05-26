@@ -118,6 +118,7 @@ namespace DeepMMO.Unity3D.Terrain
         public Tuple<bool,UnityEngine.Vector3> IsInWater(UnityEngine.Vector3 unityPos)
         {
             var IsInWater = mCheckBoxTouchComponent.IsInWater(unityPos);
+            //Debug.Log("ClientUnityObjectIsInWater = "+IsInWater);
             return IsInWater;
         }
         public Tuple<bool,UnityEngine.Vector3> IsSidehit(UnityEngine.Vector3 startpos,UnityEngine.Vector3 unityPos)
@@ -172,18 +173,19 @@ namespace DeepMMO.Unity3D.Terrain
                 touchFlag |= TouchType.Top;
             }
             
-            var touchInWater = IsInWater(newunitypos);
-            if (touchInWater.Item1)
+            var bottomhit = IsInWater(newunitypos);
+            var isBottomhit = bottomhit.Item1;
+            if (!bottomhit.Item1)
             {
-                touchFlag |= TouchType.InSide;
-                newunitypos.y = touchInWater.Item2.y;
-                var zonepos = UnityPos2ZonePos(newunitypos);
-                this.currentPos = zonepos;
-                return VoxelObject.MoveResult.Arrive;
+                bottomhit = IsBottomhit(newunitypos);
+                isBottomhit = bottomhit.Item1;
+                // touchFlag |= TouchType.InSide;
+                // newunitypos.y = touchInWater.Item2.y;
+                // var zonepos = UnityPos2ZonePos(newunitypos);
+                // this.currentPos = zonepos;
+                // return VoxelObject.MoveResult.Arrive;
             }
             
-            var bottomhit = IsBottomhit(newunitypos);
-            var isBottomhit = bottomhit.Item1;
             if (isBottomhit)
             {
                 touchFlag |= TouchType.Bottom; 
@@ -372,7 +374,8 @@ namespace DeepMMO.Unity3D.Terrain
         private UnityEngine.Vector3 mInitVector3 = UnityEngine.Vector3.zero;
         protected virtual void ProcessGravity(int intervalMS)
         {
-         
+            
+           
             if(!mInitPos)
             {
                 if (mInitVector3 == UnityEngine.Vector3.zero && currentUnityPos != UnityEngine.Vector3.zero)
@@ -390,6 +393,8 @@ namespace DeepMMO.Unity3D.Terrain
             }
            
             LastPosition = currentUnityPos;
+
+           
             var topHeight = float.MaxValue;
             var bottomHeight = 0f;
             var bottomrayhit = mCheckBoxTouchComponent.RayHit(currentUnityPos + UnityEngine.Vector3.up * height/2, UnityEngine.Vector3.down, 100);
@@ -411,11 +416,33 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 topHeight = toprayhit.Item2.point.y;
             }
+
+            
             //是否触底
-            var bottomhit = IsBottomhit(currentUnityPos);
+            var bottomhit = IsInWater(currentUnityPos);
+            var isInwater = bottomhit.Item1;
+            if (!bottomhit.Item1)//是否在水里
+            {
+                //是否触底
+                bottomhit = IsBottomhit(currentUnityPos);
+            }
+            else
+            {
+                bottomHeight = bottomhit.Item2.y;
+                Upward = bottomHeight;
+            }
+           
            // UnityEngine.Debug.Log("topHeight.Item1===="+topHeight);
            // UnityEngine.Debug.Log("bottomHeight.Item1===="+bottomHeight);
-            mIsInAir = zspeed > 0 || Gravity == 0 || !bottomhit.Item1;
+           if (isInwater)
+           {
+               mIsInAir = false;
+           }
+           else
+           {
+               mIsInAir =  (zspeed > 0 || Gravity == 0 || !bottomhit.Item1);
+           }
+            
             if (zspeed > 0 || !bottomhit.Item1)
             {
                 currentPos.Z += CMath.GetSpeedDistance(intervalMS, zspeed);

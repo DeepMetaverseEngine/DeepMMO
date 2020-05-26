@@ -15,7 +15,6 @@ namespace DeepMMO.Unity3D.Terrain
         private string[] LayerName =
         {
             "NavLayer",
-            "Water",
             "Default",
         };
         public CheckBoxTouchComponent(float stepIntercept)
@@ -62,20 +61,24 @@ namespace DeepMMO.Unity3D.Terrain
         {
             pointtop = pos + Vector3.up * height/2;
             Physics.queriesHitBackfaces = true;
-            var tophit = RayHit(pointtop, Vector3.up, 2);
+            var tophit = RayHit(pointtop, Vector3.up, 2,"Water");
             Physics.queriesHitBackfaces = false;
-            if (tophit.Item1)
+            var isInwater = tophit.Item1;
+            if (!isInwater)
             {
-                if (tophit.Item2.point.y >= pointtop.y
-                    &&tophit.Item2.transform.gameObject.layer == LayerMask.NameToLayer("Water"))
+                tophit = RayHit(pointtop, Vector3.down, height/2 + 0.2f,"Water");
+                if (tophit.Item1)
                 {
-                    var downhit = IsBottomHit(pos);
-                    if (!downhit.Item1 || (downhit.Item1 && Mathf.Abs(downhit.Item2.y - tophit.Item2.point.y)>= StepIntercept))
-                    {
-                        return new Tuple<bool, Vector3>(true, tophit.Item2.point);
-                    }
+                    isInwater = true;
                 }
-               
+            }
+            if (isInwater)
+            {
+                var downhit = RayHit(tophit.Item2.point, Vector3.down, 3, "NavLayer");//Physics.Raycast(pos, Vector3.down, out RaycastHit hit, 3, LayerMask.GetMask("NavLayer"));
+                if (!downhit.Item1 || (downhit.Item1 && Mathf.Abs(tophit.Item2.point.y - downhit.Item2.point.y) >= StepIntercept))
+                {
+                    return new Tuple<bool, Vector3>(true, tophit.Item2.point);
+                }
             }
             return new Tuple<bool, Vector3>(false,pos);
         }
@@ -111,52 +114,24 @@ namespace DeepMMO.Unity3D.Terrain
             var iscollider = RayHit(startpointhalf, dir, distance + bodySize);
             if (iscollider.Item1)
             {
-                if (iscollider.Item2.transform.gameObject.layer == LayerMask.NameToLayer("Water"))
-                {
-                    return new Tuple<bool, Vector3>(false,pos);
-                }
+                // if (iscollider.Item2.transform.gameObject.layer == LayerMask.NameToLayer("Water"))
+                // {
+                //     return new Tuple<bool, Vector3>(false,pos);
+                // }
                 
-                //Debug.Log("iscollider1111111111111"+hit.point);
-               // touchpos = iscollider.Item2.point - dir * (iscollider.Item2.distance + bodySize);
-               // touchpos.y = pos.y;
                 return new Tuple<bool, Vector3>(true, startpos);
             }
 
             return new Tuple<bool, Vector3>(false, pos);
-            //        var halfhit = Physics.OverlapBox(pointhalf, new Vector3(bodySize, bodySize, bodySize),Quaternion.identity, laymask);
-            //        //var _object = GetMinDistance(halfhit);
-            //       
-            //        if (halfhit != null && halfhit.Length>0)
-            //        {
-            //            for (int i = 0;i< halfhit.Length;i++)
-            //            {
-            //                dir = (halfhit[i].transform.position - pointhalf).normalized;
-            //                
-            //                iscollider = Physics.Raycast(pointhalf, dir,out  hit, bodySize, laymask);
-            //                if (iscollider)
-            //                {
-            //                    Debug.Log("iscollider22222222222"+hit.point);
-            //                    touchpos = hit.point - dir * hit.distance;
-            //                    touchpos.y = pos.y;
-            ////                    var isBottomhit = IsBottomHit(touchpos);
-            ////                    if (isBottomhit.Item1)
-            ////                    {
-            ////                        touchpos.y = isBottomhit.Item2.y;
-            ////                    }
-            //                    break;
-            //                }
-            //            }
-            //            
-            //        }
-            // return new Tuple<bool,Vector3>(halfhit.Length > 0,touchpos);
         }
 
 
         public static HashSet<Transform> IgnoreVoxel = new HashSet<Transform>();
 
-        public Tuple<bool, RaycastHit> RayHit(Vector3 pos, Vector3 dir, float dis)
+        public Tuple<bool, RaycastHit> RayHit(Vector3 pos, Vector3 dir, float dis,string layerName = "")
         {
-            var isTouch = Physics.Raycast(pos, dir, out RaycastHit hit, dis, laymask);
+            var layer = string.IsNullOrEmpty(layerName)?laymask:1<<LayerMask.NameToLayer(layerName);
+            var isTouch = Physics.Raycast(pos, dir, out RaycastHit hit, dis, layer);
             if (hit.transform && IgnoreVoxel.Contains(hit.transform))
             {
                 return new Tuple<bool, RaycastHit>(false, default);
@@ -165,6 +140,7 @@ namespace DeepMMO.Unity3D.Terrain
             return new Tuple<bool, RaycastHit>(isTouch, hit);
         }
         
+      
         public List<RaycastHit> RaycastHitAll(Vector3 pos, Vector3 dir, float dis)
         {
             var isTouch = Physics.RaycastAll(pos, dir, dis, laymask);

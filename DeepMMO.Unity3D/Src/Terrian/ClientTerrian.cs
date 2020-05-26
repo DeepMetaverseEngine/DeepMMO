@@ -553,7 +553,12 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 blocked = true;
             }
-            var bottomhit = preUnitObj.IsBottomhit(_unitypos);
+            var bottomhit = preUnitObj.IsInWater(_unitypos);
+            if (!bottomhit.Item1)
+            {
+                bottomhit = preUnitObj.IsBottomhit(_unitypos);
+            }
+           
             var isbottomhit = bottomhit.Item1;
             if (isbottomhit && UnityEngine.Vector3.Distance(_unitypos,bottomhit.Item2)<= StepIntercept)
             {
