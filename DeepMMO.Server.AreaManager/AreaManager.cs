@@ -1208,8 +1208,9 @@ namespace DeepMMO.Server.AreaManager
             public Dictionary<string, ZoneInfo> GetZoneMap(string serverGroupID)
             {
                 if (string.IsNullOrEmpty(serverGroupID)) return null;
-                zonesMap.TryGetValue(serverGroupID, out var ret);
-                return new Dictionary<string, ZoneInfo>(ret);
+                if(zonesMap.TryGetValue(serverGroupID, out var ret))
+                    return new Dictionary<string, ZoneInfo>(ret);
+                return null;
             }
             public List<ZoneInfo> GetZones(int templateID)
             {
