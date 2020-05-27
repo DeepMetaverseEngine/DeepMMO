@@ -31,7 +31,62 @@ namespace DeepMMO.Server.Gate
         protected readonly IServer acceptor;
         protected readonly ConnectorNodeMap groupMap;
         protected IRemoteNodeInfo[] realmNodes;
+
         protected bool isReady = false;
+        /// <summary>
+        /// 最小连接数量，由GM系统控制。
+        /// </summary>
+        public static int MIN_CLIENT_NUMBER_SOFT_LIMIT = 50;
+
+        /// <summary>
+        /// 最大连接数量，由GM系统控制。
+        /// </summary>
+        public static int MAX_CLIENT_NUMBER_SOFT_LIMIT = 100;
+
+        /// <summary>
+        /// 最大连接数量，由GM系统控制。
+        /// </summary>
+        public static int CLIENT_NUMBER_HARD_LIMIT = 100;
+        
+        /// <summary>
+        /// 最大连接数量软限制，由GM系统控制。
+        /// </summary>
+        public static int CLIENT_NUMBER_SOFT_LIMIT = 10;
+
+        /// <summary>
+        /// 排队的最大数量限制，由GM系统控制。
+        /// </summary>
+        public static int QUEUE_MAX_LIMIT = 1;
+
+        /// <summary>
+        /// 每一名角色增加时间，由GM系统控制。
+        /// </summary>
+        public static int QUEUE_ADD_TIME = 30;
+
+        /// <summary>
+        /// 每一名角色增加时间，由GM系统控制。
+        /// </summary>
+        public static int QUEUE_MAX_HARD_ADD_TIME = 300;
+
+        /// <summary>
+        /// 间隔数量
+        /// </summary>
+        public static int POST_SERVER_NUMBER_INTERVAL = 5;
+
+        /// <summary>
+        /// 软进入百分比
+        /// </summary>
+        public static float SOFT_ENTER_PERCENTAGE = 0.1f;
+
+        /// <summary>
+        /// 硬进入百分比
+        /// </summary>
+        public static float HARD_ENTER_PERCENTAGE = 0.1f;
+
+        /// <summary>
+        /// 硬进入最大百分比
+        /// </summary>
+        public static float MAX_HARD_ENTER_PERCENTAGE = 0.08f;
 
         //------------------------------------------------------------------------------------------
         //public override bool IsConcurrent => false;
@@ -50,6 +105,28 @@ namespace DeepMMO.Server.Gate
             this.acceptor.OnSessionDisconnected += Acceptor_OnSessionDisconnected;
             this.acceptor.OnServerError += Acceptor_OnServerError;
             this.groupMap = new ConnectorNodeMap(log);
+
+            // H.Q.Cai 添加代码开始
+            start.Config.TryGetAsInt("ClientNumberHardLimit", out CLIENT_NUMBER_HARD_LIMIT);
+            start.Config.TryGetAsInt("ClientNumberSoftLimit", out CLIENT_NUMBER_SOFT_LIMIT);
+            start.Config.TryGetAsInt("QueueMaxLimit", out QUEUE_MAX_LIMIT);
+            start.Config.TryGetAsInt("QueueAddTime", out QUEUE_ADD_TIME);
+            start.Config.TryGetAsInt("QueueMaxHardAddTime", out QUEUE_MAX_HARD_ADD_TIME);
+            start.Config.TryGetAsInt("PostServerNumberInterval", out POST_SERVER_NUMBER_INTERVAL);
+            start.Config.TryGetAsFloat("SoftEnterPercentage", out SOFT_ENTER_PERCENTAGE);
+            start.Config.TryGetAsFloat("HardEnterPercentage", out HARD_ENTER_PERCENTAGE);
+            start.Config.TryGetAsFloat("MaxHardEnterPercentage", out MAX_HARD_ENTER_PERCENTAGE);
+
+            if(start.Config.TryGetAsInt("MinClientNumberSoftLimit", out var minClientNumberSoftLimit))
+            {
+                MIN_CLIENT_NUMBER_SOFT_LIMIT = minClientNumberSoftLimit;
+            }
+
+            if (start.Config.TryGetAsInt("MaxClientNumberSoftLimit", out var maxClientNumberSoftLimit))
+            {
+                MAX_CLIENT_NUMBER_SOFT_LIMIT = maxClientNumberSoftLimit;
+            }
+            // H.Q.Cai 添加代码结束
         }
         protected override void OnDisposed()
         {
@@ -62,7 +139,8 @@ namespace DeepMMO.Server.Gate
                 log.WarnFormat("Templates Server:{0} Group:{1} State:{2}", server.id, server.group, server.state);
             }
             var interval = TimeSpan.FromSeconds(TimerConfig.timer_sec_GateUpdateQueue);
-            this.Provider.CreateTimer(groupMap.UpdateInQueue, groupMap, interval, interval);
+            //var interval = TimeSpan.FromSeconds(3);
+            this.Provider.CreateTimer(UpdateInQueue, this, interval, interval);
             return Task.CompletedTask;
         }
         protected override Task OnStopAsync(ServiceStopInfo reason)
@@ -179,13 +257,19 @@ namespace DeepMMO.Server.Gate
             this.groupMap.SetClientLimit(notify);
         }
 
+        [RpcHandler(typeof(SyncGateClientAccountExpire), ServerNames.LogicServiceType)]
+        public virtual void rpc_HandleClientLimit(SyncGateClientAccountExpire notify)
+        {
+            PushOtherAccountExpire(notify.accountUUid, notify.ExpectTime);
+        }
+
         //------------------------------------------------------------------------------------------
 
         /// <summary>
         /// 选择最优服务器
         /// </summary>
         /// <returns></returns>
-        protected virtual async Task<EnterToken> SelectConnectAsync(ClientEnterGateRequest login)
+        protected virtual async Task<EnterToken> SelectConnectAsync(ClientEnterGateRequest login, ISession session)
         {
             //log.Log(login);
             try
@@ -210,6 +294,7 @@ namespace DeepMMO.Server.Gate
                         s2c_code = ClientEnterGateResponse.CODE_SERVER_NOT_OPEN,
                     });
                 }
+
                 //第三方/一号通验证//
                 var serverPassportResult = await RPGServerManager.Instance.Passport.VerifyAsync(login);
 
@@ -234,6 +319,7 @@ namespace DeepMMO.Server.Gate
                         s2c_code = ClientEnterGateResponse.CODE_ACCOUNT_OR_PASSWORD,
                     });
                 }
+
                 using (var saveAcc = new MappingReference<AccountData>(RPGServerPersistenceManager.TYPE_ACCOUNT_DATA, accountUUID, this))
                 {
                     var accountData = await RPGServerPersistenceManager.Instance.GetOrCreateAccountDataAsync(saveAcc, accountUUID, login.c2s_token);
@@ -265,8 +351,9 @@ namespace DeepMMO.Server.Gate
                             s2c_code = ClientEnterGateResponse.CODE_SERVER_NOT_OPEN,
                         });
                     }
+
                     //获取Connector负载//
-                    if (!groupMap.TryDispatchConnect(serverGroupID, accountData.lastLoginConnectAddress, out var group, out var connect, out var inQueue, out var queueCount))
+                    if (!groupMap.TryDispatchConnect(serverGroupID, accountData.lastLoginConnectAddress, out var group, out var connect, out var inQueue, out var queueCount, out var inMaxQueue))
                     {
                         log.Warn("没有可用服务器");
                         return new EnterToken(login, new ClientEnterGateResponse()
@@ -274,6 +361,7 @@ namespace DeepMMO.Server.Gate
                             s2c_code = ClientEnterGateResponse.CODE_NO_CONNECT_SERVER,
                         });
                     }
+
                     var loginToken = CMD5.CalculateMD5(random.Next().ToString() + accountUUID);
                     saveAcc.SetField(nameof(AccountData.lastLoginTime), DateTime.Now);
                     saveAcc.SetField(nameof(AccountData.lastLoginConnectAddress), connect.Sync.connectServiceAddress);
@@ -281,6 +369,7 @@ namespace DeepMMO.Server.Gate
                     saveAcc.SetField(nameof(AccountData.lastLoginServerID), login.c2s_serverID);
                     saveAcc.SetField(nameof(AccountData.lastLoginServerGroupID), serverGroupID);
                     await saveAcc.FlushAsync();
+
                     //角色列表//
                     List<RoleIDSnap> roleList = new List<RoleIDSnap>();
                     using (var accountRoleSnapSave = new MappingReference<AccountRoleSnap>(RPGServerPersistenceManager.TYPE_ACCOUNT_ROLE_SNAP_DATA, accountUUID, this))
@@ -291,12 +380,21 @@ namespace DeepMMO.Server.Gate
                             roleList.Add(item.Value);
                         }
                     }
+
                     //软性连接数限制//
+                    var isContains = ContainsAccount(session, accountUUID);
+
                     var s2c_code = ClientEnterGateResponse.CODE_OK;
-                    if (inQueue)
+                    if (inQueue && isContains == false)
                     {
                         s2c_code = ClientEnterGateResponse.CODE_OK_IN_QUEUE;
                     }
+
+                    //if (inMaxQueue && isContains == false)
+                    //{
+                    //    s2c_code = ClientEnterGateResponse.CODE_SERVER_MAX_QUEUE;
+                    //}
+
                     return new EnterToken(login, new ClientEnterGateResponse()
                     {
                         s2c_code = s2c_code,
@@ -374,7 +472,10 @@ namespace DeepMMO.Server.Gate
                 {
                     if (groupMap.TryGetValue(notify.serverGroupID, out var group))
                     {
-                        group.SetClientLimit(notify.clientLimit);
+                        // H.Q.Cai 修改开始
+                        //group.SetClientLimit(notify.clientLimit);
+                        group.SetClientLimit(notify.clientLimit, notify.clientSoftLimit, notify.queueMaxLimit, notify.queueAddTime);
+                        // H.Q.Cai 修改结束
                     }
                 }
             }
@@ -408,6 +509,7 @@ namespace DeepMMO.Server.Gate
                     return ret;
                 }
             }
+
             public void UpdateInQueue(object state)
             {
                 using (connect_lock.EnterWrite())
@@ -417,7 +519,7 @@ namespace DeepMMO.Server.Gate
                     {
                         try
                         {
-                            g.UpdateInQueue();
+                            g.UpdateInQueue(state);
                         }
                         catch (Exception err)
                         {
@@ -426,7 +528,8 @@ namespace DeepMMO.Server.Gate
                     }
                 }
             }
-            public bool TryDispatchConnect(string serverGroupID, string expectConnectAddress, out GroupInfo group, out ConnectInfo conn, out bool inQueue, out int queueCount)
+
+            public bool TryDispatchConnect(string serverGroupID, string expectConnectAddress, out GroupInfo group, out ConnectInfo conn, out bool inQueue, out int queueCount, out bool inMaxQueue)
             {
                 var expectAddr = RemoteAddress.Parse(expectConnectAddress);
                 using (connect_lock.EnterRead())
@@ -439,7 +542,11 @@ namespace DeepMMO.Server.Gate
                             inQueue = group.IsNeedQueue;
                             queueCount = group.QueueCount;
                             group.PushClientNumber();
-                            return true;
+
+                            inMaxQueue = group.IsMaxQueue;
+
+                            return group.IsAllowHardEnter;
+                            //return true;
                         }
                         else
                         {
@@ -453,7 +560,11 @@ namespace DeepMMO.Server.Gate
                                         inQueue = group.IsNeedQueue;
                                         queueCount = group.QueueCount;
                                         group.PushClientNumber();
-                                        return true;
+
+                                        inMaxQueue = group.IsMaxQueue;
+
+                                        return group.IsAllowHardEnter;
+                                        //return true;
                                     }
                                 }
                             }
@@ -463,7 +574,11 @@ namespace DeepMMO.Server.Gate
                                 inQueue = group.IsNeedQueue;
                                 queueCount = group.QueueCount;
                                 group.PushClientNumber();
-                                return true;
+
+                                inMaxQueue = group.IsMaxQueue;
+
+                                return group.IsAllowHardEnter;
+                                //return true;
                             }
                         }
                     }
@@ -471,6 +586,7 @@ namespace DeepMMO.Server.Gate
                 inQueue = false;
                 queueCount = 0;
                 conn = null;
+                inMaxQueue = false;
                 return false;
             }
             public void WriteStatus(TextWriter sb)
@@ -516,14 +632,61 @@ namespace DeepMMO.Server.Gate
                 /// 当前连接数量
                 /// </summary>
                 public int ClientNumber { get; private set; }
-                /// <summary>
-                /// 最大连接数量，由GM系统控制。
-                /// </summary>
-                public int ClientNumberLimit { get; private set; } = 0;
+
+                #region H.Q.Cai 代码添加
+
+                // H.Q.Cai 代码添加开始
                 /// <summary>
                 /// 是否需要排队
                 /// </summary>
-                public bool IsNeedQueue { get => this.ClientNumberLimit > 0 && this.ClientNumber >= this.ClientNumberLimit; }
+                //public bool IsNeedQueue { get => this.ClientNumberLimit > 0 && this.ClientNumber >= this.ClientNumberLimit; }
+                public bool IsNeedQueue => IsAllowSoftEnter == false;
+                //public bool IsNeedQueue => true;
+                //public bool IsNeedQueue => false;
+
+                private readonly HashSet<ViewSession> checkInQueueSessions = new HashSet<ViewSession>();
+
+                /// <summary>
+                /// 是否已满最大的排队系统
+                /// </summary>
+                public bool IsMaxQueue => QueueCount >= QUEUE_MAX_LIMIT;
+
+                /// <summary>
+                /// 第一个进入列队的时间
+                /// </summary>
+                public DateTime? FirstInQueueTime { get; set; }
+
+                /// <summary>
+                /// 是否允许软进入
+                /// </summary>
+                public bool IsAllowSoftEnter => CLIENT_NUMBER_SOFT_LIMIT <= 0 || ClientNumber < CLIENT_NUMBER_SOFT_LIMIT * SOFT_ENTER_PERCENTAGE;
+
+                /// <summary>
+                /// 是否允许硬进入
+                /// </summary>
+                public bool IsAllowHardEnter => CLIENT_NUMBER_HARD_LIMIT <= 0 || ClientNumber < CLIENT_NUMBER_HARD_LIMIT * HARD_ENTER_PERCENTAGE;
+
+                /// <summary>
+                /// 是否超过硬上线
+                /// </summary>
+                public bool IsExceedHardLine => CLIENT_NUMBER_HARD_LIMIT > 0 && ClientNumber > CLIENT_NUMBER_HARD_LIMIT * MAX_HARD_ENTER_PERCENTAGE;
+
+                /// <summary>
+                /// 设置客户端限制
+                /// </summary>
+                internal void SetClientLimit(int hardLimit, int softLimit, int queueMaxLimit, int queueAddTime)
+                {
+                    if (softLimit < MIN_CLIENT_NUMBER_SOFT_LIMIT) softLimit = MIN_CLIENT_NUMBER_SOFT_LIMIT;
+                    if (softLimit > MAX_CLIENT_NUMBER_SOFT_LIMIT) softLimit = MAX_CLIENT_NUMBER_SOFT_LIMIT;
+
+                    CLIENT_NUMBER_HARD_LIMIT = hardLimit;
+                    CLIENT_NUMBER_SOFT_LIMIT = softLimit;
+                    QUEUE_MAX_LIMIT = queueMaxLimit;
+                    QUEUE_ADD_TIME = queueAddTime;
+                }
+                // H.Q.Cai 代码添加结束
+
+                #endregion
 
                 public GroupInfo(string group)
                 {
@@ -537,12 +700,12 @@ namespace DeepMMO.Server.Gate
                 {
                     connectorMap.Put(node.NodeName, node);
                 }
-                internal void SetClientLimit(int limit)
-                {
-                    this.ClientNumberLimit = limit;
-                }
                 internal void Sync(IDictionary<string, ConnectInfo> connectorMap)
                 {
+                    // H.Q.Cai 添加代码开始
+                    var oldClientNumber = ClientNumber;
+                    // H.Q.Cai 添加代码结束
+
                     this.ClientNumber = 0;
                     foreach (var c in connectorMap.Values)
                     {
@@ -554,6 +717,15 @@ namespace DeepMMO.Server.Gate
                             }
                         }
                     }
+
+                    // H.Q.Cai 添加代码开始
+                    if (oldClientNumber != ClientNumber)
+                    {
+                        var subtraction = oldClientNumber - ClientNumber;
+                        if (subtraction > POST_SERVER_NUMBER_INTERVAL || subtraction < -POST_SERVER_NUMBER_INTERVAL)
+                            RPGServerTemplateManager.Instance.PostGroupServerNumber(GroupID, ClientNumber);
+                    }
+                    // H.Q.Cai 添加代码结束
                 }
                 internal bool TryDispatchConnect(RemoteAddress addr, out ConnectInfo conn)
                 {
@@ -590,6 +762,7 @@ namespace DeepMMO.Server.Gate
                 public void PushInQueue(ViewSession session)
                 {
                     inQueueSessions.AddLast(session);
+                    checkInQueueSessions.Add(session);
                 }
                 internal void PushClientNumber()
                 {
@@ -598,9 +771,101 @@ namespace DeepMMO.Server.Gate
                         this.ClientNumber += 1;
                     }
                 }
-                internal void UpdateInQueue()
+                internal void UpdateInQueue(object state)
                 {
-                    int allowCount = ClientNumberLimit > 0 ? ClientNumberLimit - ClientNumber : int.MaxValue;
+
+                    // H.Q.Cai 添加开始
+
+                    var gateServer = state as GateServer;
+                    if (gateServer == null) return;
+
+                    DateTime nowTime = DateTime.Now;
+                    TimeSpan constExpectTime = TimeSpan.FromSeconds(QUEUE_ADD_TIME);
+                    TimeSpan constExpectHardTime = TimeSpan.FromSeconds(QUEUE_MAX_HARD_ADD_TIME);
+
+                    int queueIndexNew = 0;
+                    for (var it = inQueueSessions.First; it != null;)
+                    {
+                        var subTimeSpan = FirstInQueueTime.HasValue ? nowTime - FirstInQueueTime.Value : TimeSpan.Zero;
+
+                        bool isEnter;
+                        if (IsExceedHardLine) 
+                            isEnter = subTimeSpan >= constExpectHardTime;
+                        else
+                            isEnter = subTimeSpan >= constExpectTime;
+
+                        if (gateServer.ContainsSession(it.Value.Session) == false)
+                        {
+                            var rm = it;
+                            it = it.Next;
+                            inQueueSessions.Remove(rm);
+                            checkInQueueSessions.Remove(rm.Value);
+
+                            if (it == null) FirstInQueueTime = null;
+                            else FirstInQueueTime = nowTime;
+                        }
+                        else if (it.Value.IsConnected == false)
+                        {
+                            gateServer.RemoveSessionAccount(it.Value.Session);
+
+                            var rm = it;
+                            it = it.Next;
+                            inQueueSessions.Remove(rm);
+                            checkInQueueSessions.Remove(rm.Value);
+
+                            if (it == null) FirstInQueueTime = null;
+                            else FirstInQueueTime = nowTime;
+                        }
+                        else if (isEnter)
+                        {
+                            if (IsAllowHardEnter == false)
+                            { 
+                                continue;
+                            }
+
+                            if (gateServer.ContainsSession(it.Value.Session) == false)
+                            {
+                                continue;
+                            }
+
+                            gateServer.PushAccountExpire(it.Value.Session, it.Value.Enter.response.s2c_accountUUID, nowTime + constExpectTime);
+
+                            it.Value.UpdateInQueue(queueIndexNew, true, TimeSpan.Zero);
+
+                            ClientNumber += 1;
+                            var rm = it;
+                            it = it.Next;
+                            inQueueSessions.Remove(rm);
+                            checkInQueueSessions.Remove(rm.Value);
+
+
+                            if (it == null) FirstInQueueTime = null;
+                            else FirstInQueueTime = nowTime;
+                        }
+                        else
+                        {
+                            if (gateServer.ContainsSession(it.Value.Session) == false)
+                            {
+                                continue;
+                            }
+
+                            subTimeSpan = constExpectTime - subTimeSpan;
+                            TimeSpan expectTime = TimeSpan.FromSeconds(constExpectTime.TotalSeconds * queueIndexNew) + subTimeSpan;
+
+                            it.Value.UpdateInQueue(queueIndexNew, false, expectTime);
+
+                            it = it.Next;
+                            queueIndexNew++;
+                        }
+
+                        //log.Warn("queueIndexNew : " + queueIndexNew);
+                    }
+
+                    return;
+
+                    // H.Q.Cai 添加结束
+/*
+                    int allowCount = CLIENT_NUMBER_HARD_LIMIT > 0 ? CLIENT_NUMBER_HARD_LIMIT - ClientNumber : int.MaxValue;
                     int queueIndex = 0;
                     for (var it = inQueueSessions.First; it != null;)
                     {
@@ -627,6 +892,7 @@ namespace DeepMMO.Server.Gate
                             queueIndex++;
                         }
                     }
+*/
                 }
             }
 
@@ -710,6 +976,140 @@ namespace DeepMMO.Server.Gate
         }
 
         //----------------------------------------------------------------------------------------------------------------------------------------------
+        
+        /// <summary>
+        /// 账号列队到期时间
+        /// </summary>
+        private readonly HashMap<string, (DateTime ExpectTime, bool IsEnetered, ISession Session)> inAccountExpire = new HashMap<string, (DateTime ExpectTime, bool IsEnetered, ISession Session)>();
+
+        /// <summary>
+        /// 账号列队到期时间(其它)
+        /// </summary>
+        private readonly HashMap<string, DateTime> inAccountExpireOther = new HashMap<string, DateTime>();
+
+        /// <summary>
+        /// 通过当前的Session获取账号Uuid
+        /// </summary>
+        private readonly HashMap<ISession, string> inSessionAccount = new HashMap<ISession, string>();
+
+        /// <summary>
+        /// 推入会议账号结束期
+        /// </summary>
+        private void InsertSessionAccountExpire(ISession session, string account, DateTime expire)
+        {
+            inSessionAccount.TryAddOrUpdate(session, account);
+            inAccountExpire.TryAddOrUpdate(account, (expire, false, session));
+        }
+
+        /// <summary>
+        /// 推入会议结束期
+        /// </summary>
+        private void PushAccountExpire(ISession session, string account, DateTime expire)
+        {
+            inAccountExpire.TryAddOrUpdate(account, (expire, true, session));
+        }
+
+        /// <summary>
+        /// 推入会议结束期
+        /// </summary>
+        private void PushOtherAccountExpire(string account, DateTime expire)
+        {
+            if(expire == DateTime.MinValue)
+                inAccountExpireOther.RemoveByKey(account);
+            else 
+                inAccountExpireOther.TryAddOrUpdate(account, expire);
+        }
+
+        /// <summary>
+        /// 移除会议
+        /// </summary>
+        /// <param name="session"></param>
+        private bool ContainsSession(ISession session)
+        {
+            return inSessionAccount.ContainsKey(session);
+        }
+
+        /// <summary>
+        /// 移除账号
+        /// </summary>
+        /// <param name="session"></param>
+        private void RemoveSessionAccount(ISession session)
+        {
+            if (inSessionAccount.ContainsKey(session))
+            {
+                var sessionAccount = inSessionAccount[session];
+                inSessionAccount.RemoveByKey(session);
+
+                if (inAccountExpire.ContainsKey(sessionAccount))
+                {
+                    var dateTime = inAccountExpire[sessionAccount];
+                    if (dateTime.IsEnetered == false)
+                        inAccountExpire.RemoveByKey(sessionAccount);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 包含账号
+        /// </summary>
+        /// <param name="session"></param>
+        /// <param name="account"></param>
+        private bool ContainsAccount(ISession session, string account)
+        {
+            if (inAccountExpire.ContainsKey(account))
+            {
+                var dateTime = inAccountExpire[account];
+                var result = dateTime.IsEnetered && dateTime.ExpectTime >= DateTime.Now;
+                return result;
+            }
+
+            if (inAccountExpireOther.ContainsKey(account))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="state"></param>
+        private void UpdateInQueue(object state)
+        {
+            DateTime nowTime = DateTime.Now;
+
+            List<string> delAccountList = new List<string>();
+            foreach (var dateTime in inAccountExpire)
+            {
+                var dateTimeValue = dateTime.Value;
+                if (dateTimeValue.ExpectTime < nowTime)
+                {
+                    delAccountList.Add(dateTime.Key);
+                }
+            }
+
+            foreach (var account in delAccountList)
+            {
+                inAccountExpire.Remove(account);
+            }
+
+            delAccountList.Clear();
+
+            foreach (var dateTime in inAccountExpireOther)
+            {
+                if (dateTime.Value < nowTime)
+                {
+                    delAccountList.Add(dateTime.Key);
+                }
+            }
+
+            foreach (var account in delAccountList)
+            {
+                inAccountExpireOther.Remove(account);
+            }
+
+            groupMap.UpdateInQueue(state);
+        }
+
         //----------------------------------------------------------------------------------------------------------------------------------------------
 
         protected virtual void Acceptor_OnSessionConnected(ISession session)
@@ -720,6 +1120,13 @@ namespace DeepMMO.Server.Gate
         protected virtual void Acceptor_OnSessionDisconnected(ISession session)
         {
             log.Info("Acceptor_OnSessionDisconnected : " + session);
+
+            // H.Q.Cai 添加开始
+
+            RemoveSessionAccount(session);
+            groupMap.UpdateInQueue(this);
+
+            // H.Q.Cai 添加结束
         }
         protected virtual void Acceptor_OnServerError(IServer server, Exception err)
         {
@@ -756,6 +1163,10 @@ namespace DeepMMO.Server.Gate
             protected readonly DateTime loginTime;
             protected EnterToken enter;
 
+            public ISession Session => session;
+
+            public EnterToken Enter => enter;
+
             public bool IsConnected
             {
                 get => session.IsConnected;
@@ -776,10 +1187,44 @@ namespace DeepMMO.Server.Gate
                     //TODO 尽量分配到之前登陆过的Connect
                     return await server.Provider.Execute(async () =>
                     {
-                        this.enter = await server.SelectConnectAsync(user as ClientEnterGateRequest);
+                        this.enter = await server.SelectConnectAsync(user as ClientEnterGateRequest, session);
+
                         if (enter.response.s2c_code == ClientEnterGateResponse.CODE_OK_IN_QUEUE)
                         {
+
+                            // H.Q.Cai 添加开始
+                            var nowTime = DateTime.Now;
+                            TimeSpan queueAddTime = TimeSpan.FromSeconds(QUEUE_ADD_TIME);
+                            DateTime constExpectTime = nowTime + TimeSpan.FromMinutes(1.0f);
+
                             enter.group.PushInQueue(this);
+                            server.InsertSessionAccountExpire(this.session, enter.response.s2c_accountUUID, constExpectTime);
+
+                            if (enter.group.QueueCount == 1)
+                            {
+                                enter.group.FirstInQueueTime = nowTime;
+                            }
+
+                            Func<ConnectorNodeMap.GroupInfo, TimeSpan> getWaiteSecond = group =>
+                            {
+                                var subTimeSpan = group.FirstInQueueTime.HasValue ? nowTime - group.FirstInQueueTime.Value : TimeSpan.Zero;
+                                var expectTime = TimeSpan.FromSeconds(queueAddTime.TotalSeconds * (enter.group.QueueCount - 1)) + subTimeSpan;
+
+                                return expectTime;
+                            };
+
+                            ClientEnterGateInQueueNotify notify = new ClientEnterGateInQueueNotify()
+                            {
+                                IsEnetered = false,
+                                QueueIndex = enter.group.QueueCount - 1,
+                                ExpectTime = getWaiteSecond(enter.group)
+                            };
+
+                            //session.SendAsync(notify).NoWait();
+                            session.Send(notify);
+
+                            // H.Q.Cai 添加结束
+
                             var result = server.ServerCodec.CloneSerializable(enter.response);
                             result.s2c_connectHost = null;
                             result.s2c_connectPort = 0;
@@ -821,6 +1266,35 @@ namespace DeepMMO.Server.Gate
                     session.Send(notify);
                 }
             }
+
+            // H.Q.Cai 添加开始
+            /// <summary>
+            /// 
+            /// </summary>
+            public virtual void UpdateInQueue(int queueIndex, bool isEnter, TimeSpan expectTime)
+            {
+                var notify = new ClientEnterGateInQueueNotify
+                {
+                    IsEnetered = isEnter,
+                    QueueIndex = queueIndex,
+                    ExpectTime = expectTime
+                };
+
+                if (isEnter)
+                {
+                    notify.s2c_connectHost = enter.response.s2c_connectHost;
+                    notify.s2c_connectPort = enter.response.s2c_connectPort;
+                    notify.s2c_connectToken = enter.response.s2c_connectToken;
+                    notify.s2c_lastLoginToken = enter.response.s2c_lastLoginToken;
+                    session.Send(notify);
+                    session.Disconnect("entered");
+                }
+                else
+                {
+                    session.Send(notify);
+                }
+            }
+            // H.Q.Cai 添加结束
         }
 
         //------------------------------------------------------------------------------------------

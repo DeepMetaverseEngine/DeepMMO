@@ -51,6 +51,14 @@ namespace DeepMMO.Protocol.Client
         [MessageCode("服务器未开启！")]
         public const int CODE_SERVER_NOT_OPEN = 503;
 
+        // H.Q.Cai 添加开始
+        /// <summary>
+        /// 排队已满
+        /// </summary>
+        [MessageCode("排队已满！")]
+        public const int CODE_SERVER_MAX_QUEUE = 504;
+        // H.Q.Cai 添加结束
+
         public bool IsInQueue { get => s2c_code == CODE_OK_IN_QUEUE; }
 
         [DependOnProperty(nameof(IsSuccess))] public string s2c_accountUUID;

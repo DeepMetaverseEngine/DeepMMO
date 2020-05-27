@@ -383,6 +383,10 @@ namespace DeepMMO.Server
             return true;
         }
 
-
+        // H.Q.Cai 添加代码开始
+        public virtual void PostGroupServerNumber(string serverGroupID, int number)
+        {
+        }
+        // H.Q.Cai 添加代码结束
     }
 }

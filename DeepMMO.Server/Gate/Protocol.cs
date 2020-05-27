@@ -74,5 +74,46 @@ namespace DeepMMO.Server.Gate
     {
         public string serverGroupID;
         public int clientLimit;
+
+        // H.Q.Cai 添加开始
+        /// <summary>
+        /// 连接数量软限制
+        /// </summary>
+        public int clientSoftLimit;
+        /// <summary>
+        /// 最大可排队人数
+        /// </summary>
+        public int queueMaxLimit;
+        /// <summary>
+        /// 每一名角色增加时间
+        /// </summary>
+        public int queueAddTime;
+        // H.Q.Cai 添加结束
     }
+
+    // H.Q.Cai 添加开始
+
+    /// <summary>
+    /// 
+    /// </summary>
+    [ProtocolRoute("LogicService", "Gate")]
+    public class SyncGateClientAccountExpire : Notify
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        public string serverGroupID;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public string accountUUid;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public DateTime ExpectTime;
+    }
+
+    // H.Q.Cai 添加结束
 }
