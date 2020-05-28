@@ -289,7 +289,10 @@ namespace DeepMMO.Server.Area
                 {
                     if (player.ZoneNode == node)
                     {
-                        return await node.DoPlayerEnterReplace(player, enter);
+                        var replace = await node.DoPlayerEnterReplace(player, enter);
+                        if (replace.IsSuccess) { return replace; }
+                        this.players.TryGetOrCreate(enter.roleUUID, out player, (uuid) => this.CreateZonePlayer(node, enter));
+                        return await node.DoPlayerEnterAsync(player, enter);
                     }
                     else
                     {

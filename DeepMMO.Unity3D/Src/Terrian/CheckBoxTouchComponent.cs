@@ -74,7 +74,7 @@ namespace DeepMMO.Unity3D.Terrain
             }
             if (isInwater)
             {
-                var downhit = RayHit(tophit.Item2.point, Vector3.down, 3, "NavLayer");//Physics.Raycast(pos, Vector3.down, out RaycastHit hit, 3, LayerMask.GetMask("NavLayer"));
+                var downhit = RayHit(pointtop, Vector3.down, 5, "NavLayer");//Physics.Raycast(pos, Vector3.down, out RaycastHit hit, 3, LayerMask.GetMask("NavLayer"));
                 if (!downhit.Item1 || (downhit.Item1 && Mathf.Abs(tophit.Item2.point.y - downhit.Item2.point.y) >= StepIntercept))
                 {
                     return new Tuple<bool, Vector3>(true, tophit.Item2.point);

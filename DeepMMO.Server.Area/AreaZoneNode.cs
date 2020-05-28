@@ -210,6 +210,10 @@ namespace DeepMMO.Server.Area
         {
             return node.QueuePlayerTaskAsync<RoleEnterZoneResponse>(player.RoleUUID, (instancePlayer) =>
              {
+                 if (instancePlayer == null)
+                 {
+                     return new RoleEnterZoneResponse() { s2c_code = RoleEnterZoneResponse.CODE_ERROR };
+                 }
                  return (new RoleEnterZoneResponse()
                  {
                      mapTemplateID = this.MapTemplateID,
@@ -224,7 +228,6 @@ namespace DeepMMO.Server.Area
                          y = instancePlayer.Y,
                          z = instancePlayer.Z
                      },
-
                      areaName = service.SelfAddress.ServiceName,
                      areaNode = service.SelfAddress.ServiceNode,
                      guildUUID = enter.guildUUID,
@@ -383,14 +386,14 @@ namespace DeepMMO.Server.Area
         private bool zoneGameOver = false;
         //private DateTime mExpireTimeUTC = DateTime.UtcNow;
         private bool HasAddPlayer = false;// player already in zone
-//         public void SetSceneExpireTime(DateTime time)
-//         {
-//             mExpireTimeUTC = time.ToUniversalTime();
-//         }
-//         private bool IsExpire()
-//         {
-//             return (DateTime.UtcNow - mExpireTimeUTC).TotalSeconds > 0;
-//         }
+                                          //         public void SetSceneExpireTime(DateTime time)
+                                          //         {
+                                          //             mExpireTimeUTC = time.ToUniversalTime();
+                                          //         }
+                                          //         private bool IsExpire()
+                                          //         {
+                                          //             return (DateTime.UtcNow - mExpireTimeUTC).TotalSeconds > 0;
+                                          //         }
         /// <summary>
         /// 检测是否需要维持场景，否则，则销毁场景
         /// </summary>
@@ -400,7 +403,7 @@ namespace DeepMMO.Server.Area
             if (node.PlayerCount > 0) return true;
             if (zoneGameOver) return false;
             if (HasAddPlayer == false) return true;
-           // if (!IsExpire()) return true;
+            // if (!IsExpire()) return true;
             return false;
         }
         protected virtual void CheckZoneDispose(EditorScene z, TimeTaskMS t)
