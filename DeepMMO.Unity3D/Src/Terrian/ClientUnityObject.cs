@@ -2,6 +2,7 @@ using System;
 using DeepCore;
 using DeepCore.Game3D.Slave.Layer;
 using DeepCore.Game3D.Voxel;
+using DeepCore.Geometry;
 using UnityEngine;
 using UnityEngine.AI;
 using Vector2 = DeepCore.Geometry.Vector2;
@@ -153,6 +154,7 @@ namespace DeepMMO.Unity3D.Terrain
         private const bool isDebug = false;
         public VoxelObject.MoveResult TryMoveToNext3D(Vector2 target, bool land)
         {
+            var orgPos = Position;
             target.X = Position.X + target.X;
             target.Y = Position.Y + target.Y;
             target.X = Mathf.Clamp(target.X, 0, TotalWidth);
@@ -241,6 +243,8 @@ namespace DeepMMO.Unity3D.Terrain
                     this.currentPos = zonepos;
                     
                 }
+
+                FixPosHeight(orgPos,ref currentPos);
                 if (isDebug)
                 UnityEngine.Debug.Log("Arrive======"+currentPos);
                 return VoxelObject.MoveResult.Arrive;
@@ -286,7 +290,7 @@ namespace DeepMMO.Unity3D.Terrain
                             Debug.LogError("aftercurrentpos=" + currentPos);
                         }
                     }
-                      
+                    FixPosHeight(orgPos,ref currentPos);
                     if (isDebug)
                         UnityEngine.Debug.Log("land======"+currentPos);
                     return VoxelObject.MoveResult.Arrive;
@@ -347,6 +351,28 @@ namespace DeepMMO.Unity3D.Terrain
             //不可行走面//
             return VoxelObject.MoveResult.Blocked;
         }
+
+        
+        private void FixPosHeight(Vector3 orgPos,ref Vector3 targetpos)
+        {
+            var orgunitypos = ConvertToUnityPos(orgPos);
+            var tarunitypos = ConvertToUnityPos(targetpos);
+            FixPosHeight(orgunitypos, ref tarunitypos);
+            targetpos = UnityPos2ZonePos(tarunitypos);
+        }
+        private float FixRate = 30f;
+        private void FixPosHeight(UnityEngine.Vector3 orgPos,ref UnityEngine.Vector3 targetpos)
+        {
+            if (targetpos.y - orgPos.y > 0 && Mathf.Abs(targetpos.y - orgPos.y) > 0.2f && !this.IsMidair && !mIsInAir)
+            {
+                //Debug.Log("BeforeUnity Fix======" + targetpos.y);
+                var fix = Mathf.Lerp(orgPos.y, targetpos.y, Time.deltaTime* FixRate);
+                targetpos = new UnityEngine.Vector3(targetpos.x,fix,targetpos.z);
+                //Debug.Log("AfterUnity Fix======" + targetpos.y);
+            }
+
+        }
+
         public void Jump(float speed)
         {
             this.zspeed = speed;
@@ -362,8 +388,9 @@ namespace DeepMMO.Unity3D.Terrain
        
         public void fixPostion()
         {
-            if (LastPosition != currentUnityPos)
+            if (!LastPosition.Equals(currentUnityPos))
             {
+                var orgPos = new UnityEngine.Vector3(LastPosition.x,LastPosition.y,LastPosition.z);
                 var dir = -(LastPosition - currentUnityPos).normalized;
                 var distance = UnityEngine.Vector3.Distance(currentUnityPos, LastPosition);
                 var isTouch = Physics.Raycast(LastPosition, dir, out RaycastHit fixhit, distance, mCheckBoxTouchComponent.GetLayerMask());
@@ -372,7 +399,12 @@ namespace DeepMMO.Unity3D.Terrain
                     LastPosition = fixhit.point;
                     currentUnityPos = fixhit.point;
                 }
-                       
+
+                var targetPos = currentUnityPos;
+                FixPosHeight(orgPos,ref targetPos);
+                currentUnityPos = targetPos;
+
+
             }
            
         }

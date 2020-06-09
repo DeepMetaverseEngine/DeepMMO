@@ -111,7 +111,7 @@ namespace DeepMMO.Unity3D.Terrain
             var touchpos = startpos;
             var dir = (pointhalf - startpointhalf).normalized;
             var distance = UnityEngine.Vector3.Distance(pointhalf, startpos);
-            var iscollider = RayHit(startpointhalf, dir, distance + bodySize);
+            var iscollider = RayHit(startpointhalf, dir, distance - bodySize/2);
             if (iscollider.Item1)
             {
                 // if (iscollider.Item2.transform.gameObject.layer == LayerMask.NameToLayer("Water"))
