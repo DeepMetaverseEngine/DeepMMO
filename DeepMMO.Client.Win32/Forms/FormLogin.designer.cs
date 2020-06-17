@@ -242,7 +242,7 @@
             this.g2DPropertyGrid1.DescriptionAreaHeight = 116;
             this.g2DPropertyGrid1.DescriptionAreaLineCount = 5;
             this.g2DPropertyGrid1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.g2DPropertyGrid1.ImeMode = System.Windows.Forms.ImeMode.Off;
+            this.g2DPropertyGrid1.ImeMode = System.Windows.Forms.ImeMode.NoControl;
             this.g2DPropertyGrid1.Location = new System.Drawing.Point(0, 0);
             this.g2DPropertyGrid1.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.g2DPropertyGrid1.MinDescriptionAreaLineCount = 5;

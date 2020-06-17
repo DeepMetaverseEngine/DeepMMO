@@ -43,7 +43,7 @@
             this.prop_Config.DescriptionAreaHeight = 81;
             this.prop_Config.DescriptionAreaLineCount = 5;
             this.prop_Config.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.prop_Config.ImeMode = System.Windows.Forms.ImeMode.On;
+            this.prop_Config.ImeMode = System.Windows.Forms.ImeMode.NoControl;
             this.prop_Config.LineColor = System.Drawing.SystemColors.ControlDark;
             this.prop_Config.Location = new System.Drawing.Point(0, 0);
             this.prop_Config.MinDescriptionAreaLineCount = 5;
@@ -88,7 +88,7 @@
             this.ClientSize = new System.Drawing.Size(730, 747);
             this.Controls.Add(this.splitContainer1);
             this.Font = new System.Drawing.Font("宋体", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.ImeMode = System.Windows.Forms.ImeMode.On;
+            this.ImeMode = System.Windows.Forms.ImeMode.NoControl;
             this.Name = "FormLauncher";
             this.Text = "配置机器人";
             this.Load += new System.EventHandler(this.FormLauncher_Load);
