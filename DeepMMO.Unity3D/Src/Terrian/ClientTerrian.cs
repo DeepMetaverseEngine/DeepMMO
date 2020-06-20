@@ -62,35 +62,6 @@ namespace DeepMMO.Unity3D.Terrain
         public override object Tag { get; set; }
         public override IMapNode[] Nexts { get { return nexts; } }
     }
-    public class NavMeshWayPoint : IWayPoint<ClientMapNode, NavMeshWayPoint>
-    {
-        public float X { get => Position.X; }
-        public float Y { get => Position.Y; }
-        public float Z { get => Position.Z; }
-        public Vector3 Position { get; set; }
-        internal NavMeshWayPoint(ClientMapNode mapNode) : base(mapNode)
-        {
-            this.Position = base.Node.Position;
-        }
-        public override bool PosEquals(NavMeshWayPoint w)
-        {
-            return this.Position == w.Position;
-        }
-        public virtual float GetTotalDistance()
-        {
-            float ret = 0;
-            var cur = this;
-            while (cur != null)
-            {
-                var nex = cur.Next;
-                if (cur != null && nex != null)
-                {
-                    ret += Vector3.Distance(cur.Position, nex.Position);
-                }
-                cur = nex;
-            }
-            return ret;
-        }
         public class NavMeshClientTerrain3D : ILayerZoneTerrain
         {
             private float TerrainWidth;
@@ -846,5 +817,34 @@ namespace DeepMMO.Unity3D.Terrain
             //--------------------------------------------------------------------------------------------------------
         }
 
+    public class NavMeshWayPoint : IWayPoint<ClientMapNode, NavMeshWayPoint>
+    {
+        public float X { get => Position.X; }
+        public float Y { get => Position.Y; }
+        public float Z { get => Position.Z; }
+        public Vector3 Position { get; set; }
+        internal NavMeshWayPoint(ClientMapNode mapNode) : base(mapNode)
+        {
+            this.Position = base.Node.Position;
+        }
+        public override bool PosEquals(NavMeshWayPoint w)
+        {
+            return this.Position == w.Position;
+        }
+        public virtual float GetTotalDistance()
+        {
+            float ret = 0;
+            var cur = this;
+            while (cur != null)
+            {
+                var nex = cur.Next;
+                if (cur != null && nex != null)
+                {
+                    ret += Vector3.Distance(cur.Position, nex.Position);
+                }
+                cur = nex;
+            }
+            return ret;
+        }
     }
 }
