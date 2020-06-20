@@ -10,6 +10,8 @@ using DeepCore.GameData.Zone;
 using DeepCore.IO;
 using DeepCore.Unity3D;
 using UnityEngine;
+using UnityEngine.AI;
+using UnityEngine.Apple.TV;
 using ILayerWayPoint = DeepCore.Game3D.Slave.ILayerWayPoint;
 using Vector2 = DeepCore.Geometry.Vector2;
 using Vector3 = DeepCore.Geometry.Vector3;
@@ -610,13 +612,14 @@ namespace DeepMMO.Unity3D.Terrain
                 }
                 protected readonly LayerUnit unit;
                 protected readonly ClientUnityObject vobj;
-
+                protected readonly NavMeshClientTerrain3D world;
                 private float StepIntercept;
                 //单位，地图高度 ，台阶高度，格子尺寸，碰撞半径
                 public ClientUnitPostion(LayerUnit unit, float totalwidth, float totalHeigt, float stepIntercept, float gridcellsize, float radius = 0.5f)
                 {
                     this.unit = unit;
                     this.vobj = new ClientUnityObject(totalwidth, totalHeigt, stepIntercept, unit.BodyHeight, gridcellsize, radius, unit.Parent.Gravity);
+                    this.world = unit.Parent.Terrain3D as NavMeshClientTerrain3D;
                     this.StepIntercept = stepIntercept;
                 }
 
@@ -658,20 +661,35 @@ namespace DeepMMO.Unity3D.Terrain
                     // }
 
                     //在半空中
+                    //                     if (unit.RemoteMidAir > 0)
+                    //                     {
+                    //                         vobj.Update(intervalMS);
+                    //                     }
+                    //                     //在上升趋势
+                    //                     else if (vobj.SpeedZ > 0)
+                    //                     {
+                    //                         vobj.Update(intervalMS);
+                    //                     }
+                    //                     else
+                    //                     {
+                    //                         FixLerp(in remotePos, 0.1f);
+                    //                     }
+
                     if (unit.RemoteMidAir > 0)
                     {
                         vobj.Update(intervalMS);
                     }
-                    //在上升趋势
                     else if (vobj.SpeedZ > 0)
                     {
                         vobj.Update(intervalMS);
                     }
                     else
                     {
-                        FixLerp(in remotePos, 0.1f);
+                        var pos = vobj.Position;
+                        world.TryGetVoxelUpRange(pos, out var upward);
+                        pos.Z = upward;
+                        FixLerp(pos, 0.1f);
                     }
-
                 }
 
                 public void StartJump(float zspeed, float gravity, float zlimit)
@@ -767,22 +785,8 @@ namespace DeepMMO.Unity3D.Terrain
                 public override void Update(in Vector3 remotePos, int intervalMS)
                 {
                     if (unit is LayerPlayer p && p.IsReady)
-                    {  
-                        //在半空中
-                        if (unit.RemoteMidAir > 0)
-                        {
-                            vobj.Update(intervalMS);
-                        }
-                        //在上升趋势
-                        else if (vobj.SpeedZ > 0)
-                        {
-                            vobj.Update(intervalMS);
-                        }
-                        else
-                        {
-                            FixLerp(in remotePos, 0.1f);
-                        }
-                        // vobj.Update(intervalMS);
+                    {
+                        base.Update(in remotePos, intervalMS);
                     }
                 }
 
