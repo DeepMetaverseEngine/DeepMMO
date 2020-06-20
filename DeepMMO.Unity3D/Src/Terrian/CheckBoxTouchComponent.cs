@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace DeepMMO.Unity3D.Terrain
 {
@@ -57,7 +56,7 @@ namespace DeepMMO.Unity3D.Terrain
         }
 
         //Bounds
-        public Tuple<bool, Vector3> IsInWater(Vector3 pos)
+        public Tuple<bool, Vector3> IsInWater(Vector3 pos,float WaterDistance)
         {
             pointtop = pos + Vector3.up * height/2;
             Physics.queriesHitBackfaces = true;
@@ -75,7 +74,7 @@ namespace DeepMMO.Unity3D.Terrain
             if (isInwater)
             {
                 var downhit = RayHit(pointtop, Vector3.down, 5, "NavLayer");//Physics.Raycast(pos, Vector3.down, out RaycastHit hit, 3, LayerMask.GetMask("NavLayer"));
-                if (!downhit.Item1 || (downhit.Item1 && Mathf.Abs(tophit.Item2.point.y - downhit.Item2.point.y) >= StepIntercept))
+                if (!downhit.Item1 || (downhit.Item1 && Mathf.Abs(tophit.Item2.point.y - downhit.Item2.point.y) >= WaterDistance))
                 {
                     return new Tuple<bool, Vector3>(true, tophit.Item2.point);
                 }

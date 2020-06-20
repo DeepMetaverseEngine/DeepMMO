@@ -1,22 +1,75 @@
+// #define USE_FILE
+
+using System;
+using System.Collections.Generic;
 using System.Threading;
-using CoreUnity.AssetBundles;
+using Cysharp.Text;
+using DeepCore.Unity3D;
+using DeepU3.AssetBundles;
 using DeepCore.Unity3D.Impl;
 using UnityEngine;
 
-namespace DeepCore.Unity3D.AssetBundles
+namespace DeepMMO.Unity3D.AssetBundles
 {
     public class AssetBundleDeepCoreLoader : ICommandHandler<AssetBundleCommand>
     {
-        public void Handle(AssetBundleCommand cmd)
+        public struct HandleTask
+        {
+            public string Path;
+            public Action<byte[]> CallBack;
+            public static HandleTask Default = new HandleTask();
+        }
+
+
+        private readonly Queue<HandleTask> mQueues = new Queue<HandleTask>();
+
+        // private readonly SemaphoreSlim mSlim = new SemaphoreSlim(0, 1000);
+
+        public AssetBundleDeepCoreLoader()
+        {
+            var thread = new Thread(ThreadRun);
+            thread.Start();
+        }
+
+        private void ThreadRun()
+        {
+            while (true)
+            {
+                var cmd = HandleTask.Default;
+                lock (mQueues)
+                {
+                    if (mQueues.Count > 0)
+                    {
+                        cmd = mQueues.Dequeue();
+                    }
+                }
+
+                if (cmd.CallBack != null)
+                {
+                    using (var sb = new Utf16ValueStringBuilder(true))
+                    {
+                        sb.Append(mBaseUrl);
+                        sb.Append(cmd.Path);
+                        //todo TryLoadData内 路径优化,去除SubString
+                        UnityDriver.UnityInstance.TryLoadData(sb.ToString(), out var bin);
+                        UnityHelper.MainThreadInvoke(() => { cmd.CallBack(bin); });
+                    }
+                }
+
+                Thread.Sleep(10);
+            }
+        }
+
+        public void Handle(AssetBundleManager mgr, AssetBundleCommand cmd)
         {
             if (UnityDriver.LOAD_ASSETBUNDLE_USE_STREAM)
             {
-                if (UnityDriver.UnityInstance.TryOpenStream(mBaseUrl + cmd.BundleName, out var stream))
+                if (UnityDriver.UnityInstance.TryOpenStream(ConvertToAssetBundleName(cmd), out var stream))
                 {
-                    if (cmd.Immediate)
+                    if ((cmd.Option & AssetBundleLoadOption.SupportImmediate) != 0)
                     {
                         var ab = AssetBundle.LoadFromStream(stream, 0, 128 * 1024);
-                        cmd.OnComplete(ab);
+                        cmd.SetComplete(ab);
                     }
                     else
                     {
@@ -24,52 +77,100 @@ namespace DeepCore.Unity3D.AssetBundles
                         request.completed += (e) =>
                         {
                             stream.Dispose();
-                            cmd.OnComplete(request.assetBundle);
+                            cmd.SetComplete(request.assetBundle);
                         };
                     }
                 }
                 else
                 {
-                    cmd.OnComplete(null);
+                    cmd.SetComplete(null);
                 }
             }
             else
             {
-                if (cmd.Immediate)
+#if UNITY_STANDALONE && USE_FILE
+                if (DataPathHelper.IsUseMPQ)
                 {
-                    if (UnityDriver.UnityInstance.TryLoadData(mBaseUrl + cmd.BundleName, out var bin) && bin != null)
-                    {
-                        var ab = AssetBundle.LoadFromMemory(bin);
-                        cmd.OnComplete(ab);
-                    }
-                    else
-                    {
-                        Debugger.LogError($"{cmd.BundleName} error");
-                    }
+                    HandleFromMemory(cmd);
                 }
                 else
                 {
-                    ThreadPool.QueueUserWorkItem((obj) =>
+                    if (cmd.Immediate)
                     {
-                        if (UnityDriver.UnityInstance.TryLoadData(mBaseUrl + cmd.BundleName, out var bin) && bin != null)
+                        var ab = AssetBundle.LoadFromFile(ConvertToAssetBundleName(cmd));
+                        cmd.SetComplete(ab);
+                    }
+                    else
+                    {
+                        var request = AssetBundle.LoadFromFileAsync(ConvertToAssetBundleName(cmd));
+                        request.completed += (e) => { cmd.OnComplete(cmd, request.assetBundle); };
+                    }                 
+                }
+
+#else
+                HandleFromMemory(mgr, cmd);
+
+#endif
+            }
+        }
+
+        private string mBaseUrl;
+
+
+        private string ConvertToAssetBundleName(AssetBundleCommand cmd)
+        {
+            using (var sb = new Utf16ValueStringBuilder(true))
+            {
+                sb.Append(mBaseUrl);
+                sb.Append(cmd.BundleName);
+                return sb.ToString();
+            }
+        }
+
+        private void HandleFromMemory(AssetBundleManager mgr, AssetBundleCommand cmd)
+        {
+            if ((cmd.Option & AssetBundleLoadOption.SupportImmediate) != 0)
+            {
+                if (UnityDriver.UnityInstance.TryLoadData(ConvertToAssetBundleName(cmd), out var bin) && bin != null)
+                {
+                    var ab = AssetBundle.LoadFromMemory(bin);
+                    cmd.SetComplete(ab);
+                }
+                else
+                {
+                    cmd.Error = "UnityDriver.UnityInstance.TryLoadData Error";
+                    cmd.SetComplete(null);
+                }
+            }
+            else
+            {
+                lock (mQueues)
+                {
+                    mQueues.Enqueue(new HandleTask
+                    {
+                        Path = cmd.BundleName, CallBack = (bin) =>
                         {
-                            UnityHelper.MainThreadInvoke(() =>
+                            if (bin == null)
+                            {
+                                cmd.SetComplete(null);
+                            }
+                            else
                             {
                                 var request = AssetBundle.LoadFromMemoryAsync(bin);
-                                request.completed += (e) => { cmd.OnComplete(request.assetBundle); };
-                            });
-                        }
-                        else
-                        {
-                            Debugger.LogError($"{cmd.BundleName} error");
-                            UnityHelper.MainThreadInvoke(() => { cmd.OnComplete(null); });
+                                if (request.isDone)
+                                {
+                                    cmd.SetComplete(request.assetBundle);
+                                }
+                                else
+                                {
+                                    request.completed += (e) => { cmd.SetComplete(request.assetBundle); };
+                                }
+                            }
                         }
                     });
                 }
             }
         }
-
-        private string mBaseUrl;
 
         public void SetBaseUrl(string url)
         {

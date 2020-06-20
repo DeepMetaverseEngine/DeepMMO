@@ -2,7 +2,6 @@ using System;
 using DeepCore;
 using DeepCore.Game3D.Slave.Layer;
 using DeepCore.Game3D.Voxel;
-using DeepCore.Geometry;
 using UnityEngine;
 using UnityEngine.AI;
 using Vector2 = DeepCore.Geometry.Vector2;
@@ -80,7 +79,9 @@ namespace DeepMMO.Unity3D.Terrain
         private float gridcellsize;
         public float GridCellSize;
 
-        public ClientUnityObject(float totalwidth,float totalHeight, float stepIntercept, float height,float gridcellsize,float radius = 0.5f,float gravity = 9.8f )
+        public ClientUnityObject(float totalwidth,float totalHeight,
+            float stepIntercept, float height,float gridcellsize,
+            float radius = 0.5f,float gravity = 9.8f )
         {
             TotalWidth = totalwidth;
             TotalHeight = totalHeight;
@@ -90,7 +91,7 @@ namespace DeepMMO.Unity3D.Terrain
             mCheckBoxTouchComponent.height = height;
             mCheckBoxTouchComponent.radius = radius;
             GridCellSize = gridcellsize;
-            Gravity = gravity;
+            Gravity = gravity; //TLEditorConfig.Instance.OBJECT_SPRINT_WATERSTANDDISTANCE;
             //LayerMasks = LayerMask.GetMask(LayerName);
         }
         public void Transport(Vector3 pos)
@@ -117,7 +118,8 @@ namespace DeepMMO.Unity3D.Terrain
 
         public Tuple<bool,UnityEngine.Vector3> IsInWater(UnityEngine.Vector3 unityPos)
         {
-            var IsInWater = mCheckBoxTouchComponent.IsInWater(unityPos);
+          
+            var IsInWater = mCheckBoxTouchComponent.IsInWater(unityPos,WaterStandDistance);
             //Debug.Log("ClientUnityObjectIsInWater = "+IsInWater);
             return IsInWater;
         }
@@ -377,16 +379,16 @@ namespace DeepMMO.Unity3D.Terrain
         {
             this.zspeed = speed;
         }
-        public void Update(int intervalMS)
+        public void Update(int intervalMS, LayerUnit unit)
         {
-            ProcessGravity(intervalMS);
+            ProcessGravity(intervalMS, unit);
             fixPostion();
         }
 
        
         private UnityEngine.Vector3 LastPosition = UnityEngine.Vector3.zero;
        
-        public void fixPostion()
+        public  void fixPostion()
         {
             if (!LastPosition.Equals(currentUnityPos))
             {
@@ -422,9 +424,27 @@ namespace DeepMMO.Unity3D.Terrain
 
         private bool mInitPos = false;
         private UnityEngine.Vector3 mInitVector3 = UnityEngine.Vector3.zero;
-        protected virtual void ProcessGravity(int intervalMS)
+
+        private bool CheckFallenDown(float height,LayerUnit unit)
+        {
+            var bottomFixHeight = height;
+            var isGuard = (!(unit is LayerPlayer p)) || p.IsGuard;
+            if (isGuard)
+            {
+                bottomFixHeight = unit.LayerUpward;
+            }
+            if (currentPos.Z <= bottomFixHeight)
+            {
+                currentPos.Z = bottomFixHeight;
+                return true;
+            }
+
+            return false;
+        }
+        protected virtual void ProcessGravity(int intervalMS, LayerUnit unit)
         {
             
+           
            
             if(!mInitPos)
             {
@@ -492,11 +512,11 @@ namespace DeepMMO.Unity3D.Terrain
            }
            else
            {
-               mIsInAir =  (zspeed > 0 || Gravity == 0 || !bottomhit.Item1);
+               mIsInAir =  (zspeed != 0 || Gravity == 0 || !bottomhit.Item1);
            }
           //UnityEngine.Debug.Log("zspeed===="+zspeed + " bottomhit.Item1==="+ bottomhit.Item1);
 
-            if (zspeed > 0 || !bottomhit.Item1)
+            if (zspeed != 0 || !bottomhit.Item1)
             {
                 currentPos.Z += CMath.GetSpeedDistance(intervalMS, zspeed);
                 var hitpos = currentUnityPos;
@@ -517,10 +537,8 @@ namespace DeepMMO.Unity3D.Terrain
 
                 hitpos.y = bottomHeight;
                 var bottomzonepos = UnityPos2ZonePos(hitpos);
-                //UnityEngine.Debug.LogError("bottomzonepos===="+bottomzonepos);
-                if (currentPos.Z <= bottomzonepos.Z)
+                if (CheckFallenDown(bottomzonepos.Z,unit))
                 {
-                    currentPos.Z = bottomzonepos.Z;
                     if (zspeed != 0)
                     {
                         event_OnFallenDown?.Invoke(this, zspeed);
@@ -529,7 +547,7 @@ namespace DeepMMO.Unity3D.Terrain
                     }
                     return;
                 }
-
+               
                 if (mInitPos)
                 {
                     zspeed -= CMath.GetSpeedDistance(intervalMS, Gravity);
@@ -548,12 +566,16 @@ namespace DeepMMO.Unity3D.Terrain
                         hitpos.y = bottomHeight;
                     }
                     var bottomzonepos = UnityPos2ZonePos(hitpos);
-                    if (currentPos.Z < bottomzonepos.Z )
-                    {   
-                        //UnityEngine.Debug.Log("bottomhit.Item2===="+bottomzonepos.Z + " currentPos.Z==="+ currentPos.Z);
-                        currentPos.Z = bottomzonepos.Z ;
+                    if (CheckFallenDown(bottomzonepos.Z, unit))
+                    {
                         zspeed = 0;
                     }
+                    // if (currentPos.Z < bottomzonepos.Z )
+                    // {   
+                    //     //UnityEngine.Debug.Log("bottomhit.Item2===="+bottomzonepos.Z + " currentPos.Z==="+ currentPos.Z);
+                    //     currentPos.Z = bottomzonepos.Z ;
+                    //     zspeed = 0;
+                    // }
                 }
                 else
                 {
@@ -579,6 +601,9 @@ namespace DeepMMO.Unity3D.Terrain
         private LayerChanged event_OnLayerChanged;
         private BumpHead event_OnBumpHead;
         private FallenDown event_OnFallenDown;
+
+        public float WaterStandDistance = 1;
+
         public delegate void LayerChanged(ClientUnityObject obj, VoxelLayer src, VoxelLayer dst);
         public delegate void BumpHead(ClientUnityObject obj, float zspeed);
         public delegate void FallenDown(ClientUnityObject obj, float zspeed);

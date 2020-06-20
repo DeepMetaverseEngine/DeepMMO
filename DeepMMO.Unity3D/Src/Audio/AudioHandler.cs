@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using CoreUnity.Asset;
-using CoreUnity.Async;
+using DeepU3.Asset;
+using DeepU3.Async;
 using DeepCore.Unity3D;
 using UnityEngine;
 
@@ -423,7 +423,7 @@ namespace CoreUnity.Audio
         }
 
 
-        private static readonly Cache.ObjectPool<AudioHandler> sAudioHandlerPool = new Cache.ObjectPool<AudioHandler>(20, RemovePoolAudioHandler);
+        private static readonly DeepU3.Cache.ObjectPool<AudioHandler> sAudioHandlerPool = new DeepU3.Cache.ObjectPool<AudioHandler>(20, RemovePoolAudioHandler);
 
         private static void RemovePoolAudioHandler(AudioHandler arg)
         {

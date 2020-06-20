@@ -7,7 +7,10 @@
     <DefineConstants>TRACE;UNITY_STANDALONE</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <DefineConstants>TRACE;UNITY_2018_1_OR_NEWER</DefineConstants>
+    <DefineConstants>TRACE;UNITY_2018_1_OR_NEWER;UNITY_EDITOR;UNITY_STANDALONE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DefineConstants>TRACE;UNITY_2018_1_OR_NEWER;UNITY_EDITOR;UNITY_STANDALONE</DefineConstants>
   </PropertyGroup>
   <ItemGroup Condition="'$(TargetFramework)'=='net462'">
     <Compile Remove="Platform\Win32\System.Drawing.Common\**" />

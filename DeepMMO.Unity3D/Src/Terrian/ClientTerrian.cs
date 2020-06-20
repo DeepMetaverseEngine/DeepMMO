@@ -585,6 +585,8 @@ namespace DeepMMO.Unity3D.Terrain
                 protected readonly ClientUnityObject vobj;
                 protected readonly NavMeshClientTerrain3D world;
                 private float StepIntercept;
+
+                private float WaterStandDistance;
                 //单位，地图高度 ，台阶高度，格子尺寸，碰撞半径
                 public ClientUnitPostion(LayerUnit unit, float totalwidth, float totalHeigt, float stepIntercept, float gridcellsize, float radius = 0.5f)
                 {
@@ -594,6 +596,15 @@ namespace DeepMMO.Unity3D.Terrain
                     this.StepIntercept = stepIntercept;
                 }
 
+                public void SetWaterStandDistance(float value)
+                {
+                    WaterStandDistance = value;
+                    if (this.vobj!= null)
+                    {
+                        this.vobj.WaterStandDistance = value;
+                    }
+                    
+                }
                 public void SetPos(float x, float y, float z)
                 {
                     vobj.Transport(new Vector3(x, y, z));
@@ -645,10 +656,9 @@ namespace DeepMMO.Unity3D.Terrain
                     //                     {
                     //                         FixLerp(in remotePos, 0.1f);
                     //                     }
-
+                    vobj.Update(intervalMS, this.unit);
+                   
                     
-                        vobj.Update(intervalMS);
-                  
                 }
 
                 public void StartJump(float zspeed, float gravity, float zlimit)
@@ -754,85 +764,5 @@ namespace DeepMMO.Unity3D.Terrain
             //--------------------------------------------------------------------------------------------------------
 
         }
-        public class NavMeshClientWayPoint : ILayerWayPoint
-        {
-            private NavMeshWayPoint p;
-            public NavMeshClientWayPoint(NavMeshWayPoint p)
-            {
-                this.p = p;
-            }
-
-            public void LinkNext(NavMeshClientWayPoint next)
-            {
-                this.Next = next;
-                next.Prev = this;
-                //                (Tail as NavMeshClientWayPoint).Next = next;
-                //                next.Prev = (Tail as NavMeshClientWayPoint);
-            }
-            public static NavMeshClientWayPoint CreateFromVoxel(NavMeshWayPoint p)
-            {
-                if (p == null)
-                {
-                    return null;
-                }
-                var start = new NavMeshClientWayPoint(p);
-                var wp = start;
-                while (p.Next != null)
-                {
-                    p = p.Next;
-                    var next = new NavMeshClientWayPoint(p);
-                    wp.Next = next;
-                    next.Prev = wp;
-                    wp = next;
-                }
-                return start;
-            }
-            public ILayerWayPoint Next { get; private set; }
-            public ILayerWayPoint Prev { get; private set; }
-            public ILayerWayPoint Tail { get { var wp = this as ILayerWayPoint; while (wp.Next != null) { wp = wp.Next; } return wp; } }
-            public float X { get => p.X; }
-            public float Y { get => p.Y; }
-            public float Z { get => p.Z; }
-            public Vector3 Position { get => p.Position; }
-            public bool PosEquals(ILayerWayPoint w)
-            {
-                return p.PosEquals((w as NavMeshClientWayPoint).p);
-            }
-            public float GetTotalDistance()
-            {
-                return p.GetTotalDistance();
-            }
-            //--------------------------------------------------------------------------------------------------------
-        }
-
-    public class NavMeshWayPoint : IWayPoint<ClientMapNode, NavMeshWayPoint>
-    {
-        public float X { get => Position.X; }
-        public float Y { get => Position.Y; }
-        public float Z { get => Position.Z; }
-        public Vector3 Position { get; set; }
-        internal NavMeshWayPoint(ClientMapNode mapNode) : base(mapNode)
-        {
-            this.Position = base.Node.Position;
-        }
-        public override bool PosEquals(NavMeshWayPoint w)
-        {
-            return this.Position == w.Position;
-        }
-        public virtual float GetTotalDistance()
-        {
-            float ret = 0;
-            var cur = this;
-            while (cur != null)
-            {
-                var nex = cur.Next;
-                if (cur != null && nex != null)
-                {
-                    ret += Vector3.Distance(cur.Position, nex.Position);
-                }
-                cur = nex;
-            }
-            return ret;
-        }
-    }
+       
 }
