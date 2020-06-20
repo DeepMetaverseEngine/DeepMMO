@@ -646,21 +646,9 @@ namespace DeepMMO.Unity3D.Terrain
                     //                         FixLerp(in remotePos, 0.1f);
                     //                     }
 
-                    if (unit.RemoteMidAir > 0)
-                    {
+                    
                         vobj.Update(intervalMS);
-                    }
-                    else if (vobj.SpeedZ > 0)
-                    {
-                        vobj.Update(intervalMS);
-                    }
-                    else
-                    {
-                        var pos = vobj.Position;
-                        world.TryGetVoxelUpRange(pos, out var upward);
-                        pos.Z = upward;
-                        FixLerp(pos, 0.1f);
-                    }
+                  
                 }
 
                 public void StartJump(float zspeed, float gravity, float zlimit)
