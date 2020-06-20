@@ -168,9 +168,9 @@ namespace DeepMMO.Unity3D.Terrain
         }
 
 
-        private NavMeshWayPoint.NavMeshClientWayPoint NewFindPath(DeepCore.Geometry.Vector3 beginpos, DeepCore.Geometry.Vector3 endpos)
+        private NavMeshClientWayPoint NewFindPath(DeepCore.Geometry.Vector3 beginpos, DeepCore.Geometry.Vector3 endpos)
         {
-            var clientTerrain = Layer.Terrain3D as NavMeshWayPoint.NavMeshClientTerrain3D;
+            var clientTerrain = Layer.Terrain3D as NavMeshClientTerrain3D;
             ILayerWayPoint points = null;
             if (m_IsFlying)//已经在飞行
             {
@@ -186,7 +186,7 @@ namespace DeepMMO.Unity3D.Terrain
             }
                
 
-            return points as NavMeshWayPoint.NavMeshClientWayPoint;
+            return points as NavMeshClientWayPoint;
         }
 
         private ILayerWayPoint GetWay_Points(DeepCore.Geometry.Vector3 beginpos, DeepCore.Geometry.Vector3 endpos)
@@ -259,7 +259,7 @@ namespace DeepMMO.Unity3D.Terrain
                     var navwaypoint = NewFindPath(beginpos, zonepos) ;//Layer.Terrain3D.FindPath(beginpos, zonepos) as NavMeshWayPoint.NavMeshClientWayPoint;
                     if (navwaypoint != null)
                     {
-                        if (Layer.Terrain3D is NavMeshWayPoint.NavMeshClientTerrain3D)
+                        if (Layer.Terrain3D is NavMeshClientTerrain3D)
                         {
                             var pos = new List<DeepCore.Geometry.Vector3>();
                             zonepos = new DeepCore.Geometry.Vector3(wp_path.Data.X, wp_path.Data.Y, wp_path.Data.Z);
@@ -405,7 +405,7 @@ namespace DeepMMO.Unity3D.Terrain
 
             if (_way_points != null && _way_points.Count > 0)
             {
-                _navPathPoints = NavMeshWayPoint.NavMeshClientTerrain3D.GetRoadPoint(_way_points[0],Owner.Parent.Terrain3D.TotalHeight);
+                _navPathPoints = NavMeshClientTerrain3D.GetRoadPoint(_way_points[0],Owner.Parent.Terrain3D.TotalHeight);
             }
             return new Tuple<List<Vector3>, List<ILayerWayPoint>>(_navPathPoints,_way_points);
             
@@ -570,7 +570,7 @@ namespace DeepMMO.Unity3D.Terrain
             var _targetpos = pos;
             if (m_IsFlying)
             {
-                var clientTerrain = Layer.Terrain3D as NavMeshWayPoint.NavMeshClientTerrain3D;
+                var clientTerrain = Layer.Terrain3D as NavMeshClientTerrain3D;
                 _targetpos = clientTerrain.FixPos(pos);
                
             }
@@ -583,7 +583,7 @@ namespace DeepMMO.Unity3D.Terrain
             var _targetpos = pos;
             if (m_IsFlying)
             {
-                var clientTerrain = Layer.Terrain3D as NavMeshWayPoint.NavMeshClientTerrain3D;
+                var clientTerrain = Layer.Terrain3D as NavMeshClientTerrain3D;
                 var unitypos = pos.ConvertToUnityPos(Layer.Terrain3D.TotalHeight);
                 unitypos = clientTerrain.FixPos(unitypos);
                 _targetpos = BattleUtils.UnityPos2ZonePos(Layer.Terrain3D.TotalHeight,unitypos);
@@ -752,7 +752,7 @@ namespace DeepMMO.Unity3D.Terrain
                     if (way_points.Count > 1)
                     {
                         way_points.RemoveAt(0);
-                        mNavPathPoints = NavMeshWayPoint.NavMeshClientTerrain3D.GetRoadPoint(way_points[0],Owner.Parent.Terrain3D.TotalHeight);
+                        mNavPathPoints = NavMeshClientTerrain3D.GetRoadPoint(way_points[0],Owner.Parent.Terrain3D.TotalHeight);
                     }
                 }
                 
@@ -765,7 +765,7 @@ namespace DeepMMO.Unity3D.Terrain
                 if (m_IsFlying)
                 {
                   
-                    var clientTerrain = Layer.Terrain3D as NavMeshWayPoint.NavMeshClientTerrain3D;
+                    var clientTerrain = Layer.Terrain3D as NavMeshClientTerrain3D;
                     var _targetpos = targetpos;
                     var pos = clientTerrain.UpdateAirMove(cur_pos,length,ref mNavPathPoints);
                     //Fix3DMove(ref cur_pos, nextpos, length);
