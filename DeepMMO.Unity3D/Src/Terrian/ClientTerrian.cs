@@ -10,8 +10,6 @@ using DeepCore.GameData.Zone;
 using DeepCore.IO;
 using DeepCore.Unity3D;
 using UnityEngine;
-using UnityEngine.AI;
-using UnityEngine.Apple.TV;
 using ILayerWayPoint = DeepCore.Game3D.Slave.ILayerWayPoint;
 using Vector2 = DeepCore.Geometry.Vector2;
 using Vector3 = DeepCore.Geometry.Vector3;
@@ -71,13 +69,14 @@ namespace DeepMMO.Unity3D.Terrain
             public float StepIntercept => mStepIntercept;
             private string[] laymaskNames =
             {
-            "NavLayer",
-        };
+                "NavLayer", 
+                "Water"
+            };
 
             private int layMasks;
             private ClientUnityObject preUnitObj;
             private float Height = 2f;// 碰撞高度
-            private float FindPathDistance;//最近路点采样距离
+            protected float FindPathDistance;//最近路点采样距离
             private RcdtcsUnityUtils.SystemHelper m_System = new RcdtcsUnityUtils.SystemHelper();
             public ClientFlyPath clientFlyPath;
             private float _LandOffset = 0.5f;
@@ -94,6 +93,11 @@ namespace DeepMMO.Unity3D.Terrain
                     }
                 }
             }
+
+            public virtual int CreateLayerMask(string[] layers)
+            {
+                return LayerMask.GetMask(layers);
+            }
             //        public GameObject cubeobj;
             public NavMeshClientTerrain3D(string scenePathFindFileName, float terrainWidth, float terrainheight, int terrainGridCellSize, float stepIntercept, float findPathDistance = 3f)
             {
@@ -101,7 +105,7 @@ namespace DeepMMO.Unity3D.Terrain
                 TerrainHeight = terrainheight;
                 TerrainGridCellSize = terrainGridCellSize;
                 mStepIntercept = stepIntercept;
-                layMasks = LayerMask.GetMask(laymaskNames);
+                layMasks = CreateLayerMask(laymaskNames);
                 if (preUnitObj == null)
                 {
                     preUnitObj = new ClientUnityObject(terrainWidth, terrainheight, stepIntercept, Height, terrainGridCellSize);
@@ -135,6 +139,7 @@ namespace DeepMMO.Unity3D.Terrain
 
             }
 
+           
             public bool GetPolyHeight(UnityEngine.Vector2 pos, ref float height)
             {
                 if (m_System == null) return false;
@@ -188,7 +193,7 @@ namespace DeepMMO.Unity3D.Terrain
                 }
             }
 
-            private NavMeshWayPoint GenNavMeshWayPoint(List<UnityEngine.Vector3> path)
+            protected virtual NavMeshWayPoint GenNavMeshWayPoint(List<UnityEngine.Vector3> path)
             {
 
                 if (path != null && path.Count > 0)
@@ -287,7 +292,7 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 return NavMeshClientWayPoint.CreateFromVoxel(GenNavMeshWayPoint(NavPathPoints));
             }
-            public ILayerWayPoint FindAirPath(Vector3 src, Vector3 dst)
+            public virtual ILayerWayPoint FindAirPath(Vector3 src, Vector3 dst)
             {
                 var srctounitypos = src.ConvertToUnityPos(TerrainHeight);
                 var dsttounitypos = dst.ConvertToUnityPos(TerrainHeight);
@@ -351,7 +356,7 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 b_ReadyToFly = _readytofly;
             }
-            public ILayerWayPoint FindPath(Vector3 src, Vector3 dst)
+            public virtual ILayerWayPoint FindPath(Vector3 src, Vector3 dst)
             {
                 var srctounitypos = src.ConvertToUnityPos(TerrainHeight);
                 var dsttounitypos = dst.ConvertToUnityPos(TerrainHeight);

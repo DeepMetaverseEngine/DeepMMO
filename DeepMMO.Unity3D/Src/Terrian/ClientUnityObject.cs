@@ -431,9 +431,9 @@ namespace DeepMMO.Unity3D.Terrain
             var isGuard = (!(unit is LayerPlayer p)) || p.IsGuard;
             if (isGuard)
             {
-                bottomFixHeight = unit.LayerUpward;
+                bottomFixHeight = Math.Max(height,unit.LayerUpward);
             }
-            if (currentPos.Z <= bottomFixHeight)
+            if (currentPos.Z < bottomFixHeight)
             {
                 currentPos.Z = bottomFixHeight;
                 return true;
