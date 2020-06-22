@@ -2,6 +2,7 @@ using System;
 using DeepCore;
 using DeepCore.Game3D.Slave.Layer;
 using DeepCore.Game3D.Voxel;
+using DeepMMO.Unity3D.Terrian;
 using UnityEngine;
 using UnityEngine.AI;
 using Vector2 = DeepCore.Geometry.Vector2;
@@ -87,13 +88,17 @@ namespace DeepMMO.Unity3D.Terrain
             TotalHeight = totalHeight;
             StepIntercept = stepIntercept;
             Height = 2f;//height;
-            mCheckBoxTouchComponent = new CheckBoxTouchComponent(stepIntercept);
+            mCheckBoxTouchComponent = BoxColliderFactory.Factory.CreateBoxTouchComponent(stepIntercept);//
             mCheckBoxTouchComponent.height = height;
             mCheckBoxTouchComponent.radius = radius;
             GridCellSize = gridcellsize;
             Gravity = gravity; //TLEditorConfig.Instance.OBJECT_SPRINT_WATERSTANDDISTANCE;
             //LayerMasks = LayerMask.GetMask(LayerName);
         }
+
+        
+
+
         public void Transport(Vector3 pos)
         {
            //NavMeshHit navMeshHit = new NavMeshHit();

@@ -11,18 +11,23 @@ namespace DeepMMO.Unity3D.Terrain
         public System.Action<string, GameObject> mAction;
         public Vector3 currentUnityPos;
         private float StepIntercept;
-        private string[] LayerName =
+        private string[] LayerName = 
         {
             "NavLayer",
             "Default",
         };
         public CheckBoxTouchComponent(float stepIntercept)
         {
-            laymask = LayerMask.GetMask(LayerName);
+            laymask = CreateLayerMask(LayerName);
             StepIntercept = stepIntercept;
         }
 
-     
+        protected virtual int CreateLayerMask(string[] layerName)
+        {
+            return LayerMask.GetMask(layerName);
+        }
+
+        
 
 
         private Vector3 pointbottom;
