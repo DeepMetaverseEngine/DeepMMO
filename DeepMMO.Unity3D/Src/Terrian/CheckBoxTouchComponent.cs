@@ -14,8 +14,9 @@ namespace DeepMMO.Unity3D.Terrain
         private string[] LayerName = 
         {
             "NavLayer",
-            "Default",
         };
+
+        private string WaterLayerName = "Water";
         public CheckBoxTouchComponent(float stepIntercept)
         {
             laymask = CreateLayerMask(LayerName);
@@ -27,7 +28,11 @@ namespace DeepMMO.Unity3D.Terrain
             return LayerMask.GetMask(layerName);
         }
 
-        
+        protected virtual string GetWaterLayer()
+        {
+            return WaterLayerName;
+        }
+
 
 
         private Vector3 pointbottom;
@@ -60,17 +65,22 @@ namespace DeepMMO.Unity3D.Terrain
             return new Tuple<bool, Vector3>(isBottomhit, bottompos);
         }
 
+        private bool HasWaterLayer(int layermask)
+        {
+            return (layermask & (1 << LayerMask.NameToLayer(GetWaterLayer())))>0;
+        }
+        
         //Bounds
         public Tuple<bool, Vector3> IsInWater(Vector3 pos,float WaterDistance)
         {
             pointtop = pos + Vector3.up * height/2;
             Physics.queriesHitBackfaces = true;
-            var tophit = RayHit(pointtop, Vector3.up, 2,"Water");
+            var tophit = RayHit(pointtop, Vector3.up, 2,GetWaterLayer());
             Physics.queriesHitBackfaces = false;
             var isInwater = tophit.Item1;
             if (!isInwater)
             {
-                tophit = RayHit(pointtop, Vector3.down, height/2 + 0.2f,"Water");
+                tophit = RayHit(pointtop, Vector3.down, height/2 + 0.2f,GetWaterLayer());
                 if (tophit.Item1)
                 {
                     isInwater = true;
@@ -78,7 +88,13 @@ namespace DeepMMO.Unity3D.Terrain
             }
             if (isInwater)
             {
-                var downhit = RayHit(pointtop, Vector3.down, 5, "NavLayer");//Physics.Raycast(pos, Vector3.down, out RaycastHit hit, 3, LayerMask.GetMask("NavLayer"));
+                var layerMask_mask = laymask;
+                if(HasWaterLayer(laymask))
+                {
+                    layerMask_mask = laymask ^ (1 << LayerMask.NameToLayer(GetWaterLayer()));
+                }
+                
+                var downhit = RayHit(pointtop, Vector3.down, 5, layerMask_mask);//Physics.Raycast(pos, Vector3.down, out RaycastHit hit, 3, LayerMask.GetMask("NavLayer"));
                 if (!downhit.Item1 || (downhit.Item1 && Mathf.Abs(tophit.Item2.point.y - downhit.Item2.point.y) >= WaterDistance))
                 {
                     return new Tuple<bool, Vector3>(true, tophit.Item2.point);
@@ -99,7 +115,7 @@ namespace DeepMMO.Unity3D.Terrain
                 var dis = Mathf.Abs(pointtop.y - (tophit.Item2.point.y - StepIntercept / 2));
                 //Debug.Log("top=====dis "+dis+" pointtop="+pointtop.y+" toppos="+(tophit.Item2.point.y - StepIntercept/2));
                 isTophit = dis <= 0.2f || pointtop.y >= tophit.Item2.point.y - StepIntercept / 2; //头部超过天花板
-                if (tophit.Item2.transform.gameObject.layer == LayerMask.NameToLayer("Water"))
+                if (tophit.Item2.transform.gameObject.layer == LayerMask.NameToLayer(GetWaterLayer()))
                 {
                     isTophit = false;
                 }
@@ -135,6 +151,11 @@ namespace DeepMMO.Unity3D.Terrain
         public Tuple<bool, RaycastHit> RayHit(Vector3 pos, Vector3 dir, float dis,string layerName = "")
         {
             var layer = string.IsNullOrEmpty(layerName)?laymask:1<<LayerMask.NameToLayer(layerName);
+            return RayHit(pos, dir, dis, layer);
+        }
+        
+        public Tuple<bool, RaycastHit> RayHit(Vector3 pos, Vector3 dir, float dis,int layer)
+        {
             var isTouch = Physics.Raycast(pos, dir, out RaycastHit hit, dis, layer);
             if (hit.transform && IgnoreVoxel.Contains(hit.transform))
             {

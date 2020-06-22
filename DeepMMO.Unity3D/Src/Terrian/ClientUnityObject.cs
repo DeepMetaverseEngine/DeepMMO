@@ -427,7 +427,7 @@ namespace DeepMMO.Unity3D.Terrain
             set { _UpWard = value - ScreenOffset.y; } 
         }
 
-        private bool mInitPos = false;
+        private bool mInitPos = true;
         private UnityEngine.Vector3 mInitVector3 = UnityEngine.Vector3.zero;
 
         private bool CheckFallenDown(float height,LayerUnit unit)
@@ -451,21 +451,21 @@ namespace DeepMMO.Unity3D.Terrain
             
            
            
-            if(!mInitPos)
-            {
-                if (mInitVector3 == UnityEngine.Vector3.zero && currentUnityPos != UnityEngine.Vector3.zero)
-                {
-                    mInitVector3 = currentUnityPos;
-                }
-                else
-                {
-                    if (!mInitVector3.Equals(currentUnityPos))
-                    {
-                        mInitPos = true;
-                    }
-                }
-                
-            }
+            // if(!mInitPos)
+            // {
+            //     if (mInitVector3 == UnityEngine.Vector3.zero && currentUnityPos != UnityEngine.Vector3.zero)
+            //     {
+            //         mInitVector3 = currentUnityPos;
+            //     }
+            //     else
+            //     {
+            //         if (!mInitVector3.Equals(currentUnityPos))
+            //         {
+            //             mInitPos = true;
+            //         }
+            //     }
+            //     
+            // }
            
             LastPosition = currentUnityPos;
 
