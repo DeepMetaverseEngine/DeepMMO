@@ -71,7 +71,7 @@ namespace DeepMMO.Unity3D.Terrain
         }
         
         //Bounds
-        public Tuple<bool, Vector3> IsInWater(Vector3 pos,float WaterDistance)
+        public virtual Tuple<bool, Vector3> IsInWater(Vector3 pos,float WaterDistance)
         {
             pointtop = pos + Vector3.up * height/2;
             Physics.queriesHitBackfaces = true;
