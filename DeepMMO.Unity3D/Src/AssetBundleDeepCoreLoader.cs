@@ -1,4 +1,5 @@
 // #define USE_FILE
+// #define USE_JOBSYSTEM
 
 using System;
 using System.Collections.Generic;
@@ -7,6 +8,10 @@ using Cysharp.Text;
 using DeepCore.Unity3D;
 using DeepU3.AssetBundles;
 using DeepCore.Unity3D.Impl;
+#if USE_JOBSYSTEM
+using Unity.Jobs;
+using Unity.Jobs.LowLevel.Unsafe;
+#endif
 using UnityEngine;
 
 namespace DeepMMO.Unity3D.AssetBundles
@@ -20,27 +25,17 @@ namespace DeepMMO.Unity3D.AssetBundles
             public static HandleTask Default = new HandleTask();
         }
 
-
-        private readonly Queue<HandleTask> mQueues = new Queue<HandleTask>();
-
-        // private readonly SemaphoreSlim mSlim = new SemaphoreSlim(0, 1000);
-
-        public AssetBundleDeepCoreLoader()
+#if USE_JOBSYSTEM
+        public struct HandleJob : IJob
         {
-            var thread = new Thread(ThreadRun);
-            thread.Start();
-        }
-
-        private void ThreadRun()
-        {
-            while (true)
+            public void Execute()
             {
                 var cmd = HandleTask.Default;
-                lock (mQueues)
+                lock (sQueues)
                 {
-                    if (mQueues.Count > 0)
+                    if (sQueues.Count > 0)
                     {
-                        cmd = mQueues.Dequeue();
+                        cmd = sQueues.Dequeue();
                     }
                 }
 
@@ -48,11 +43,53 @@ namespace DeepMMO.Unity3D.AssetBundles
                 {
                     using (var sb = new Utf16ValueStringBuilder(true))
                     {
-                        sb.Append(mBaseUrl);
+                        sb.Append(sBaseUrl);
                         sb.Append(cmd.Path);
                         //todo TryLoadData内 路径优化,去除SubString
                         UnityDriver.UnityInstance.TryLoadData(sb.ToString(), out var bin);
                         UnityHelper.MainThreadInvoke(() => { cmd.CallBack(bin); });
+                    }
+                }
+            }
+        }
+#endif
+        private static readonly Queue<HandleTask> sQueues = new Queue<HandleTask>();
+        private static string sBaseUrl;
+
+        public AssetBundleDeepCoreLoader()
+        {
+#if !USE_JOBSYSTEM
+            var thread = new Thread(ThreadRun);
+            thread.Start();
+#endif
+        }
+
+        private void ThreadRun()
+        {
+            while (true)
+            {
+                var cmd = HandleTask.Default;
+                lock (sQueues)
+                {
+                    if (sQueues.Count > 0)
+                    {
+                        cmd = sQueues.Dequeue();
+                    }
+                }
+
+                if (cmd.CallBack != null)
+                {
+                    using (var sb = new Utf16ValueStringBuilder(true))
+                    {
+                        sb.Append(sBaseUrl);
+                        sb.Append(cmd.Path);
+                        //todo TryLoadData内 路径优化,去除SubString
+                        UnityDriver.UnityInstance.TryLoadData(sb.ToString(), out var bin);
+                        UnityHelper.MainThreadInvoke(() =>
+                        {
+                            cmd.CallBack(bin);
+                            bin = null;
+                        });
                     }
                 }
 
@@ -114,14 +151,12 @@ namespace DeepMMO.Unity3D.AssetBundles
             }
         }
 
-        private string mBaseUrl;
 
-
-        private string ConvertToAssetBundleName(AssetBundleCommand cmd)
+        private static string ConvertToAssetBundleName(AssetBundleCommand cmd)
         {
             using (var sb = new Utf16ValueStringBuilder(true))
             {
-                sb.Append(mBaseUrl);
+                sb.Append(sBaseUrl);
                 sb.Append(cmd.BundleName);
                 return sb.ToString();
             }
@@ -144,9 +179,9 @@ namespace DeepMMO.Unity3D.AssetBundles
             }
             else
             {
-                lock (mQueues)
+                lock (sQueues)
                 {
-                    mQueues.Enqueue(new HandleTask
+                    sQueues.Enqueue(new HandleTask
                     {
                         Path = cmd.BundleName, CallBack = (bin) =>
                         {
@@ -169,12 +204,16 @@ namespace DeepMMO.Unity3D.AssetBundles
                         }
                     });
                 }
+#if USE_JOBSYSTEM
+                var job = new HandleJob();
+                job.Schedule();
+#endif
             }
         }
 
         public void SetBaseUrl(string url)
         {
-            mBaseUrl = url;
+            sBaseUrl = url;
         }
     }
 }
