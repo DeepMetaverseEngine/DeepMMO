@@ -436,9 +436,18 @@ namespace DeepMMO.Unity3D.Terrain
             var isGuard = (!(unit is LayerPlayer p)) || p.IsGuard;
             if (isGuard)
             {
-                bottomFixHeight = Math.Max(height,unit.LayerUpward);
+                if (Math.Abs(height - unit.LayerUpward) < StepIntercept)
+                {
+                    bottomFixHeight = height;
+                }
+                else
+                {
+                    bottomFixHeight = unit.LayerUpward;
+                }
             }
-            if (currentPos.Z < bottomFixHeight)
+            
+            
+            if (currentPos.Z <= bottomFixHeight)
             {
                 currentPos.Z = bottomFixHeight;
                 return true;
@@ -451,21 +460,21 @@ namespace DeepMMO.Unity3D.Terrain
             
            
            
-            // if(!mInitPos)
-            // {
-            //     if (mInitVector3 == UnityEngine.Vector3.zero && currentUnityPos != UnityEngine.Vector3.zero)
-            //     {
-            //         mInitVector3 = currentUnityPos;
-            //     }
-            //     else
-            //     {
-            //         if (!mInitVector3.Equals(currentUnityPos))
-            //         {
-            //             mInitPos = true;
-            //         }
-            //     }
-            //     
-            // }
+            if(!mInitPos)
+            {
+                if (mInitVector3 == UnityEngine.Vector3.zero && currentUnityPos != UnityEngine.Vector3.zero)
+                {
+                    mInitVector3 = currentUnityPos;
+                }
+                else
+                {
+                    if (!mInitVector3.Equals(currentUnityPos))
+                    {
+                        mInitPos = true;
+                    }
+                }
+                
+            }
            
             LastPosition = currentUnityPos;
 
@@ -483,7 +492,7 @@ namespace DeepMMO.Unity3D.Terrain
                 Upward = float.NegativeInfinity;
             }
 
-            
+                       
             Physics.queriesHitBackfaces = true;
             var toprayhit = mCheckBoxTouchComponent.RayHit(currentUnityPos + UnityEngine.Vector3.up * height, UnityEngine.Vector3.up, 100);
             Physics.queriesHitBackfaces = false;
@@ -548,8 +557,8 @@ namespace DeepMMO.Unity3D.Terrain
                     {
                         event_OnFallenDown?.Invoke(this, zspeed);
                         zspeed = 0;
-                        mIsInAir = false;
                     }
+                    mIsInAir = false;
                     return;
                 }
                
@@ -574,6 +583,7 @@ namespace DeepMMO.Unity3D.Terrain
                     if (CheckFallenDown(bottomzonepos.Z, unit))
                     {
                         zspeed = 0;
+                        mIsInAir = false;
                     }
                     // if (currentPos.Z < bottomzonepos.Z )
                     // {   
