@@ -490,8 +490,13 @@ namespace DeepMMO.Unity3D.Terrain
             else
             {
                 Upward = float.NegativeInfinity;
+                
             }
-
+            if (bottomHeight < unit.LayerUpward - StepIntercept)
+            {
+                bottomHeight = unit.LayerUpward;
+                Upward = unit.LayerUpward;
+            }
                        
             Physics.queriesHitBackfaces = true;
             var toprayhit = mCheckBoxTouchComponent.RayHit(currentUnityPos + UnityEngine.Vector3.up * height, UnityEngine.Vector3.up, 100);
@@ -509,14 +514,17 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 //是否触底
                 bottomhit = IsBottomhit(currentUnityPos);
-                
+               
             }
             else
             {
                 bottomHeight = bottomhit.Item2.y;
                 Upward = bottomHeight;
+               
+
                 //UnityEngine.Debug.LogError("Upward===="+Upward);
             }
+            
            
            // UnityEngine.Debug.Log("topHeight.Item1===="+topHeight);
            // UnityEngine.Debug.Log("bottomHeight.Item1===="+bottomHeight);
@@ -547,8 +555,9 @@ namespace DeepMMO.Unity3D.Terrain
                     }
 
                     return;
-                } 
+                }
 
+                
                 hitpos.y = bottomHeight;
                 var bottomzonepos = UnityPos2ZonePos(hitpos);
                 if (CheckFallenDown(bottomzonepos.Z,unit))
@@ -580,6 +589,7 @@ namespace DeepMMO.Unity3D.Terrain
                         hitpos.y = bottomHeight;
                     }
                     var bottomzonepos = UnityPos2ZonePos(hitpos);
+                    
                     if (CheckFallenDown(bottomzonepos.Z, unit))
                     {
                         zspeed = 0;
