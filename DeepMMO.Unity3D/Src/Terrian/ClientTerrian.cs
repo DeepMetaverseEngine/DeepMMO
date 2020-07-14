@@ -99,7 +99,7 @@ namespace DeepMMO.Unity3D.Terrain
                 return LayerMask.GetMask(layers);
             }
             //        public GameObject cubeobj;
-            public NavMeshClientTerrain3D(string scenePathFindFileName, float terrainWidth, float terrainheight, int terrainGridCellSize, float stepIntercept, float findPathDistance = 3f)
+            public NavMeshClientTerrain3D(byte[] PathFindData, float terrainWidth, float terrainheight, int terrainGridCellSize, float stepIntercept, float findPathDistance = 3f)
             {
                 TerrainWidth = terrainWidth;
                 TerrainHeight = terrainheight;
@@ -114,18 +114,9 @@ namespace DeepMMO.Unity3D.Terrain
                 FindPathDistance = findPathDistance;
 
 
-                var path = DataPathHelper.GAME_EDITOR_ROOT + scenePathFindFileName;
-                if (!string.IsNullOrEmpty(path))
+                if (PathFindData != null)
                 {
-                    var data = Resource.LoadData(path);
-
-                    if (data == null)
-                    {
-                        m_System = null;
-                        Debug.LogError("PathFind error = " + path);
-                        return;
-                    }
-                    m_System.ComputeSystem(data, 0);
+                    m_System.ComputeSystem(PathFindData, 0);
                 }
 
                 clientFlyPath = new ClientFlyPath(m_System, layMasks, FindPathDistance)
@@ -376,6 +367,7 @@ namespace DeepMMO.Unity3D.Terrain
                 var dis = UnityEngine.Vector3.Distance(dirStartUnitypos, dirEndUnitypos);
                 if (!clientFlyPath.CheckBoxCast(dirStartUnitypos.CurrentUnityPos2GlobalPos(), dir.normalized, out RaycastHit hit1, dis, layMasks))
                 {
+                    NavPathPoints.Add(dirStartUnitypos);
                     NavPathPoints.Add(dsttounitypos);
                     return NavMeshClientWayPoint.CreateFromVoxel(GenNavMeshWayPoint(NavPathPoints));
                 }
