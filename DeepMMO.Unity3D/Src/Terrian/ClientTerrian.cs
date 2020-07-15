@@ -7,6 +7,7 @@ using DeepCore.Game3D.Slave.Layer;
 using DeepCore.Game3D.Voxel;
 using DeepCore.GameData.Data;
 using DeepCore.GameData.Zone;
+using DeepCore.GameData.Zone.ZoneEditor;
 using DeepCore.IO;
 using DeepCore.Unity3D;
 using UnityEngine;
@@ -99,16 +100,16 @@ namespace DeepMMO.Unity3D.Terrain
                 return LayerMask.GetMask(layers);
             }
             //        public GameObject cubeobj;
-            public NavMeshClientTerrain3D(byte[] PathFindData, float terrainWidth, float terrainheight, int terrainGridCellSize, float stepIntercept, float findPathDistance = 3f)
+            public NavMeshClientTerrain3D(byte[] PathFindData, SceneData sceneData,float stepIntercept, float findPathDistance = 3f)
             {
-                TerrainWidth = terrainWidth;
-                TerrainHeight = terrainheight;
-                TerrainGridCellSize = terrainGridCellSize;
+                TerrainWidth = sceneData.VoxelXCount;
+                TerrainHeight = sceneData.VoxelYCount;
+                TerrainGridCellSize = sceneData.VoxelGridCellW;
                 mStepIntercept = stepIntercept;
                 layMasks = CreateLayerMask(laymaskNames);
                 if (preUnitObj == null)
                 {
-                    preUnitObj = new ClientUnityObject(terrainWidth, terrainheight, stepIntercept, Height, terrainGridCellSize);
+                    preUnitObj = new ClientUnityObject(sceneData, stepIntercept, Height, TerrainGridCellSize);
                 }
 
                 FindPathDistance = findPathDistance;
@@ -546,11 +547,11 @@ namespace DeepMMO.Unity3D.Terrain
             {
                 if (unit is LayerPlayer)
                 {
-                    return new ClientPlayerPosition(unit, TotalWidth, TotalHeight, StepIntercept, GridCellSize, 0.3f);
+                    return new ClientPlayerPosition(unit, StepIntercept, GridCellSize,0.3f);
                 }
                 else
                 {
-                    return new ClientUnitPostion(unit, TotalWidth, TotalHeight, StepIntercept, GridCellSize, 0.3f);
+                    return new ClientUnitPostion(unit, StepIntercept, GridCellSize, 0.3f);
                 }
             }
 
@@ -585,10 +586,10 @@ namespace DeepMMO.Unity3D.Terrain
 
                 private float WaterStandDistance;
                 //单位，地图高度 ，台阶高度，格子尺寸，碰撞半径
-                public ClientUnitPostion(LayerUnit unit, float totalwidth, float totalHeigt, float stepIntercept, float gridcellsize, float radius = 0.5f)
+                public ClientUnitPostion(LayerUnit unit,  float stepIntercept,float gridcellsize, float radius = 0.5f)
                 {
                     this.unit = unit;
-                    this.vobj = new ClientUnityObject(totalwidth, totalHeigt, stepIntercept, unit.BodyHeight, gridcellsize, radius, unit.Parent.Gravity);
+                    this.vobj = new ClientUnityObject(unit.Parent.Data, stepIntercept, unit.BodyHeight, gridcellsize,radius, unit.Parent.Gravity);
                     this.world = unit.Parent.Terrain3D as NavMeshClientTerrain3D;
                     this.StepIntercept = stepIntercept;
                 }
@@ -684,8 +685,8 @@ namespace DeepMMO.Unity3D.Terrain
 
                 private float StepIntercept;
                 //单位，地图高度 ，台阶高度，格子尺寸，碰撞半径
-                public ClientPlayerPosition(LayerUnit unit, float totalwidth, float totalHeigt, float stepIntercept, float gridcellsize, float radius = 0.5f) : base(
-                     unit, totalwidth, totalHeigt, stepIntercept, gridcellsize, radius)
+                public ClientPlayerPosition(LayerUnit unit, float stepIntercept,float gridSize, float radius = 0.5f) : base(
+                     unit, stepIntercept, gridSize,radius)
                 {
                     AsyncUnitPosModifyMinRange = unit.Parent.AsyncUnitPosModifyMinRange;
                     StepIntercept = stepIntercept;

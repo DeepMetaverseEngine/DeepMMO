@@ -2,6 +2,7 @@ using System;
 using DeepCore;
 using DeepCore.Game3D.Slave.Layer;
 using DeepCore.Game3D.Voxel;
+using DeepCore.GameData.Zone.ZoneEditor;
 using DeepMMO.Unity3D.Terrian;
 using UnityEngine;
 using UnityEngine.AI;
@@ -76,22 +77,21 @@ namespace DeepMMO.Unity3D.Terrain
         public bool IsMidair { get => mIsInAir ; }
 
             
-        private CheckBoxTouchComponent mCheckBoxTouchComponent;            
-        private float gridcellsize;
+        private CheckBoxTouchComponent mCheckBoxTouchComponent;       
         public float GridCellSize;
 
-        public ClientUnityObject(float totalwidth,float totalHeight,
-            float stepIntercept, float height,float gridcellsize,
+        public ClientUnityObject(SceneData sceneData,
+            float stepIntercept, float height,float TerrainGridCellSize,
             float radius = 0.5f,float gravity = 9.8f )
         {
-            TotalWidth = totalwidth;
-            TotalHeight = totalHeight;
+            TotalWidth = sceneData.VoxelXCount;
+            TotalHeight = sceneData.VoxelYCount;
             StepIntercept = stepIntercept;
             Height = 2f;//height;
             mCheckBoxTouchComponent = BoxColliderFactory.Factory.CreateBoxTouchComponent(stepIntercept);//
             mCheckBoxTouchComponent.height = height;
             mCheckBoxTouchComponent.radius = radius;
-            GridCellSize = gridcellsize;
+            GridCellSize = TerrainGridCellSize;
             Gravity = gravity; //TLEditorConfig.Instance.OBJECT_SPRINT_WATERSTANDDISTANCE;
             //LayerMasks = LayerMask.GetMask(LayerName);
         }
@@ -595,12 +595,7 @@ namespace DeepMMO.Unity3D.Terrain
                         zspeed = 0;
                         mIsInAir = false;
                     }
-                    // if (currentPos.Z < bottomzonepos.Z )
-                    // {   
-                    //     //UnityEngine.Debug.Log("bottomhit.Item2===="+bottomzonepos.Z + " currentPos.Z==="+ currentPos.Z);
-                    //     currentPos.Z = bottomzonepos.Z ;
-                    //     zspeed = 0;
-                    // }
+                    
                 }
                 else
                 {
