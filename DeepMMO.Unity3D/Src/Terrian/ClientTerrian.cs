@@ -65,7 +65,7 @@ namespace DeepMMO.Unity3D.Terrain
         {
             private float TerrainWidth;
             private float TerrainHeight;
-            private int TerrainGridCellSize;
+            private float TerrainGridCellSize;
             protected float mStepIntercept;
             public float StepIntercept => mStepIntercept;
             private string[] laymaskNames =
