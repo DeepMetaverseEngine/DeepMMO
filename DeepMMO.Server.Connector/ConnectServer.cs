@@ -349,8 +349,9 @@ namespace DeepMMO.Server.Connect
         {
             log.Error("Acceptor_OnServerError : " + err.Message, err);
         }
-        public class ViewSession
+        public class ViewSession : Disposable
         {
+            private static TypeAllocRecorder Alloc = new TypeAllocRecorder(nameof(ViewSession));
             public readonly ConnectServer connect;
             public readonly ISession socket;
             public Logger log { get => connect.log; }
@@ -364,6 +365,7 @@ namespace DeepMMO.Server.Connect
 
             public ViewSession(ConnectServer connect, ISession session)
             {
+                Alloc.RecordConstructor(GetType());
                 this.connect = connect;
                 this.socket = session;
                 this.socket.OnValidateAsync += Session_OnValidateAsync;
@@ -371,8 +373,7 @@ namespace DeepMMO.Server.Connect
                 this.socket.OnReceivedBinary += Session_OnReceivedBinary;
                 this.socket.OnError += Session_OnError;
             }
-
-            protected virtual void DisconnectSessionService()
+            protected override void Disposing()
             {
                 connect.sessionMap.UnregistViewSession(this);
                 var prx = session_service_prx;
@@ -382,8 +383,12 @@ namespace DeepMMO.Server.Connect
                 {
                     prx.Invoke(new SessionDisconnectNotify() { socketID = socket.ID });
                 }
+                Alloc.RecordDispose(GetType());
             }
-
+            ~ViewSession()
+            {
+                Alloc.RecordDestructor(GetType());
+            }
             protected virtual Task<Tuple<bool, ISerializable>> Session_OnValidateAsync(ISession socket, ISerializable user)
             {
                 if (user is ClientEnterServerRequest enter)
@@ -423,7 +428,6 @@ namespace DeepMMO.Server.Connect
                             else
                             {
                                 log.Error($"Connect绑定Session失败: {enter.c2s_account}");
-                                DisconnectSessionService();
                                 return new Tuple<bool, ISerializable>(false, null);
                             }
                         }
@@ -535,7 +539,7 @@ namespace DeepMMO.Server.Connect
             }
             protected virtual void Session_OnClosed(ISession session, string reason)
             {
-                DisconnectSessionService();
+                this.Dispose();
             }
             protected virtual void Session_OnError(ISession session, Exception err)
             {
