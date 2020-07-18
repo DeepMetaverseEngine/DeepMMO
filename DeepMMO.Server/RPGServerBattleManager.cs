@@ -10,6 +10,10 @@ using System;
 using DeepCore.Game3D.Host;
 using DeepCore.Game3D.Host.ZoneServer;
 using DeepCore.Game3D.Voxel;
+using System.Threading.Tasks.Dataflow;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using DeepCore;
 
 namespace DeepMMO.Server
 {
@@ -114,21 +118,41 @@ namespace DeepMMO.Server
                         log.Info("********************************************************");
                         log.Info("# 缓存体素");
                         log.Info("********************************************************");
+                        var list = new HashMap<string, SceneData>();
+                        var caches = new ConcurrentDictionary<string, VoxelWorld>();
+                        var cacheTasks = new ActionBlock<KeyValuePair<string, SceneData>>(run_CacheScene, new ExecutionDataflowBlockOptions()
+                        {
+                            MaxDegreeOfParallelism = Environment.ProcessorCount - 1
+                        });
                         foreach (var sd in DataRoot.CacheAllScenes())
+                        {
+                            if (string.IsNullOrEmpty(sd.VoxelFileName) is false)
+                            {
+                                list.TryAdd(GlobalConfig.GameEditorRoot + sd.VoxelFileName, sd);
+                            }
+                        }
+                        foreach (var path in list)
+                        {
+                            cacheTasks.Post(path);
+                        }
+                        void run_CacheScene(KeyValuePair<string, SceneData> sd)
                         {
                             try
                             {
-                                var path = GlobalConfig.GameEditorRoot + sd.VoxelFileName;
-                                if (VoxelWorldManager.Instance.TryGetOrCreateVoxelWorld(path, out var wd) == false)
-                                {
-                                    log.Info("Cache voxel data : " + sd.VoxelFileName);
-                                }
+                                log.Info($"Cache voxel data : {sd.Key}");
+                                var wx = VoxelWorld.LoadFromFile(sd.Key);
+                                caches.TryAdd(sd.Key, wx);
+                                log.Info($"Cache voxel data : {sd.Key} : OK ({caches.Count}/{list.Count})");
                             }
                             catch (Exception err)
                             {
-                                log.Error(string.Format("Load Voxel Error : >>>{0}<<< : {1} ", sd, sd.VoxelFileName));
+                                log.Error($"Load Voxel Error : >>>{sd.Value}<<< {sd.Key}");
+                                log.Error(err);
                             }
                         }
+                        cacheTasks.Complete();
+                        cacheTasks.Completion.Wait();
+                        VoxelWorldManager.Instance.CacheAll(caches);
                     }
 
                     log.Info("********************************************************");
