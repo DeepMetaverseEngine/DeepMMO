@@ -64,7 +64,7 @@ namespace DeepMMO.Server.AreaManager
             if (path != null)
             {
                 var ret = new ArrayList<SceneNextLink>();
-                foreach (var wp in path)
+                foreach (SceneGraphPath wp in path)
                 {
                     var next = wp.Next;
                     if (next != null)
@@ -136,7 +136,7 @@ namespace DeepMMO.Server.AreaManager
             public int MapID { get; private set; }
             public MapTemplateData Data { get; private set; }
             public override IMapNode[] Nexts { get { return nexts_array; } }
-            public override int CloseAreaIndex { get { return 0; } }
+            public override int CloseAreaIndex { get { return 0; } protected set { } }
             public override object Tag { get; set; }
             internal ITempMapNode TempNode;
             public SceneGraphNode(MapTemplateData data)

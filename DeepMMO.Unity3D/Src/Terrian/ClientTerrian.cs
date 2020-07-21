@@ -50,14 +50,10 @@ namespace DeepMMO.Unity3D.Terrain
 
         }
 
-        protected override void SetCloseArea(int index)
-        {
-            this.areaLinkValue = index;
-        }
-
         public override int CloseAreaIndex
         {
             get => this.areaLinkValue;
+            protected set { areaLinkValue = value; }
         }
         public override object Tag { get; set; }
         public override IMapNode[] Nexts { get { return nexts; } }
