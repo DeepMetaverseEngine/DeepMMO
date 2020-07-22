@@ -363,6 +363,7 @@ namespace DeepMMO.Server.Gate
                     }
 
                     var loginToken = CMD5.CalculateMD5(random.Next().ToString() + accountUUID);
+                    saveAcc.SetField(nameof(AccountData.lastLoginRemoteAddress), session.RemoteAddress.ToString());
                     saveAcc.SetField(nameof(AccountData.lastLoginTime), DateTime.Now);
                     saveAcc.SetField(nameof(AccountData.lastLoginConnectAddress), connect.Sync.connectServiceAddress);
                     saveAcc.SetField(nameof(AccountData.lastLoginToken), loginToken);

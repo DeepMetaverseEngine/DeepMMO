@@ -16,6 +16,9 @@ namespace DeepMMO.Data
         public string token;
 
         [PersistField]
+        public string lastLoginRemoteAddress;
+
+        [PersistField]
         public DateTime lastLoginTime;
 
         [PersistField]
