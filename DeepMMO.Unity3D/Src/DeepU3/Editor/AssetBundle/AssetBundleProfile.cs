@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -8,6 +9,7 @@ using DeepU3.AssetBundles;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace DeepU3.Editor.AssetBundle
 {
@@ -19,6 +21,44 @@ namespace DeepU3.Editor.AssetBundle
             public string assetPath;
             public string abName;
             public bool isCombine;
+            public List<string> ignoredTypesFullName;
+
+            [NonSerialized]
+            private HashSet<Type> mIgnoredTypes;
+
+            public HashSet<Type> IgnoredTypes
+            {
+                get
+                {
+                    if (ignoredTypesFullName == null)
+                    {
+                        return null;
+                    }
+
+                    if (mIgnoredTypes != null)
+                    {
+                        return mIgnoredTypes;
+                    }
+
+                    mIgnoredTypes = new HashSet<Type>();
+                    foreach (var fullName in ignoredTypesFullName)
+                    {
+                        mIgnoredTypes.Add(EditorUtils.GetUnityObjectTypeByFullName(fullName));
+                    }
+
+                    return mIgnoredTypes;
+                }
+            }
+
+            internal void SetTypeDirty()
+            {
+                mIgnoredTypes = null;
+            }
+
+            public bool IsAllowType(Type type)
+            {
+                return IgnoredTypes == null || !IgnoredTypes.Any(t => t.IsAssignableFrom(type));
+            }
         }
 
 
@@ -29,6 +69,8 @@ namespace DeepU3.Editor.AssetBundle
             public Type AssetType { get; }
 
             public bool IsSceneAsset => typeof(SceneAsset).IsAssignableFrom(AssetType);
+
+            public readonly AssetItem RootAssetItem;
 
             public override string ToString()
             {
@@ -47,19 +89,9 @@ namespace DeepU3.Editor.AssetBundle
                 AssetType = assetType;
             }
 
-            public ResolveItem(string assetPath, string abName)
-            {
-                AssetPath = assetPath;
-                AssetBundleName = abName;
-                AssetType = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
-            }
-
-            public ResolveItem(string assetPath, int hashLength) : this(assetPath, AssetDatabase.AssetPathToGUID(assetPath).Substring(0, hashLength), AssetDatabase.GetMainAssetTypeAtPath(assetPath))
-            {
-            }
-
             public ResolveItem(AssetNode node) : this(node.AssetPath, node.AssetBundleName, node.AssetType)
             {
+                RootAssetItem = node.RootAssetItem;
             }
 
             public int CompareTo(ResolveItem other)
@@ -75,6 +107,16 @@ namespace DeepU3.Editor.AssetBundle
             }
         }
 
+        private class TopResolveItem : ResolveItem
+        {
+            public bool IsCombine { get; }
+
+            public TopResolveItem(AssetNode node) : base(node)
+            {
+                IsCombine = node.RootAssetItem.isCombine;
+            }
+        }
+
         public class AssetNode : IComparable<AssetNode>
         {
             public AssetNode Parent { get; private set; }
@@ -83,6 +125,7 @@ namespace DeepU3.Editor.AssetBundle
 
             private bool _isIgnore;
             private bool _isCompleteAsset;
+            private bool _isBuiltIn;
 
             public bool IsIgnore
             {
@@ -97,6 +140,8 @@ namespace DeepU3.Editor.AssetBundle
                 }
             }
 
+            public bool IsRootAsset => RootAssetItem?.assetPath == AssetPath;
+
             public bool IsCompleteAsset
             {
                 get => _isCompleteAsset;
@@ -110,14 +155,27 @@ namespace DeepU3.Editor.AssetBundle
                 }
             }
 
+            public bool IsBuiltIn
+            {
+                get => _isBuiltIn;
+                set
+                {
+                    _isBuiltIn = value;
+                    foreach (var assetNode in Children)
+                    {
+                        assetNode.IsBuiltIn = value;
+                    }
+                }
+            }
 
-            public AssetBundleProfile Profile { get; }
+
             public bool IsFolder => !string.IsNullOrEmpty(AssetPath) && AssetType == null;
             public Type AssetType { get; }
             private readonly List<AssetNode> _children = new List<AssetNode>();
             public int TotalCount => _children.Sum(item => item.TotalCount) + (string.IsNullOrEmpty(AssetPath) ? 0 : 1);
 
             public bool HasChildren => _children.Count > 0;
+            internal readonly AssetItem RootAssetItem;
 
             public int Depth
             {
@@ -160,9 +218,9 @@ namespace DeepU3.Editor.AssetBundle
                 return $"{AssetBundleName}<=>{AssetPath}";
             }
 
-            public AssetNode(AssetBundleProfile profile, string assetPath, string abName, Type assetType = null)
+            public AssetNode(AssetItem rootAssetItem, string assetPath, string abName, Type assetType = null)
             {
-                Profile = profile;
+                RootAssetItem = rootAssetItem;
                 AssetPath = assetPath;
                 AssetBundleName = abName;
                 AssetType = assetType;
@@ -183,6 +241,7 @@ namespace DeepU3.Editor.AssetBundle
 
             public ReadOnlyCollection<AssetNode> Children => new ReadOnlyCollection<AssetNode>(_children);
 
+
             public void ListAllNodes(List<AssetNode> nodes)
             {
                 nodes.AddRange(_children);
@@ -191,6 +250,22 @@ namespace DeepU3.Editor.AssetBundle
                     child.ListAllNodes(nodes);
                 }
             }
+
+            public HashSet<Type> GetAllTypes()
+            {
+                var nodes = new List<AssetNode>();
+                ListAllNodes(nodes);
+                var types = new HashSet<Type>();
+                nodes.ForEach(m =>
+                {
+                    if (m.AssetType != null)
+                    {
+                        types.Add(m.AssetType);
+                    }
+                });
+                return types;
+            }
+
 
             public void ListAllResolvableNodes(List<AssetNode> items)
             {
@@ -260,7 +335,7 @@ namespace DeepU3.Editor.AssetBundle
                     }
 
                     sharedDependencies.Add(directDependency);
-                    rootRefs.Add(directDependency, rootAssetPath);
+                    rootRefs.Add(directDependency, assetPath);
                     CollectDependencies(rootAssetPath, directDependency, sharedDependencies, rootRefs);
                 }
             }
@@ -271,14 +346,20 @@ namespace DeepU3.Editor.AssetBundle
         public int hashLength = 8;
 
         [SerializeField]
-        public bool clearFolderBeforeBuild = true;
+        public bool clearFolderBeforeBuild = false;
 
         [SerializeField]
         public string assetExt = ".ab";
 
 
+        /// <summary>
+        /// 尽可能减少依赖的ab包数量
+        /// </summary>
         [SerializeField]
-        public bool mergeDependenciesAsSoonAsPossible;
+        public bool lessDependencyBundles;
+
+        [SerializeField]
+        public bool savePreviewFileAfterBuild;
 
         public enum CompressOptions
         {
@@ -286,12 +367,9 @@ namespace DeepU3.Editor.AssetBundle
             StandardCompression,
             ChunkBasedCompression,
         }
-
-        /// <summary>
-        /// todo 支持压缩选项
-        /// </summary>
+        
         [SerializeField]
-        public CompressOptions compression;
+        public CompressOptions compression = CompressOptions.StandardCompression;
 
         [SerializeField]
         public List<AssetItem> containsFolder = new List<AssetItem>();
@@ -313,7 +391,15 @@ namespace DeepU3.Editor.AssetBundle
 
         private AssetNode _cacheBuiltInAssetNode;
 
-        public AssetNode RootBuiltInAssetNode => _cacheBuiltInAssetNode ?? (_cacheBuiltInAssetNode = BuildResolveTree(invalidDependencyFolder, new List<string>()));
+        public AssetNode RootBuiltInAssetNode
+        {
+            get
+            {
+                var node = _cacheBuiltInAssetNode ?? (_cacheBuiltInAssetNode = BuildResolveTree(invalidDependencyFolder, new List<string>()));
+                node.IsBuiltIn = true;
+                return node;
+            }
+        }
 
         public AssetNode RootCompleteAssetNode
         {
@@ -329,6 +415,7 @@ namespace DeepU3.Editor.AssetBundle
 
         private AssetNode BuildResolveTree(ICollection<AssetItem> collection, ICollection<string> ignorePaths)
         {
+            var watch = Stopwatch.StartNew();
             var allPaths = AssetDatabase.GetAllAssetPaths();
             var hashPaths = new HashSet<string>();
             Array.ForEach(allPaths, s => hashPaths.Add(s));
@@ -339,7 +426,7 @@ namespace DeepU3.Editor.AssetBundle
                 if (File.Exists(item.assetPath))
                 {
                     var t = AssetDatabase.GetMainAssetTypeAtPath(item.assetPath);
-                    var assetNode = new AssetNode(this, item.assetPath, item.abName, t);
+                    var assetNode = new AssetNode(item, item.assetPath, item.abName, t);
                     root.AddChild(assetNode);
                     assetNode.IsIgnore = ignorePaths.Contains(item.assetPath);
                 }
@@ -372,6 +459,7 @@ namespace DeepU3.Editor.AssetBundle
                 }
             }
 
+            // Debug.Log($"Resolve AssetsTree : {watch.ElapsedMilliseconds}ms");
             return root;
         }
 
@@ -401,6 +489,11 @@ namespace DeepU3.Editor.AssetBundle
 
         private AssetNode BuildResolveTree(AssetItem rootItem, DirectoryInfo d, ICollection<string> checkContains, ICollection<string> ignorePaths, Stack<string> depthPath)
         {
+            if (!d.Exists)
+            {
+                return null;
+            }
+
             var assetFolder = EditorUtils.PathToAssetPath(d.FullName);
 
             if (depthPath.Count == 0)
@@ -417,7 +510,7 @@ namespace DeepU3.Editor.AssetBundle
             }
 
             var abName = GetAssetKey(rootItem, true, assetFolder, depthPath);
-            var tree = new AssetNode(this, assetFolder, abName);
+            var tree = new AssetNode(rootItem, assetFolder, abName);
 
             foreach (var sub in d.GetDirectories())
             {
@@ -428,6 +521,7 @@ namespace DeepU3.Editor.AssetBundle
                 }
             }
 
+
             foreach (var fileInfo in d.GetFiles())
             {
                 var assetPath = EditorUtils.PathToAssetPath(fileInfo.FullName);
@@ -436,15 +530,20 @@ namespace DeepU3.Editor.AssetBundle
                     continue;
                 }
 
-                var t = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
+                var t = EditorUtils.GetMainAssetTypeAtPath(assetPath);
+
                 if (IgnoreTypes.Contains(t))
                 {
                     continue;
                 }
 
+                if (!rootItem.IsAllowType(t))
+                {
+                    continue;
+                }
 
                 var nextABName = GetAssetKey(rootItem, false, assetPath, depthPath);
-                var node = new AssetNode(this, assetPath, nextABName, t);
+                var node = new AssetNode(rootItem, assetPath, nextABName, t);
                 tree.AddChild(node);
                 node.IsIgnore = ignorePaths.Contains(assetPath);
             }
@@ -518,9 +617,44 @@ namespace DeepU3.Editor.AssetBundle
             return true;
         }
 
+        public HashSet<Type> GetIgnoredTypes(string assetPath)
+        {
+            var info = containsFolder.Find(m => m.assetPath == assetPath);
+            return info?.IgnoredTypes;
+        }
+
+        public void SetIgnoredType(string assetPath, Type t, bool ignore)
+        {
+            var info = containsFolder.Find(m => m.assetPath == assetPath);
+            if (info == null)
+            {
+                return;
+            }
+
+            if (info.ignoredTypesFullName == null)
+            {
+                info.ignoredTypesFullName = new List<string>();
+            }
+
+            info.SetTypeDirty();
+            if (ignore)
+            {
+                if (!info.ignoredTypesFullName.Contains(t.FullName))
+                {
+                    info.ignoredTypesFullName.Add(t.FullName);
+                }
+            }
+            else
+            {
+                info.ignoredTypesFullName.Remove(t.FullName);
+            }
+
+            SetDirty(true, false);
+        }
+
         public bool SetAssetItem(string assetPath, string abName)
         {
-            if (!IsAllowAssetType(AssetDatabase.GetMainAssetTypeAtPath(assetPath)))
+            if (!IsAllowAssetType(EditorUtils.GetMainAssetTypeAtPath(assetPath)))
             {
                 return false;
             }
@@ -574,6 +708,9 @@ namespace DeepU3.Editor.AssetBundle
             }
         }
 
+        public bool IsResolveItemDirty => _cacheAssetNode == null;
+        public bool IsBuildInDataDirty => _cacheBuiltInAssetNode == null;
+
         public void SetDirty(bool asset, bool builtIn)
         {
             if (asset)
@@ -592,6 +729,7 @@ namespace DeepU3.Editor.AssetBundle
                 EditorUtility.SetDirty(this);
             }
         }
+
 
         public void SetIgnore(string assetPath, bool ignore)
         {
@@ -678,8 +816,17 @@ namespace DeepU3.Editor.AssetBundle
             typeof(AssemblyDefinitionAsset),
         };
 
-        private List<ResolveItem> CollectResolveItem(List<SceneDynamicReference> sceneRefs = null)
+        private List<ResolveItem> _cacheResolveItems;
+        private int _cacheResolveDependStartIndex;
+
+        private List<ResolveItem> CollectResolveItem(out int dependStartIndex, List<SceneDynamicReference> sceneRefs = null)
         {
+            if (_cacheResolveItems != null && !IsResolveItemDirty && !IsBuildInDataDirty)
+            {
+                dependStartIndex = _cacheResolveDependStartIndex;
+                return _cacheResolveItems;
+            }
+
             EditorUtility.DisplayProgressBar("Hold", "ResolveItems", 0.5f);
             try
             {
@@ -687,10 +834,12 @@ namespace DeepU3.Editor.AssetBundle
 
                 RootAssetNode.ListAllResolvableNodes(nodes);
 
+                //生成缓存,用于Dirty判断
+                var buildInRoot = RootBuiltInAssetNode;
                 nodes.Sort();
-                var cacheResolveItems = nodes.Where(node => !node.IsIgnore).Select(node => new ResolveItem(node)).ToList();
+                _cacheResolveItems = nodes.Where(node => !node.IsIgnore).Select(node => node.IsRootAsset ? new TopResolveItem(node) : new ResolveItem(node)).ToList();
 
-                var dependStartIndex = cacheResolveItems.Count;
+                dependStartIndex = _cacheResolveDependStartIndex = _cacheResolveItems.Count;
                 var builtInAssetsPath = new HashSet<string>();
 
                 foreach (var assetPath in invalidDependencyFolder.Select(m => m.assetPath))
@@ -698,13 +847,14 @@ namespace DeepU3.Editor.AssetBundle
                     builtInAssetsPath.Add(assetPath);
                 }
 
-                var sharedDependencies = cacheResolveItems.Select(item => item.AssetPath).ToList();
+                var sharedDependencies = _cacheResolveItems.Select(item => item.AssetPath).ToList();
 
+                //只被引用一次的依赖[依赖项路径:资源路径]
                 var rootRefs = new Dictionary<string, string>();
                 var guidDependIndex = sharedDependencies.Count;
                 RootAssetNode.CollectDependencies(sharedDependencies, rootRefs);
                 //场景动态依赖
-                foreach (var resolveItem in cacheResolveItems)
+                foreach (var resolveItem in _cacheResolveItems)
                 {
                     if (!typeof(SceneAsset).IsAssignableFrom(resolveItem.AssetType))
                     {
@@ -732,7 +882,7 @@ namespace DeepU3.Editor.AssetBundle
                 for (var i = sharedDependencies.Count - 1; i >= guidDependIndex; i--)
                 {
                     var dependency = sharedDependencies[i];
-                    var t = AssetDatabase.GetMainAssetTypeAtPath(dependency);
+                    var t = EditorUtils.GetMainAssetTypeAtPath(dependency);
                     if (!IsIgnore(dependency, builtInAssetsPath) && IsAllowAssetType(t))
                     {
                         continue;
@@ -747,21 +897,22 @@ namespace DeepU3.Editor.AssetBundle
                 {
                     var dependency = sharedDependencies[i];
                     string abName;
-                    var t = AssetDatabase.GetMainAssetTypeAtPath(dependency);
+                    var t = EditorUtils.GetMainAssetTypeAtPath(dependency);
                     if (IsSceneAssetType(t))
                     {
                         abName = Path.GetFileNameWithoutExtension(dependency);
                     }
-                    else if (mergeDependenciesAsSoonAsPossible && rootRefs.TryGetValue(dependency, out var hashAssetPath))
+                    else if (rootRefs.TryGetValue(dependency, out var hashAssetPath))
                     {
-                        var first = cacheResolveItems.FirstOrDefault(m => m.AssetPath == hashAssetPath);
-                        if (first != null && !first.IsSceneAsset)
+                        var first = _cacheResolveItems.First(m => m.AssetPath == hashAssetPath);
+                        //dependency只被first依赖
+                        if (first != null && !first.IsSceneAsset && (lessDependencyBundles || (first is TopResolveItem topResolveItem && topResolveItem.IsCombine)))
                         {
                             abName = first.AssetBundleName;
                         }
                         else
                         {
-                            abName = AssetDatabase.AssetPathToGUID(hashAssetPath).Substring(0, hashLength);
+                            abName = AssetDatabase.AssetPathToGUID(dependency).Substring(0, hashLength);
                         }
                     }
                     else
@@ -770,11 +921,11 @@ namespace DeepU3.Editor.AssetBundle
                     }
 
                     var item = new ResolveItem(dependency, abName, t);
-                    cacheResolveItems.Add(item);
+                    _cacheResolveItems.Add(item);
                 }
 
 
-                return cacheResolveItems;
+                return _cacheResolveItems;
             }
             finally
             {
@@ -782,9 +933,8 @@ namespace DeepU3.Editor.AssetBundle
             }
         }
 
-        public void SavePreviewFiles(string filePath, AssetBundleBuild[] builds)
+        public void SavePreviewFiles(string filePath, AssetBundleBuild[] builds, List<AssetBundleProfileManifest.AssetPair> assetPairs)
         {
-            EditorUtility.DisplayProgressBar("Hold", "SavePreviewFiles", 0.5f);
             try
             {
                 var asset2Build = new Dictionary<string, AssetBundleBuild>();
@@ -796,51 +946,67 @@ namespace DeepU3.Editor.AssetBundle
                     }
                 }
 
-
-                var str = new StringBuilder();
-                foreach (var item in builds)
+                var dictLeader = new Dictionary<string, bool>();
+                foreach (var assetPair in assetPairs)
                 {
-                    str.AppendLine($"+ {item.assetBundleName} {item.assetBundleVariant}");
-                    str.AppendLine($"\tAssets:");
-                    foreach (var assetName in item.assetNames)
+                    if (assetPair.isLeader)
                     {
-                        str.AppendLine($"\t- {assetName}");
+                        dictLeader.Add(assetPair.assetPath, true);
+                    }
+                }
+
+                using (var f = new StreamWriter(filePath))
+                {
+                    var nodes = new List<AssetNode>();
+                    RootCompleteAssetNode.ListAllResolvableNodes(nodes);
+                    var resolveItems = nodes.Select(n => new ResolveItem(n));
+                    foreach (var item in resolveItems)
+                    {
+                        var leaderStr = "[leader]";
+                        f.WriteLine($"+ {item.AssetBundleName}{assetExt}");
+                        f.WriteLine($"\tAssets:");
+                        f.WriteLine($"\t- {item.AssetPath} {leaderStr}");
                     }
 
-                    var hashDependencies = new HashSet<string>();
-                    foreach (var assetName in item.assetNames)
+                    // var str = new StringBuilder();
+                    for (var i = 0; i < builds.Length; i++)
                     {
-                        var all = AssetDatabase.GetDependencies(assetName, true);
-                        foreach (var s in all)
+                        var item = builds[i];
+                        EditorUtility.DisplayProgressBar("SavePreviewFiles", item.assetBundleName, (float) (i + 1) / builds.Length);
+
+                        f.WriteLine($"+ {item.assetBundleName} {item.assetBundleVariant}");
+                        f.WriteLine($"\tAssets:");
+                        foreach (var assetName in item.assetNames)
                         {
-                            if (asset2Build.TryGetValue(s, out var build) && build.assetBundleName != item.assetBundleName)
+                            var leaderStr = dictLeader.ContainsKey(assetName) ? "[leader]" : "";
+                            f.WriteLine($"\t- {assetName} {leaderStr}");
+                        }
+
+                        var hashDependencies = new HashSet<string>();
+                        foreach (var assetName in item.assetNames)
+                        {
+                            var all = AssetDatabase.GetDependencies(assetName, true);
+                            foreach (var s in all)
                             {
-                                hashDependencies.Add(build.assetBundleName);
+                                if (asset2Build.TryGetValue(s, out var build) && build.assetBundleName != item.assetBundleName)
+                                {
+                                    hashDependencies.Add(build.assetBundleName + " <==> " + s);
+                                }
+                            }
+                        }
+
+                        if (hashDependencies.Count > 0)
+                        {
+                            f.WriteLine($"\tDependencies: ");
+                            foreach (var dependency in hashDependencies)
+                            {
+                                f.WriteLine($"\t- {dependency}");
                             }
                         }
                     }
-
-                    if (hashDependencies.Count > 0)
-                    {
-                        str.AppendLine($"\tDependencies: ");
-                        foreach (var dependency in hashDependencies)
-                        {
-                            str.AppendLine($"\t- {dependency}");
-                        }
-                    }
                 }
 
-                var nodes = new List<AssetNode>();
-                RootCompleteAssetNode.ListAllResolvableNodes(nodes);
-                var resolveItems = nodes.Select(n => new ResolveItem(n));
-                foreach (var item in resolveItems)
-                {
-                    str.AppendLine($"+ {item.AssetBundleName}{assetExt}");
-                    str.AppendLine($"\tAssets:");
-                    str.AppendLine($"\t- {item.AssetPath}");
-                }
-
-                File.WriteAllText(filePath, str.ToString());
+                // File.WriteAllText(filePath, str.ToString());
             }
             finally
             {
@@ -851,13 +1017,13 @@ namespace DeepU3.Editor.AssetBundle
 
         public void SavePreviewFiles(string filePath)
         {
-            var builds = Resolve();
-            SavePreviewFiles(filePath, builds);
+            var builds = Resolve(out var pairs);
+            SavePreviewFiles(filePath, builds, pairs);
         }
 
         public void SavePreviewTypes(string filePath)
         {
-            var builds = Resolve();
+            var builds = Resolve(out var assetPairs);
             EditorUtility.DisplayProgressBar("Hold", "SavePreviewTypes", 0.5f);
             try
             {
@@ -866,7 +1032,7 @@ namespace DeepU3.Editor.AssetBundle
                 {
                     foreach (var assetName in item.assetNames)
                     {
-                        var t = AssetDatabase.GetMainAssetTypeAtPath(assetName);
+                        var t = EditorUtils.GetMainAssetTypeAtPath(assetName);
                         types.Add(t);
                     }
                 }
@@ -905,16 +1071,22 @@ namespace DeepU3.Editor.AssetBundle
             }
         }
 
-        private AssetBundleBuild[] Resolve()
+        private AssetBundleBuild[] Resolve(out List<AssetBundleProfileManifest.AssetPair> assetPairs)
         {
             SetDirty(true, true);
             var sceneRefs = new List<SceneDynamicReference>();
 
-            var resolveItems = CollectResolveItem(sceneRefs);
-            resolveItems.Sort();
+            var resolveItems = CollectResolveItem(out var dependStartIndex, sceneRefs);
+
             var resolveMap = resolveItems.ToDictionary(m => m.AssetPath);
             var buildMap = new Dictionary<string, List<string>>();
-            var assetPairs = new List<AssetBundleProfileManifest.AssetPair>();
+            assetPairs = new List<AssetBundleProfileManifest.AssetPair>();
+            var namedAssetBundles = new HashSet<string>();
+            for (var i = 0; i < dependStartIndex; i++)
+            {
+                namedAssetBundles.Add(resolveItems[i].AssetBundleName + assetExt);
+            }
+
             // var scenePairs = new List<AssetBundleProfileManifest.ScenePair>();
             for (var i = 0; i < resolveItems.Count; i++)
             {
@@ -927,9 +1099,16 @@ namespace DeepU3.Editor.AssetBundle
                 }
 
                 assetList.Add(item.AssetPath);
+                var pair = new AssetBundleProfileManifest.AssetPair(item.AssetPath, abName, item.AssetType.Name);
+                if ((i < dependStartIndex && item.RootAssetItem != null && (!item.RootAssetItem.isCombine || item.RootAssetItem.assetPath == item.AssetPath)) ||
+                    AssetDatabase.AssetPathToGUID(item.AssetPath).Contains(item.AssetBundleName))
+                {
+                    pair.isLeader = true;
+                }
 
-                assetPairs.Add(new AssetBundleProfileManifest.AssetPair(item.AssetPath, abName, item.AssetType.Name));
+                assetPairs.Add(pair);
             }
+
 
             var ignoreDependenciesAssetPairs = new List<AssetBundleProfileManifest.IgnoreDependenciesAssetPair>();
             foreach (var sceneRef in sceneRefs)
@@ -954,7 +1133,6 @@ namespace DeepU3.Editor.AssetBundle
 
             AssetDatabase.CreateAsset(manifest, ProfileManifestPath);
             buildMap.Add($"{nameof(AssetBundleProfileManifest).ToLower()}", new List<string> {ProfileManifestPath});
-
             var builds = new AssetBundleBuild[buildMap.Count];
             var keys = buildMap.Keys.ToArray();
             for (var i = 0; i < keys.Length; i++)
@@ -964,6 +1142,13 @@ namespace DeepU3.Editor.AssetBundle
                 builds[i] = new AssetBundleBuild {assetBundleName = k, assetNames = v.ToArray()};
             }
 
+            Array.Sort(builds, (x, y) =>
+            {
+                var isDepX = namedAssetBundles.Contains(x.assetBundleName) ? 0 : 1;
+                var isDepY = namedAssetBundles.Contains(y.assetBundleName) ? 0 : 1;
+                return isDepX == isDepY ? string.CompareOrdinal(x.assetBundleName, y.assetBundleName) : isDepX.CompareTo(isDepY);
+            });
+
             return builds;
         }
 
@@ -972,88 +1157,129 @@ namespace DeepU3.Editor.AssetBundle
             BuildAssetBundleOptions.CollectDependencies |
             BuildAssetBundleOptions.DeterministicAssetBundle;
 
-
-        public bool Build(string outPath, BuildTarget bt, BuildAssetBundleOptions opt)
+        public string[] FindDependencies(Type t)
         {
-            opt = opt | BuildAssetBundleOptions.DisableLoadAssetByFileNameWithExtension;
+            var resolveItems = CollectResolveItem(out _);
+            var ret = new HashSet<string>();
+            foreach (var item in resolveItems)
+            {
+                if (t.IsAssignableFrom(item.AssetType))
+                {
+                    ret.Add(item.AssetPath);
+                }
+            }
+
+            //self contained todo 
+            var nodes = new List<AssetNode>();
+            RootCompleteAssetNode.ListAllResolvableNodes(nodes);
+            foreach (var assetNode in nodes)
+            {
+                if (t.IsAssignableFrom(assetNode.AssetType))
+                {
+                    ret.Add(assetNode.AssetPath);
+                }
+            }
+
+            return ret.ToArray();
+        }
+
+        public bool Build(string outPath, BuildTarget bt, bool forceBuild = false)
+        {
+            var opt = BuildAssetBundleOptions.DisableLoadAssetByFileNameWithExtension;
+            if (forceBuild)
+            {
+                opt |= BuildAssetBundleOptions.ForceRebuildAssetBundle;
+            }
+            if (compression == CompressOptions.Uncompressed)
+            {
+                opt |= BuildAssetBundleOptions.UncompressedAssetBundle;
+            }
+            else if (compression == CompressOptions.ChunkBasedCompression)
+            {
+                opt |= BuildAssetBundleOptions.ChunkBasedCompression;
+            }
+            
             AssetDatabase.Refresh();
             AssetDatabase.SaveAssets();
 
-            var builds = Resolve();
+            var builds = Resolve(out var assetPairs);
 
             if (builds == null)
             {
                 return false;
             }
 
-            var sourceManifest = $"{outPath}/{Path.GetFileName(outPath)}";
-            // outPath = $"{outPath}/{bt.ToString().ToLower()}";
-            if (!Directory.Exists(outPath))
+            if (builds.Length > 0)
             {
-                Directory.CreateDirectory(outPath);
-            }
-
-            if (File.Exists(sourceManifest))
-            {
-                File.Delete(sourceManifest);
-            }
-
-            if (File.Exists(sourceManifest + ".manifest"))
-            {
-                File.Delete(sourceManifest + ".manifest");
-            }
-
-            var bundleManifest = BuildPipeline.BuildAssetBundles(outPath, builds, opt, bt);
-            if (bundleManifest == null)
-            {
-                Debug.LogError("Error in build");
-                return false;
-            }
-
-            AssetDatabase.DeleteAsset(ProfileManifestPath);
-
-
-            //移除不需要的ab
-            if (clearFolderBeforeBuild)
-            {
-                var outDirectoryInfo = new DirectoryInfo(outPath);
-                var filesMap = EditorUtils.ListAllFiles(outDirectoryInfo).ToDictionary(f => f.FullName);
-                foreach (var bundle in bundleManifest.GetAllAssetBundles())
+                var sourceManifest = $"{outPath}/{Path.GetFileName(outPath)}";
+                // outPath = $"{outPath}/{bt.ToString().ToLower()}";
+                if (!Directory.Exists(outPath))
                 {
-                    var fullPath = Path.GetFullPath($"{outPath}/{bundle}");
-                    filesMap.Remove(fullPath);
-                    filesMap.Remove($"{fullPath}.manifest");
+                    Directory.CreateDirectory(outPath);
                 }
 
-                filesMap.Remove(Path.GetFullPath(sourceManifest));
-                filesMap.Remove($"{Path.GetFullPath(sourceManifest)}.manifest");
-
-                foreach (var fileInfo in filesMap)
+                if (File.Exists(sourceManifest))
                 {
-                    fileInfo.Value.Delete();
+                    File.Delete(sourceManifest);
                 }
 
-                var allSub = EditorUtils.ListAllDirectories(outDirectoryInfo);
-                allSub.Sort((x, y) => y.FullName.Length.CompareTo(x.FullName.Length));
-                //删除空的目录
-                foreach (var sub in allSub)
+                if (File.Exists(sourceManifest + ".manifest"))
                 {
-                    if (EditorUtils.ListAllFiles(sub).Count == 0 && sub.Exists)
+                    File.Delete(sourceManifest + ".manifest");
+                }
+
+                var bundleManifest = BuildPipeline.BuildAssetBundles(outPath, builds, opt, bt);
+                if (bundleManifest == null)
+                {
+                    Debug.LogError("Error in build");
+                    return false;
+                }
+
+                AssetDatabase.DeleteAsset(ProfileManifestPath);
+
+
+                //移除不需要的ab
+                if (clearFolderBeforeBuild)
+                {
+                    var outDirectoryInfo = new DirectoryInfo(outPath);
+                    var filesMap = EditorUtils.ListAllFiles(outDirectoryInfo).ToDictionary(f => f.FullName);
+                    foreach (var bundle in bundleManifest.GetAllAssetBundles())
                     {
-                        sub.Delete(true);
+                        var fullPath = Path.GetFullPath($"{outPath}/{bundle}");
+                        filesMap.Remove(fullPath);
+                        filesMap.Remove($"{fullPath}.manifest");
+                    }
+
+                    filesMap.Remove(Path.GetFullPath(sourceManifest));
+                    filesMap.Remove($"{Path.GetFullPath(sourceManifest)}.manifest");
+
+                    foreach (var fileInfo in filesMap)
+                    {
+                        fileInfo.Value.Delete();
+                    }
+
+                    var allSub = EditorUtils.ListAllDirectories(outDirectoryInfo);
+                    allSub.Sort((x, y) => y.FullName.Length.CompareTo(x.FullName.Length));
+                    //删除空的目录
+                    foreach (var sub in allSub)
+                    {
+                        if (EditorUtils.ListAllFiles(sub).Count == 0 && sub.Exists)
+                        {
+                            sub.Delete(true);
+                        }
                     }
                 }
-            }
 
-            var manifestFileName = $"{outPath}/{bt.ToString().ToLower()}";
-            if (File.Exists(manifestFileName))
-            {
-                File.Delete(manifestFileName);
-                File.Delete($"{manifestFileName}.manifest");
-            }
+                var manifestFileName = $"{outPath}/{bt.ToString().ToLower()}";
+                if (File.Exists(manifestFileName))
+                {
+                    File.Delete(manifestFileName);
+                    File.Delete($"{manifestFileName}.manifest");
+                }
 
-            File.Move($"{sourceManifest}", manifestFileName);
-            File.Move($"{sourceManifest}.manifest", $"{manifestFileName}.manifest");
+                File.Move($"{sourceManifest}", manifestFileName);
+                File.Move($"{sourceManifest}.manifest", $"{manifestFileName}.manifest");
+            }
 
             //单打资源
             var nodes = new List<AssetNode>();
@@ -1061,13 +1287,23 @@ namespace DeepU3.Editor.AssetBundle
             var resolveItems = nodes.Select(n => new ResolveItem(n));
             foreach (var s in resolveItems)
             {
-                BuildPipeline.PushAssetDependencies();
-                var asset = AssetDatabase.LoadMainAssetAtPath(s.AssetPath);
-                BuildPipeline.BuildAssetBundle(asset, new[] {asset}, $"{outPath}/{s.AssetBundleName}{assetExt}", BUILD_OPT_ALL_IN_ONE, bt);
-                BuildPipeline.PopAssetDependencies();
+                if (s.IsSceneAsset)
+                {
+                    BuildPipeline.BuildStreamedSceneAssetBundle(new string[] {s.AssetPath}, $"{outPath}/{s.AssetBundleName}{assetExt}", bt, BuildOptions.BuildAdditionalStreamedScenes);
+                }
+                else
+                {
+                    BuildPipeline.PushAssetDependencies();
+                    var asset = AssetDatabase.LoadMainAssetAtPath(s.AssetPath);
+                    BuildPipeline.BuildAssetBundle(asset, new[] {asset}, $"{outPath}/{s.AssetBundleName}{assetExt}", BUILD_OPT_ALL_IN_ONE, bt);
+                    BuildPipeline.PopAssetDependencies();
+                }
             }
 
-            SavePreviewFiles($"{outPath}/{name.ToLower()}_preview_files.txt", builds);
+            if (savePreviewFileAfterBuild)
+            {
+                SavePreviewFiles($"{outPath}/{name.ToLower()}_preview_files.txt", builds, assetPairs);
+            }
 
             return true;
         }

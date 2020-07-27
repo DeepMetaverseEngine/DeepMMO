@@ -14,6 +14,7 @@ namespace DeepMMO.Unity3D.Terrain
         private string[] LayerName = 
         {
             "NavLayer",
+            "Water"
         };
 
         private string WaterLayerName = "Water";

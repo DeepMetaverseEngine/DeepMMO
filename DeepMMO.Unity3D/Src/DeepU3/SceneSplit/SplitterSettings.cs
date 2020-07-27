@@ -9,11 +9,16 @@ namespace DeepU3.SceneSplit
     /// </summary>
     public class SplitterSettings : MonoBehaviour
     {
-        public float positionCheckTime = 0.1f;
-
-        public float destroyTileDelay = 2f;
-
         [HideInInspector]
         public LayerSettingTemplates config;
+
+        public enum SplitSteps
+        {
+            Prepare = 0,
+            Split,
+            Clean
+        }
+
+        public SplitSteps splitStep = SplitSteps.Prepare;
     }
 }

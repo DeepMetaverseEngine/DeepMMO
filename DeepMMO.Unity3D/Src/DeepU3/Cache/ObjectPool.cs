@@ -153,10 +153,6 @@ namespace DeepU3.Cache
 
         protected virtual void RemoveObject(object obj)
         {
-            if (obj is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
         }
 
         public void Put(object obj)
@@ -373,10 +369,6 @@ namespace DeepU3.Cache
 
         protected virtual void RemoveObject(object key, object obj)
         {
-            if (obj is IDisposable)
-            {
-                ((IDisposable) obj).Dispose();
-            }
         }
 
         protected override void RemoveOne()

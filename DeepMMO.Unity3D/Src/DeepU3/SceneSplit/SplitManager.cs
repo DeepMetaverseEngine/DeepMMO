@@ -149,7 +149,7 @@ namespace DeepU3.SceneSplit
             ReloadParts();
         }
 
-        private readonly static Stack<string> sPathStack = new Stack<string>(10);
+        private static readonly Stack<string> sPathStack = new Stack<string>(10);
 
         public static void BindRendererLightmap(Transform root, ICollection<LightmapBakedParams> lightmapCollection)
         {
@@ -165,19 +165,37 @@ namespace DeepU3.SceneSplit
                     p = p.parent;
                 }
 
-                var str = ZString.Join<string>('/', sPathStack);
-                var lParam = lightmapCollection.FirstOrDefault(m => m.bindRendererName == str);
-                if (lParam != null)
+                using (var sb = new Utf16ValueStringBuilder(true))
                 {
-                    var lp = r.gameObject.GetOrAddComponent<LightmapPart>();
-                    lp.renderer = r;
-                    lp.lightmapIndex = lParam.lightmapIndex;
-                    lp.lightmapScaleOffset = lParam.lightmapScaleOffset;
-                    if (!lp.enabled)
+                    var isFirst = true;
+                    foreach (var item in sPathStack)
                     {
-                        lp.enabled = true;
+                        if (!isFirst)
+                        {
+                            sb.Append('/');
+                        }
+                        else
+                        {
+                            isFirst = false;
+                        }
+                        sb.Append(item);
+                    }
+
+                    var str = sb.ToString();
+                    var lParam = lightmapCollection.FirstOrDefault(m => m.bindRendererName == str);
+                    if (lParam != null)
+                    {
+                        var lp = r.gameObject.GetOrAddComponent<LightmapPart>();
+                        lp.renderer = r;
+                        lp.lightmapIndex = lParam.lightmapIndex;
+                        lp.lightmapScaleOffset = lParam.lightmapScaleOffset;
+                        if (!lp.enabled)
+                        {
+                            lp.enabled = true;
+                        }
                     }
                 }
+
             }
         }
 

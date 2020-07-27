@@ -12,8 +12,8 @@ namespace DeepU3.Editor.SceneStreamer
     public class SceneStreamerEditor : UnityEditor.Editor
     {
         private SerializedProperty splitsProperty;
-        private SerializedProperty managerProperty;
         private SerializedProperty layerSettingProperty;
+        private SerializedProperty templateProperty;
         private SerializedProperty xPosProperty;
         private SerializedProperty yPosProperty;
         private SerializedProperty zPosProperty;
@@ -23,8 +23,8 @@ namespace DeepU3.Editor.SceneStreamer
 
         private void OnEnable()
         {
-            managerProperty = serializedObject.FindProperty(nameof(SplitStreamer.manager));
             layerSettingProperty = serializedObject.FindProperty(nameof(SplitStreamer.layerSetting));
+            templateProperty = serializedObject.FindProperty(nameof(SplitStreamer.template));
             splitsProperty = serializedObject.FindProperty(nameof(SplitStreamer.splits));
             xPosProperty = serializedObject.FindProperty(nameof(SplitStreamer.xPos));
             yPosProperty = serializedObject.FindProperty(nameof(SplitStreamer.yPos));
@@ -34,8 +34,8 @@ namespace DeepU3.Editor.SceneStreamer
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
-            EditorGUILayout.PropertyField(managerProperty, true);
             EditorGUILayout.PropertyField(layerSettingProperty, true);
+            EditorGUILayout.PropertyField(templateProperty, true);
             EditorGUILayout.PropertyField(xPosProperty);
             EditorGUILayout.PropertyField(yPosProperty);
             EditorGUILayout.PropertyField(zPosProperty);
@@ -55,9 +55,10 @@ namespace DeepU3.Editor.SceneStreamer
 
                 using (new EditorGUI.IndentLevelScope())
                 {
-                    foreach (var s in streamer.splits)
+                    for (var index = 0; index < streamer.splits.Length; index++)
                     {
-                        var splitName = $"{streamer.name}_{s.posID[0]}_{s.posID[1]}_{s.posID[2]}";
+                        var s = streamer.splits[index];
+                        var splitName = $"{index}:{streamer.name}_{s.posID[0]}_{s.posID[1]}_{s.posID[2]}";
                         mFoldouts.TryGetValue(s.GetHashCode(), out var foldout);
                         foldout = EditorGUILayout.Foldout(foldout, splitName);
                         mFoldouts[s.GetHashCode()] = foldout;

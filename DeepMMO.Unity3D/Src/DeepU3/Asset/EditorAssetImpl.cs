@@ -21,20 +21,19 @@ namespace DeepU3.Asset
     {
         public int LoadingAssetCount { get; private set; }
 
-        public Object[] LoadAllAssetsImmediate(object address)
+        public Object[] LoadAllAssetsImmediate(AssetAddress address)
         {
             throw new NotImplementedException();
         }
 
-        public T[] LoadAllAssetsImmediate<T>(object address) where T : Object
+        public T[] LoadAllAssetsImmediate<T>(AssetAddress address) where T : Object
         {
             throw new NotImplementedException();
         }
 
-        public CollectionResultAsyncOperation<T> LoadAllAssets<T>(object address) where T : Object
+        public CollectionResultAsyncOperation<T> LoadAllAssets<T>(AssetAddress address) where T : Object
         {
-            var assetAddress = AssetAddress.EvaluateAddress(address);
-            var assetPaths = AssetDatabase.GetAssetPathsFromAssetBundle(assetAddress.Address);
+            var assetPaths = AssetDatabase.GetAssetPathsFromAssetBundle(address.Address);
             var all = new T[assetPaths.Length];
             for (var i = 0; i < all.Length; i++)
             {
@@ -44,7 +43,7 @@ namespace DeepU3.Asset
             return new CollectionResultAsyncOperation<T>(all);
         }
 
-        public CollectionResultAsyncOperation<Object> LoadAllAssets(object address)
+        public CollectionResultAsyncOperation<Object> LoadAllAssets(AssetAddress address)
         {
             throw new NotImplementedException();
         }
@@ -79,34 +78,30 @@ namespace DeepU3.Asset
             }
         }
 
-        public ResultAsyncOperation<T> LoadAsset<T>(object address) where T : Object
+        public ResultAsyncOperation<T> LoadAsset<T>(AssetAddress address) where T : Object
         {
-            var assetAddress = AssetAddress.EvaluateAddress(address);
-            var asset = AssetDatabase.LoadAssetAtPath<T>(FixAddress(assetAddress.Address));
+            var asset = AssetDatabase.LoadAssetAtPath<T>(FixAddress(address.Address));
             return new ResultAsyncOperation<T>(asset);
         }
 
-        public T LoadAssetImmediate<T>(object address) where T : Object
+        public T LoadAssetImmediate<T>(AssetAddress address) where T : Object
         {
-            var assetAddress = AssetAddress.EvaluateAddress(address);
-            var asset = AssetDatabase.LoadAssetAtPath<T>(FixAddress(assetAddress.Address));
+            var asset = AssetDatabase.LoadAssetAtPath<T>(FixAddress(address.Address));
             return asset;
         }
 
-        public GameObject InstantiateImmediate(object address)
+        public GameObject InstantiateImmediate(InstantiationAssetAddress address)
         {
-            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
-            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(FixAddress(assetAddress.Address));
-            assetAddress.PreSetAsset(asset);
-            return assetAddress.Instantiate();
+            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(FixAddress(address.Address));
+            address.PreSetAsset(asset);
+            return address.Instantiate();
         }
 
-        public ResultAsyncOperation<GameObject> Instantiate(object address)
+        public ResultAsyncOperation<GameObject> Instantiate(InstantiationAssetAddress address)
         {
-            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
-            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(FixAddress(assetAddress.Address));
-            assetAddress.PreSetAsset(asset);
-            return new ResultAsyncOperation<GameObject>(assetAddress.Instantiate());
+            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(FixAddress(address.Address));
+            address.PreSetAsset(asset);
+            return new ResultAsyncOperation<GameObject>(address.Instantiate());
         }
 
         private string FixAddress(string assetPath)
@@ -114,13 +109,13 @@ namespace DeepU3.Asset
             return assetPath;
         }
 
-        public CollectionResultAsyncOperation<T> LoadAssets<T>(IList<object> addresses) where T : Object
+        public CollectionResultAsyncOperation<T> LoadAssets<T>(IList<AssetAddress> addresses) where T : Object
         {
             var all = addresses.Select(LoadAsset<T>);
             return new CollectionResultAsyncOperation<T>(all);
         }
 
-        public CollectionResultAsyncOperation<GameObject> Instantiates(IList<object> addresses)
+        public CollectionResultAsyncOperation<GameObject> Instantiates(IList<InstantiationAssetAddress> addresses)
         {
             var all = addresses.Select(Instantiate);
             var dSync = new CollectionResultAsyncOperation<GameObject>(all);
@@ -186,7 +181,7 @@ namespace DeepU3.Asset
             return assetPath;
         }
 
-        public string AddressToScenePath(string address)
+        public string AddressToMainAssetPath(string address)
         {
             return address;
         }

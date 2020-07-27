@@ -399,7 +399,7 @@ namespace DeepU3.Editor.AssetBundle
             var isFolder = true;
             foreach (var item in selectedNodes)
             {
-                isNormal = isNormal && !string.IsNullOrEmpty(item.AssetNode.AssetBundleName) && !item.AssetNode.IsCompleteAsset;
+                isNormal = isNormal && !string.IsNullOrEmpty(item.AssetNode.AssetBundleName) && !item.AssetNode.IsCompleteAsset && !item.AssetNode.IsBuiltIn;
                 depthGtZero = depthGtZero && item.AssetNode.Depth > 0;
                 top = top && !(item.parent is AssetEntryTreeViewItem);
                 isFolder = isFolder && item.AssetNode.IsFolder;
@@ -459,31 +459,63 @@ namespace DeepU3.Editor.AssetBundle
 
                     Reload();
                 });
-                if (selectedNodes.Count == 1)
+
+                if (isNormal)
                 {
-                    menu.AddItem(new GUIContent("Rename"), false, RenameItem, selectedNodes);
-                }
-
-                if (isFolder)
-                {
-                    menu.AddItem(new GUIContent("Combine"), false, () =>
+                    if (selectedNodes.Count == 1)
                     {
-                        foreach (var item in selectedNodes)
-                        {
-                            mEditor.CombineFolder(item.AssetPath, true);
-                        }
+                        menu.AddItem(new GUIContent("Rename"), false, RenameItem, selectedNodes);
+                    }
 
-                        Reload();
-                    });
-                    menu.AddItem(new GUIContent("Disable Combine"), false, () =>
+                    if (isFolder)
                     {
-                        foreach (var item in selectedNodes)
+                        menu.AddItem(new GUIContent("Combine"), false, () =>
                         {
-                            mEditor.CombineFolder(item.AssetPath, false);
-                        }
+                            foreach (var item in selectedNodes)
+                            {
+                                mEditor.CombineFolder(item.AssetPath, true);
+                            }
 
-                        Reload();
-                    });
+                            Reload();
+                        });
+                        menu.AddItem(new GUIContent("Disable Combine"), false, () =>
+                        {
+                            foreach (var item in selectedNodes)
+                            {
+                                mEditor.CombineFolder(item.AssetPath, false);
+                            }
+
+                            Reload();
+                        });
+                        if (selectedNodes.Count == 1)
+                        {
+                            var currentTypes = selectedNodes[0].AssetNode.GetAllTypes();
+                            var ignoresTypes = mEditor.CurrentProfile.GetIgnoredTypes(selectedNodes[0].AssetPath);
+                            var allTypes = new List<Type>();
+                            allTypes.AddRange(currentTypes);
+                            allTypes.AddRange(ignoresTypes);
+                            allTypes.Sort((x, y) => string.Compare(x.Name, y.Name, StringComparison.Ordinal));
+
+                            foreach (var t in allTypes)
+                            {
+                                menu.AddItem(new GUIContent($"Allow Types/{t.Name}"), currentTypes.Contains(t), () =>
+                                {
+                                    mEditor.CurrentProfile.SetIgnoredType(selectedNodes[0].AssetPath, t, !ignoresTypes.Contains(t));
+                                    Reload();
+                                });
+                            }
+                        }
+                    }
+                    else if (selectedNodes.Count == 1)
+                    {
+                        var item = selectedNodes[0];
+                        var isCombine = item.AssetNode.RootAssetItem.isCombine;
+                        menu.AddItem(new GUIContent("Combine Dependencies As Soon As Possible"), isCombine, () =>
+                        {
+                            item.AssetNode.RootAssetItem.isCombine = !isCombine;
+                            mEditor.CurrentProfile.SetDirty(true, false);
+                        });
+                    }
                 }
             }
 
@@ -535,6 +567,10 @@ namespace DeepU3.Editor.AssetBundle
         private void OnEnable()
         {
             m_BuildTarget = EditorUserBuildSettings.activeBuildTarget;
+            if (m_BuildTarget == BuildTarget.StandaloneWindows64)
+            {
+                m_BuildTarget = BuildTarget.StandaloneWindows;
+            }
         }
 
 
@@ -612,6 +648,7 @@ namespace DeepU3.Editor.AssetBundle
                 selfContainer.AddChild(item);
             }
 
+
             //add normal 
             foreach (var child in CurrentProfile.RootAssetNode.Children)
             {
@@ -675,6 +712,7 @@ namespace DeepU3.Editor.AssetBundle
             var needReload = CurrentProfile != null && CurrentProfile != newProfile;
             CurrentProfile = newProfile;
 
+            CurrentProfile.SetDirty(true, true);
             EditorPrefs.SetString($"{nameof(AssetBundleProfile)}_SelectProfile", newProfile.name);
             if (needReload)
             {
@@ -815,6 +853,51 @@ namespace DeepU3.Editor.AssetBundle
         }
 
 
+        private void ShowDependenciesInProjectBrowser<T>(Predicate<string> checkPath, Comparison<Object> comparison, Func<string, Object> loadFunc) where T : Object
+        {
+            try
+            {
+                var t = typeof(T);
+                var arr = CurrentProfile.FindDependencies(t);
+                EditorUtility.DisplayProgressBar("Hold", "ShowObjectsInProjectBrowser", 0.5f);
+                var objPaths = checkPath != null ? arr.Where(m => checkPath(m)).ToList() : arr.ToList();
+                objPaths.Sort();
+                var objs = objPaths.Select(loadFunc).Where(m => m).ToList();
+                if (comparison != null)
+                {
+                    objs.Sort(comparison);
+                }
+
+                EditorUtils.ShowObjectsInProjectBrowser(objs.ToArray());
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
+        }
+
+        private void ShowDependenciesInProjectBrowser<T>(Predicate<string> checkPath = null, Comparison<T> comparison = null) where T : Object
+        {
+            Comparison<Object> finalComparison = null;
+            if (comparison != null)
+            {
+                finalComparison = (x, y) => comparison.Invoke(x as T, y as T);
+            }
+
+            ShowDependenciesInProjectBrowser<T>(checkPath, finalComparison, AssetDatabase.LoadMainAssetAtPath);
+        }
+
+        private void ShowDependenciesInProjectBrowser<T, TSub>(Predicate<string> checkPath = null, Comparison<TSub> comparison = null) where T : Object where TSub : Object
+        {
+            Comparison<Object> finalComparison = null;
+            if (comparison != null)
+            {
+                finalComparison = (x, y) => comparison.Invoke(x as TSub, y as TSub);
+            }
+
+            ShowDependenciesInProjectBrowser<T>(checkPath, finalComparison, AssetDatabase.LoadAssetAtPath<TSub>);
+        }
+
         void TopToolbar(Rect toolbarPos)
         {
             if (m_ButtonStyle == null)
@@ -856,6 +939,114 @@ namespace DeepU3.Editor.AssetBundle
                             m_EntryTree.Reload();
                         }
                     }
+                    {
+                        GUILayout.Space(20);
+                        var guiMode = new GUIContent("Tools");
+                        var rMode = GUILayoutUtility.GetRect(guiMode, EditorStyles.toolbarDropDown);
+                        if (EditorGUI.DropdownButton(rMode, guiMode, FocusType.Passive, EditorStyles.toolbarDropDown))
+                        {
+                            var menu = new GenericMenu();
+                            menu.AddItem(new GUIContent("See/Texture/Order By MaxTextureSize"), false, () =>
+                            {
+                                var dict = new Dictionary<string, TextureImporter>();
+                                var settingTarget = m_BuildTarget.ToString();
+                                if (settingTarget.StartsWith("Standalone"))
+                                {
+                                    settingTarget = "Standalone";
+                                }
+
+                                ShowDependenciesInProjectBrowser<Texture>(m =>
+                                {
+                                    var importer = AssetImporter.GetAtPath(m) as TextureImporter;
+                                    if (importer == null)
+                                    {
+                                        return false;
+                                    }
+
+                                    dict.Add(m, importer);
+                                    return true;
+                                }, (x, y) =>
+                                {
+                                    var importerX = dict[AssetDatabase.GetAssetPath(x)];
+                                    var importerY = dict[AssetDatabase.GetAssetPath(y)];
+                                    var overrideX = importerX.GetPlatformTextureSettings(settingTarget);
+                                    var overrideY = importerY.GetPlatformTextureSettings(settingTarget);
+                                    var isOverrideX = overrideX.overridden ? 1 : 0;
+                                    var isOverrideY = overrideY.overridden ? 1 : 0;
+                                    var isT2dX = x is Texture2D ? 1 : 0;
+                                    var isT2dY = y is Texture2D ? 1 : 0;
+
+                                    var ret = isT2dY.CompareTo(isT2dX);
+                                    if (ret != 0)
+                                    {
+                                        return ret;
+                                    }
+
+                                    ret = isOverrideY.CompareTo(isOverrideX);
+                                    if (ret != 0)
+                                    {
+                                        return ret;
+                                    }
+
+                                    ret = overrideX.overridden ? overrideY.maxTextureSize.CompareTo(overrideX.maxTextureSize) : importerY.maxTextureSize.CompareTo(importerX.maxTextureSize);
+                                    if (ret != 0)
+                                    {
+                                        return ret;
+                                    }
+
+                                    return string.Compare(x.name, y.name, StringComparison.Ordinal);
+                                });
+                            });
+                            menu.AddItem(new GUIContent("See/Texture/Order By Name"), false, () => { ShowDependenciesInProjectBrowser<Texture>(m => AssetImporter.GetAtPath(m)); });
+                            menu.AddItem(new GUIContent("See/Texture/Order By TextureFormat"), false, () =>
+                            {
+                                var dict = new Dictionary<string, TextureImporter>();
+                                var settingTarget = m_BuildTarget.ToString();
+                                if (settingTarget.StartsWith("Standalone"))
+                                {
+                                    settingTarget = "Standalone";
+                                }
+
+                                ShowDependenciesInProjectBrowser<Texture>(m =>
+                                {
+                                    var importer = AssetImporter.GetAtPath(m) as TextureImporter;
+                                    if (importer == null)
+                                    {
+                                        return false;
+                                    }
+
+                                    dict.Add(m, importer);
+                                    return true;
+                                }, (x, y) =>
+                                {
+                                    var importerX = dict[AssetDatabase.GetAssetPath(x)];
+                                    var importerY = dict[AssetDatabase.GetAssetPath(y)];
+                                    var overrideX = importerX.GetPlatformTextureSettings(settingTarget);
+                                    var overrideY = importerY.GetPlatformTextureSettings(settingTarget);
+                                    return overrideX.format.CompareTo(overrideY.format);
+                                });
+                            });
+
+                            menu.AddItem(new GUIContent("See/Material/Order By EnableInstancing"), false, () =>
+                            {
+                                ShowDependenciesInProjectBrowser<Material>(null, (x, y) =>
+                                {
+                                    var ix = x.enableInstancing ? 1 : 0;
+                                    var iy = y.enableInstancing ? 1 : 0;
+                                    return ix == iy ? string.Compare(x.name, y.name, StringComparison.Ordinal) : iy.CompareTo(ix);
+                                });
+                            });
+                            menu.AddItem(new GUIContent("See/Material/Order By Name"), false, () => { ShowDependenciesInProjectBrowser<Material>(); });
+                            menu.AddItem(new GUIContent("See/Prefab"), false, () => { ShowDependenciesInProjectBrowser<GameObject>(m => m.EndsWith(".prefab")); });
+                            menu.AddItem(new GUIContent("See/Module"), false, () => { ShowDependenciesInProjectBrowser<GameObject>(m => !m.EndsWith(".prefab")); });
+                            menu.AddItem(new GUIContent("See/Mesh (Sort By VertexCount)"), false, () => { ShowDependenciesInProjectBrowser<Mesh>(null, (x, y) => y.vertexCount.CompareTo(x.vertexCount)); });
+                            menu.AddItem(new GUIContent("See/Mesh in Module(Sort By VertexCount)"), false, () => { ShowDependenciesInProjectBrowser<GameObject, Mesh>(m => !m.EndsWith(".prefab"), (x, y) => y.vertexCount.CompareTo(x.vertexCount)); });
+                            menu.AddItem(new GUIContent("See/Shader"), false, () => { ShowDependenciesInProjectBrowser<Shader>(); });
+                            menu.AddItem(new GUIContent("See/AnimationClip"), false, () => { ShowDependenciesInProjectBrowser<AnimationClip>(); });
+                            menu.AddItem(new GUIContent("See/AudioClip"), false, () => { ShowDependenciesInProjectBrowser<AudioClip>(); });
+                            menu.DropDown(rMode);
+                        }
+                    }
                     GUILayout.FlexibleSpace();
                     GUILayout.Space(spaceBetween * 2f);
 
@@ -871,11 +1062,15 @@ namespace DeepU3.Editor.AssetBundle
                             menu.AddItem(new GUIContent("Hash Length/16", "依赖资源Hash长度"), CurrentProfile.hashLength == 16, () => CurrentProfile.hashLength = 16);
                             menu.AddItem(new GUIContent("Hash Length/24", "依赖资源Hash长度"), CurrentProfile.hashLength == 24, () => CurrentProfile.hashLength = 24);
                             menu.AddItem(new GUIContent("Hash Length/32", "依赖资源Hash长度"), CurrentProfile.hashLength == 32, () => CurrentProfile.hashLength = 32);
+                            menu.AddItem(new GUIContent("Compression/No Compression"), CurrentProfile.compression == AssetBundleProfile.CompressOptions.Uncompressed, () => CurrentProfile.compression = AssetBundleProfile.CompressOptions.Uncompressed);
+                            menu.AddItem(new GUIContent("Compression/Standard Compression (LZMA)"), CurrentProfile.compression == AssetBundleProfile.CompressOptions.StandardCompression, () => CurrentProfile.compression = AssetBundleProfile.CompressOptions.StandardCompression);
+                            menu.AddItem(new GUIContent("Compression/Chunk Based Compression (LZ4)"), CurrentProfile.compression == AssetBundleProfile.CompressOptions.ChunkBasedCompression, () => CurrentProfile.compression = AssetBundleProfile.CompressOptions.ChunkBasedCompression);
 
                             menu.AddItem(new GUIContent($"Extension/{CurrentProfile.assetExt}"), true, () => { });
                             menu.AddItem(new GUIContent($"Extension/Change"), false, () => { RenameExtensionWindow.Show(this, CurrentProfile, new Vector2(position.xMax - 200, position.yMin + 60)); });
-                            menu.AddItem(new GUIContent("Merge Dependencies As Soon As Possible"), CurrentProfile.mergeDependenciesAsSoonAsPossible, () => CurrentProfile.mergeDependenciesAsSoonAsPossible = !CurrentProfile.mergeDependenciesAsSoonAsPossible);
+                            menu.AddItem(new GUIContent("Combine Dependencies As Soon As Possible"), CurrentProfile.lessDependencyBundles, () => CurrentProfile.lessDependencyBundles = !CurrentProfile.lessDependencyBundles);
                             menu.AddItem(new GUIContent("Clear Folder Before Build"), CurrentProfile.clearFolderBeforeBuild, () => CurrentProfile.clearFolderBeforeBuild = !CurrentProfile.clearFolderBeforeBuild);
+                            menu.AddItem(new GUIContent("Save Preview File After Build"), CurrentProfile.savePreviewFileAfterBuild, () => CurrentProfile.savePreviewFileAfterBuild = !CurrentProfile.savePreviewFileAfterBuild);
 
 
                             menu.DropDown(rMode);
@@ -916,7 +1111,7 @@ namespace DeepU3.Editor.AssetBundle
                                 if (!string.IsNullOrEmpty(outPath))
                                 {
                                     EditorPrefs.SetString(key, outPath);
-                                    var ok = CurrentProfile.Build(outPath, m_BuildTarget, BuildAssetBundleOptions.None);
+                                    var ok = CurrentProfile.Build(outPath, m_BuildTarget);
                                     if (ok)
                                     {
                                         EditorUtility.DisplayDialog(CurrentProfile.name, "Build Success", "确定");
@@ -932,7 +1127,7 @@ namespace DeepU3.Editor.AssetBundle
                                 var outPath = EditorUtility.SaveFolderPanel("目标目录", Environment.CurrentDirectory, null);
                                 if (!string.IsNullOrEmpty(outPath))
                                 {
-                                    var manifest = CurrentProfile.Build(outPath, m_BuildTarget, BuildAssetBundleOptions.ForceRebuildAssetBundle);
+                                    var manifest = CurrentProfile.Build(outPath, m_BuildTarget, true);
                                     if (manifest)
                                     {
                                         EditorUtility.DisplayDialog(CurrentProfile.name, "Build Success", "确定");

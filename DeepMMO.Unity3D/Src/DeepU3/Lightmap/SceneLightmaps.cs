@@ -6,6 +6,7 @@ using DeepU3.Asset;
 using DeepU3.Async;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.SceneManagement;
 #if UNITY_EDITOR
 using UnityEditor;
 
@@ -23,9 +24,9 @@ namespace DeepU3.Lightmap
         public RenderSettingsData renderSetting = new RenderSettingsData();
         public LightmapSettingsData lightmapSetting = new LightmapSettingsData();
 
-        private LinkedListNode<LightmapSettingsData> mCurrentNode;
-        private static readonly LinkedList<LightmapSettingsData> sAllLightmapSettings = new LinkedList<LightmapSettingsData>();
-
+        private LinkedListNode<SceneLightmaps> mCurrentNode;
+        private static readonly LinkedList<SceneLightmaps> sAllLightmapSettings = new LinkedList<SceneLightmaps>();
+        private bool mDirtyProbes;
         [Serializable]
         public class RenderSettingsData
         {
@@ -34,7 +35,7 @@ namespace DeepU3.Lightmap
             public Cubemap customReflection;
             public float reflectionIntensity;
             public int reflectionBounces;
-
+            public LightProbes lightProbes;
             public void Apply()
             {
                 RenderSettings.skybox = skybox;
@@ -43,6 +44,7 @@ namespace DeepU3.Lightmap
                 RenderSettings.reflectionIntensity = reflectionIntensity;
                 RenderSettings.reflectionBounces = reflectionBounces;
                 RenderSettings.fog = false;
+                LightmapSettings.lightProbes = lightProbes;
             }
         }
 
@@ -153,6 +155,7 @@ namespace DeepU3.Lightmap
                         {
                             return true;
                         }
+
                         return _data.lights != null && _part.lightmapIndex < _data.lights.Length && _data.lights[_part.lightmapIndex] != null;
                     }
                 }
@@ -362,48 +365,64 @@ namespace DeepU3.Lightmap
             }
         }
 
-
-        public void Apply()
-        {
-            renderSetting?.Apply();
-            lightmapSetting?.Apply();
-        }
-
-
         private void Awake()
         {
+            SceneManager.activeSceneChanged += ActiveSceneChanged;
+            SceneManager.sceneLoaded += OnNewSceneLoaded;
             var startIndex = 0;
             if (sAllLightmapSettings.Count > 0)
             {
                 var last = sAllLightmapSettings.Last.Value;
-                startIndex = last.StartIndexInLms + last.count;
+                startIndex = last.lightmapSetting.StartIndexInLms + last.lightmapSetting.count;
             }
 
             lightmapSetting.StartIndexInLms = startIndex;
             lightmapSetting.sceneName = gameObject.scene.name;
-            mCurrentNode = sAllLightmapSettings.AddLast(lightmapSetting);
+            mCurrentNode = sAllLightmapSettings.AddLast(this);
         }
 
-        void Start()
+        private void ActiveSceneChanged(Scene current, Scene next)
         {
-            Apply();
-        }
-
-        public void Reset()
-        {
-            if (mCurrentNode != null)
+            if (next == gameObject.scene)
             {
-                Apply();
+                renderSetting.Apply();
             }
         }
 
-        private void OnDestroy()
+       
+        private void OnNewSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (lightmapSetting == null)
+            mDirtyProbes = true;
+        }
+
+        private void Update()
+        {
+            if (!mDirtyProbes)
             {
                 return;
             }
+            mDirtyProbes = false;
+            if (SceneManager.GetActiveScene() == gameObject.scene)
+            {
+                LightmapSettings.lightProbes = renderSetting.lightProbes;
+            }
+        }
 
+        private void Start()
+        {
+            if (SceneManager.GetActiveScene() == gameObject.scene)
+            {
+                renderSetting.Apply();
+            }
+
+            lightmapSetting.Apply();
+        }
+
+
+        private void OnDestroy()
+        {
+            SceneManager.activeSceneChanged -= ActiveSceneChanged;
+            SceneManager.sceneLoaded -= OnNewSceneLoaded;
             lightmapSetting.Dispose();
             var isLastOne = mCurrentNode == sAllLightmapSettings.Last;
             sAllLightmapSettings.Remove(mCurrentNode);
@@ -413,8 +432,9 @@ namespace DeepU3.Lightmap
             {
                 //重排
                 var index = 0;
-                foreach (var setting in sAllLightmapSettings)
+                foreach (var slm in sAllLightmapSettings)
                 {
+                    var setting = slm.lightmapSetting;
                     setting.StartIndexInLms = index;
                     index += setting.count;
                     EnsureArraySize(index);
@@ -448,7 +468,7 @@ namespace DeepU3.Lightmap
             else
             {
                 var setting = sAllLightmapSettings.Last.Value;
-                var count = setting.StartIndexInLms + setting.count;
+                var count = setting.lightmapSetting.StartIndexInLms + setting.lightmapSetting.count;
                 for (var i = count; i < sCurrentLms.Length; i++)
                 {
                     var ld = sCurrentLms[i];
@@ -489,16 +509,15 @@ namespace DeepU3.Lightmap
 
         public static ILightmapReference Ref(LightmapPart part)
         {
-            var sceneName = part.gameObject.scene.name;
             //optimize find setting 
-            var setting = sAllLightmapSettings.FirstOrDefault(m => m.sceneName == sceneName);
+            var slm = sAllLightmapSettings.FirstOrDefault(m => m.gameObject.scene == part.gameObject.scene);
 
-            if (setting == null || part.lightmapIndex < 0 || part.lightmapIndex >= setting.count)
+            if (slm == null || part.lightmapIndex < 0 || part.lightmapIndex >= slm.lightmapSetting.count)
             {
                 return null;
             }
 
-            return setting.RefLightmapPart(part);
+            return slm.lightmapSetting.RefLightmapPart(part);
         }
 
 

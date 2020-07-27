@@ -19,20 +19,20 @@ namespace DeepU3.Asset
     {
         internal class AssetContainer : ReferencesContainer
         {
-            public readonly UnityEngine.Object Asset;
-            public readonly AssetBundleData Data;
+            public readonly Object Asset;
+            public readonly AssetBundle Bundle;
 
             public AssetContainer(LoadingContainer container, Object asset) : base(container.Address)
             {
                 References = container.References;
-                Data = container.Data;
+                Bundle = container.Bundle;
                 Asset = asset;
             }
 
             public AssetContainer(AssetAddress address, int references, AssetBundle bundle, Object asset) : base(address)
             {
                 References = references;
-                Data = new AssetBundleData(bundle);
+                Bundle = bundle;
                 Asset = asset;
             }
         }
@@ -52,31 +52,9 @@ namespace DeepU3.Asset
             }
         }
 
-        public class AssetBundleData
-        {
-            public AssetBundle Bundle;
-            private string[] mAssetNames;
-            public string[] AssetNames => mAssetNames ?? (mAssetNames = Bundle?.GetAllAssetNames());
-
-            public AssetBundleData(AssetBundle assetBundle)
-            {
-                Bundle = assetBundle;
-            }
-
-            public string GetAssetPath(string name)
-            {
-                if (AssetNames.Length == 1)
-                {
-                    return AssetNames[0];
-                }
-
-                return Bundle.mainAsset ? Bundle.mainAsset.name : Path.GetFileNameWithoutExtension(name);
-            }
-        }
-
         internal class LoadingContainer : ReferencesContainer
         {
-            public AssetBundleData Data;
+            public AssetBundle Bundle;
 
 #if UNITY_EDITOR
             public StackTrace LoadTrace;
@@ -122,12 +100,45 @@ namespace DeepU3.Asset
                 Statistics.Instance?.AddAsset(obj, con.Address.Address, con.LoadTrace);
 #endif
             }
-            else if (con.Data != null)
+            else if (con.Bundle != null)
             {
-                mAbm.UnloadBundle(con.Data.Bundle);
+                mAbm.UnloadBundle(con.Bundle);
             }
 
             assetContainer.Operation.SetComplete(obj as T);
+        }
+
+        private readonly Dictionary<string, string> mBundleMainKey = new Dictionary<string, string>();
+
+        public string GetAssetKey(AssetBundle bundle, AssetAddress address)
+        {
+            if (!string.IsNullOrEmpty(address.Key))
+            {
+                return address.Key;
+            }
+
+            var bundleName = address.Address;
+            if (mBundleMainKey.TryGetValue(bundleName, out var key))
+            {
+                return key;
+            }
+
+            if (bundle.mainAsset)
+            {
+                key = bundle.mainAsset.name;
+            }
+            else
+            {
+                key = AddressToMainAssetPath(bundleName);
+                if (string.IsNullOrEmpty(key))
+                {
+                    var names = bundle.GetAllAssetNames();
+                    key = names.Length == 1 ? names[0] : Path.GetFileNameWithoutExtension(bundleName);
+                }
+            }
+
+            mBundleMainKey[bundleName] = key;
+            return key;
         }
 
         private void OnAssetBundleComplete<T>(LoadingContainer<T> loadingContainer, AssetBundle bundle) where T : Object
@@ -138,19 +149,17 @@ namespace DeepU3.Asset
             }
             else
             {
-                var data = new AssetBundleData(bundle);
-                loadingContainer.Data = data;
-                var assetKey = data.GetAssetPath(bundle.name);
+                loadingContainer.Bundle = bundle;
+                var assetKey = GetAssetKey(bundle, loadingContainer.Address);
 
-                var key = loadingContainer.Address.Key ?? assetKey;
                 if (loadingContainer.Address.IsRunSynchronously)
                 {
-                    var asset = bundle.LoadAsset<T>(key);
+                    var asset = bundle.LoadAsset<T>(assetKey);
                     OnLoadAssetComplete(loadingContainer, asset);
                     return;
                 }
 
-                var rq = bundle.LoadAssetAsync<T>(key);
+                var rq = bundle.LoadAssetAsync<T>(assetKey);
                 if (rq.isDone)
                 {
                     OnLoadAssetComplete(loadingContainer, rq.asset);
@@ -166,20 +175,19 @@ namespace DeepU3.Asset
         {
             foreach (var obj in all)
             {
-                var objAssetAddress = new AssetAddress(address, obj.name + obj.GetHashCode());
+                var objAssetAddress = AssetAddress.String2Address(address, obj.name + obj.GetHashCode());
                 var con = NewLoadingContainer<UnityEngine.Object>(objAssetAddress);
                 OnLoadAssetComplete(con, obj);
             }
         }
 
-        public Object[] LoadAllAssetsImmediate(object address)
+        public Object[] LoadAllAssetsImmediate(AssetAddress address)
         {
             return LoadAllAssetsImmediate<Object>(address);
         }
 
-        public T[] LoadAllAssetsImmediate<T>(object address) where T : Object
+        public T[] LoadAllAssetsImmediate<T>(AssetAddress assetAddress) where T : Object
         {
-            var assetAddress = AssetAddress.EvaluateAddress(address);
             var bundle = mAbm.GetBundleImmediate(FixBundlePath(assetAddress.Address));
             if (bundle == null)
             {
@@ -197,13 +205,19 @@ namespace DeepU3.Asset
             return ret ?? abName;
         }
 
-        public CollectionResultAsyncOperation<T> LoadAllAssets<T>(object address) where T : Object
+        public CollectionResultAsyncOperation<T> LoadAllAssets<T>(AssetAddress assetAddress) where T : Object
         {
             var op = new CollectionResultAsyncOperation<T>();
-            var assetAddress = AssetAddress.EvaluateAddress(address);
             var opt = assetAddress.IsRunSynchronously ? AssetBundleLoadOption.TryImmediate : AssetBundleLoadOption.Async;
             mAbm.GetBundle(FixBundlePath(assetAddress.Address), opt, ab =>
             {
+                if (ab == null)
+                {
+                    var assets = new T[0];
+                    op.TrySetResults(assets);
+                    OnBundleAllAssetLoaded(assetAddress.Address, assets);
+                    return;
+                }
                 var req = ab.LoadAllAssetsAsync<T>();
                 if (req.isDone)
                 {
@@ -273,9 +287,8 @@ namespace DeepU3.Asset
             return lCon;
         }
 
-        public ResultAsyncOperation<T> LoadAsset<T>(object address) where T : Object
+        public ResultAsyncOperation<T> LoadAsset<T>(AssetAddress assetAddress) where T : Object
         {
-            var assetAddress = AssetAddress.EvaluateAddress(address);
             var hash = assetAddress.GetHashCode();
             if (mAssets.TryGetValue(hash, out var container))
             {
@@ -295,9 +308,8 @@ namespace DeepU3.Asset
             return lCon.Operation;
         }
 
-        public T LoadAssetImmediate<T>(object address) where T : Object
+        public T LoadAssetImmediate<T>(AssetAddress assetAddress) where T : Object
         {
-            var assetAddress = AssetAddress.EvaluateAddress(address);
             var hash = assetAddress.GetHashCode();
             if (mAssets.TryGetValue(hash, out var container))
             {
@@ -322,19 +334,18 @@ namespace DeepU3.Asset
                 return null;
             }
 
-            loadingContainer.Data = new AssetBundleData(bundle);
-            var key = loadingContainer.Address.Key ?? loadingContainer.Data.GetAssetPath(bundle.name);
+            loadingContainer.Bundle = bundle;
+            var key = GetAssetKey(bundle, loadingContainer.Address);
             var asset = bundle.LoadAsset<T>(key);
             OnLoadAssetComplete<T>((LoadingContainer<T>) loadingContainer, asset);
             return asset;
         }
 
-        public GameObject InstantiateImmediate(object address)
+        public GameObject InstantiateImmediate(InstantiationAssetAddress address)
         {
-            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
             var asset = LoadAssetImmediate<GameObject>(address);
-            assetAddress.PreSetAsset(asset);
-            var obj = assetAddress.Instantiate();
+            address.PreSetAsset(asset);
+            var obj = address.Instantiate();
             if (obj)
             {
                 mGameObjectsHash.Add(obj.GetInstanceID(), address.GetHashCode());
@@ -343,16 +354,15 @@ namespace DeepU3.Asset
             return obj;
         }
 
-        public ResultAsyncOperation<GameObject> Instantiate(object address)
+        public ResultAsyncOperation<GameObject> Instantiate(InstantiationAssetAddress address)
         {
-            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
             var ret = new ResultAsyncOperation<GameObject>();
-            if (!assetAddress.ExistsParts)
+            if (!address.ExistsParts)
             {
-                if (assetAddress.Instance != null)
+                if (address.Instance != null)
                 {
-                    assetAddress.Instantiate();
-                    ret.SetComplete(assetAddress.Instance);
+                    address.Instantiate();
+                    ret.SetComplete(address.Instance);
                 }
                 else
                 {
@@ -360,8 +370,8 @@ namespace DeepU3.Asset
                     op1.Subscribe(ao =>
                     {
                         var asset = ao.Result;
-                        assetAddress.PreSetAsset(asset);
-                        var obj = assetAddress.Instantiate();
+                        address.PreSetAsset(asset);
+                        var obj = address.Instantiate();
                         if (obj)
                         {
                             mGameObjectsHash.Add(obj.GetInstanceID(), address.GetHashCode());
@@ -374,14 +384,14 @@ namespace DeepU3.Asset
             else
             {
                 var listAll = new List<InstantiationAssetAddress>();
-                assetAddress.GetAllDependencies(listAll);
+                address.GetAllDependencies(listAll);
                 listAll.RemoveAll(e => e.Instance != null);
 
                 var all = listAll.Select(LoadAsset<GameObject>);
                 var op = new CollectionResultAsyncOperation<GameObject>(all);
                 op.Subscribe((GameObject[] gos) =>
                 {
-                    var go = assetAddress.Instantiate();
+                    var go = address.Instantiate();
                     ret.SetComplete(go);
                     foreach (var entry in listAll)
                     {
@@ -396,13 +406,13 @@ namespace DeepU3.Asset
             return ret;
         }
 
-        public CollectionResultAsyncOperation<T> LoadAssets<T>(IList<object> addresses) where T : Object
+        public CollectionResultAsyncOperation<T> LoadAssets<T>(IList<AssetAddress> addresses) where T : Object
         {
             var all = addresses.Select(LoadAsset<T>);
             return new CollectionResultAsyncOperation<T>(all);
         }
 
-        public CollectionResultAsyncOperation<GameObject> Instantiates(IList<object> addresses)
+        public CollectionResultAsyncOperation<GameObject> Instantiates(IList<InstantiationAssetAddress> addresses)
         {
             var all = addresses.Select(Instantiate);
             var dSync = new CollectionResultAsyncOperation<GameObject>(all);
@@ -434,10 +444,11 @@ namespace DeepU3.Asset
             {
                 mAssetsHash.Remove(con.Asset.GetInstanceID());
                 mAssets.Remove(con.GetHashCode());
+                con.Address.Release();
 #if UNITY_EDITOR
                 Statistics.Instance?.RemoveAsset(con.Asset, con.Address.Address);
 #endif
-                mAbm.UnloadBundle(con.Data.Bundle);
+                mAbm.UnloadBundle(con.Bundle);
             }
         }
 
@@ -477,7 +488,7 @@ namespace DeepU3.Asset
             mAbm.SetBaseUri(p.BaseUrl);
             BaseAsyncOperation ret = new DecoratorAsyncOperation(mAbm.InitializeAsync());
             var ab = nameof(AssetBundleProfileManifest).ToLower();
-            ret = ret.ContinueWith(_ => { return LoadAsset<AssetBundleProfileManifest>(ab).ContinueWith(op => InitAssetBundleProfileManifest(((ResultAsyncOperation<AssetBundleProfileManifest>) op).Result)); });
+            ret = ret.ContinueWith(_ => { return LoadAsset<AssetBundleProfileManifest>(AssetAddress.String2Address(ab)).ContinueWith(op => InitAssetBundleProfileManifest(((ResultAsyncOperation<AssetBundleProfileManifest>) op).Result)); });
             return ret;
         }
 
@@ -508,15 +519,14 @@ namespace DeepU3.Asset
             return mProfileManifest?.AssetPathToAssetBundleName(address);
         }
 
+        public string AddressToMainAssetPath(string address)
+        {
+            return mProfileManifest?.AssetBundleNameToMainAssetPath(address);
+        }
 
         public string SceneNameToScenePath(string sceneName)
         {
             return mProfileManifest?.SceneNameToAssetPath(sceneName);
-        }
-
-        public string AddressToScenePath(string address)
-        {
-            return mProfileManifest?.AssetBundleNameToScenePath(address);
         }
     }
 }

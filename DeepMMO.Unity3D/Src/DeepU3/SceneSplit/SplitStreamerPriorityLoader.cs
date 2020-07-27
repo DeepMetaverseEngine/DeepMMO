@@ -2,30 +2,52 @@ using System;
 using System.Collections.Generic;
 using DeepU3.Asset;
 using DeepU3.Async;
+using DeepU3.Cache;
 using UnityEngine;
 
 namespace DeepU3.SceneSplit
 {
     public class SplitStreamerPriorityLoader : MonoBehaviour
     {
-        public class LoadQueueNode : IComparable<LoadQueueNode>
+        private class LoadQueueNode : IComparable<LoadQueueNode>
         {
-            public SplitStreamer Streamer;
             public object UserData;
-            public AssetAddress Address;
+            public InstantiationAssetAddress Address;
             public Action<ResultAsyncOperation<GameObject>> Callback;
-            public int[] Pos;
 
             public bool IsLoading;
             public bool IsCompleted;
 
-            public LoadQueueNode(AssetAddress assetAddress, SplitStreamer streamer, object userData, int[] pos, Action<ResultAsyncOperation<GameObject>> callback)
+            public float Distance;
+
+            private LoadQueueNode()
             {
-                Address = assetAddress;
-                Streamer = streamer;
-                UserData = userData;
-                Pos = pos;
-                Callback = callback;
+            }
+
+            private static readonly ObjectPool<LoadQueueNode> sObjectPool = new ObjectPool<LoadQueueNode>(100);
+
+            public static LoadQueueNode Alloc(InstantiationAssetAddress assetAddress, SplitStreamer streamer, object userData, int[] pos, Action<ResultAsyncOperation<GameObject>> callback)
+            {
+                var ret = sObjectPool.Get() ?? new LoadQueueNode();
+
+                ret.Address = assetAddress;
+                ret.UserData = userData;
+                ret.Callback = callback;
+                var r1 = streamer.xPos - pos[0];
+                var r2 = streamer.yPos - pos[1];
+                var r3 = streamer.zPos - pos[2];
+                ret.Distance = Mathf.Sqrt(r1 * r1 + r2 * r2 + r3 * r3) / streamer.SqrMagnitude;
+                return ret;
+            }
+
+            public void Release()
+            {
+                Address = null;
+                UserData = null;
+                Callback = null;
+                IsLoading = false;
+                IsCompleted = false;
+                sObjectPool.Put(this);
             }
 
             private void OnLoadComplete(ResultAsyncOperation<GameObject> o)
@@ -42,18 +64,10 @@ namespace DeepU3.SceneSplit
                 op.UserData = UserData;
             }
 
-            private float GetDistance()
-            {
-                var r1 = Streamer.xPos - Pos[0];
-                var r2 = Streamer.yPos - Pos[1];
-                var r3 = Streamer.zPos - Pos[2];
-                return Mathf.Sqrt(r1 * r1 + r2 * r2 + r3 * r3);
-            }
 
             public int CompareTo(LoadQueueNode other)
             {
-                var ret = other.Streamer.layerSetting.splitSize.magnitude.CompareTo(Streamer.layerSetting.splitSize.magnitude);
-                return ret == 0 ? GetDistance().CompareTo(other.GetDistance()) : ret;
+                return Distance.CompareTo(other.Distance);
             }
         }
 
@@ -63,6 +77,7 @@ namespace DeepU3.SceneSplit
 
 
         private readonly LinkedList<LoadQueueNode> mLoadQueues = new LinkedList<LoadQueueNode>();
+
 
         private static SplitStreamerPriorityLoader sInstance;
 
@@ -84,27 +99,29 @@ namespace DeepU3.SceneSplit
         private float mImmediateStart;
         private float mImmediateLimitTime;
 
+
         public void ImmediateAsSoonAsPossible(float sec)
         {
             mImmediateLimitTime = sec;
             mImmediateStart = Time.realtimeSinceStartup;
         }
 
-        static void SortedInsert<T>(LinkedList<T> list, T value) where T : IComparable<T>
+        private void SortedInsert(LoadQueueNode value)
         {
-            if (list.First == null || value.CompareTo(list.First.Value) <= 0)
+            var list = mLoadQueues;
+            if (list.First == null || value.Distance <= list.First.Value.Distance)
             {
                 list.AddFirst(value);
             }
-            else if (list.Last != null && value.CompareTo(list.Last.Value) >= 0)
+            else if (list.Last != null && value.Distance >= list.Last.Value.Distance)
             {
                 list.AddLast(value);
             }
             else
             {
                 var node = list.First;
-                LinkedListNode<T> next;
-                while ((next = node.Next) != null && next.Value.CompareTo(value) < 0)
+                LinkedListNode<LoadQueueNode> next;
+                while ((next = node.Next) != null && next.Value.Distance < value.Distance)
                 {
                     node = next;
                 }
@@ -130,6 +147,7 @@ namespace DeepU3.SceneSplit
                 if (cur.Value.IsCompleted)
                 {
                     mCompletedCount++;
+                    cur.Value.Release();
                     mLoadQueues.Remove(cur);
                 }
                 else
@@ -153,25 +171,26 @@ namespace DeepU3.SceneSplit
                     {
                         loadingCount++;
                     }
-
-                    if (p?.Value.Streamer.layerSetting.gameObjectPrefix != cur.Value.Streamer.layerSetting.gameObjectPrefix)
-                    {
-                        break;
-                    }
                 }
             }
         }
 
-        public void AddQueue(AssetAddress assetAddress, SplitStreamer streamer, object userData, int[] pos, Action<ResultAsyncOperation<GameObject>> callback)
+        private Transform GetUsedMover(SplitStreamer streamer)
         {
-            var node = new LoadQueueNode(assetAddress, streamer, userData, pos, callback);
-            if (streamer.manager.playerTransform && streamer.manager.playerTransform.gameObject.scene != streamer.gameObject.scene)
+            return streamer.mover ? streamer.mover : SplitStreamer.Mover;
+        }
+
+        public void AddQueue(InstantiationAssetAddress assetAddress, SplitStreamer streamer, object userData, int[] pos, Action<ResultAsyncOperation<GameObject>> callback)
+        {
+            var node = LoadQueueNode.Alloc(assetAddress, streamer, userData, pos, callback);
+            var mover = GetUsedMover(streamer);
+            if (mover && mover.gameObject.scene != streamer.gameObject.scene)
             {
                 mLoadQueues.AddLast(node);
             }
             else
             {
-                SortedInsert(mLoadQueues, node);
+                SortedInsert(node);
             }
 
             mTotalCount++;

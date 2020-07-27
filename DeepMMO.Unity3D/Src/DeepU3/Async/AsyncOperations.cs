@@ -150,7 +150,7 @@ namespace DeepU3.Async
 
         protected BaseAsyncOperation()
         {
-            AsyncOperationUpdater.IOperations.Add(this);
+            AsyncOperationUpdater.Operations.Add(this);
         }
 
         protected internal virtual void Execute()

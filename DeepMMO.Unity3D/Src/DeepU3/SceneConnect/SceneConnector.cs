@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using DeepU3.Asset;
+using DeepU3.Timers;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -35,7 +36,7 @@ namespace DeepU3.SceneConnect
         private readonly List<ConnectArea> mConnectAreas = new List<ConnectArea>();
 
 
-        public float positionCheckTime = 0.1f;
+        public static float PositionCheckTime = 0.1f;
 
 
         public bool IsActiveScene => ActiveScenePath == gameObject.scene.path;
@@ -47,12 +48,25 @@ namespace DeepU3.SceneConnect
         private static Timer sUpdateTimer;
 
         private static Transform sPlayerTransform;
-        public static string PlayerGameObjectTag = "Player";
+        private static string sMoverTag;
         private static readonly HashSet<ConnectArea> sCheckedAreas = new HashSet<ConnectArea>();
 
-        public static void SetPlayerTransform(Transform player)
+        public static void SetMover(Transform player)
         {
             sPlayerTransform = player;
+            if (sUpdateTimer == null)
+            {
+                sUpdateTimer = Timer.Register(PositionCheckTime, OnUpdateConnectors, isLooped: true);
+            }
+        }
+
+        public static void SetMoverTag(string tag)
+        {
+            sMoverTag = tag;
+            if (sUpdateTimer == null)
+            {
+                sUpdateTimer = Timer.Register(PositionCheckTime, OnUpdateConnectors, isLooped: true);
+            }
         }
 
         public static void Close()
@@ -60,26 +74,33 @@ namespace DeepU3.SceneConnect
             ActiveScenePath = null;
         }
 
-        private static void OnUpdateConnectors()
+        private static void TrgGetTaggedMover()
         {
-            if (sConnectors.Count == 0)
+            if (sPlayerTransform || string.IsNullOrEmpty(sMoverTag))
             {
                 return;
             }
-            if (!sPlayerTransform && !string.IsNullOrEmpty(PlayerGameObjectTag))
-            {
-                var go = GameObject.FindGameObjectWithTag(PlayerGameObjectTag);
-                if (go)
-                {
-                    SetPlayerTransform(go.transform);
-                }
-            }
 
+            var o = GameObject.FindWithTag(sMoverTag);
+            if (o)
+            {
+                sPlayerTransform = o.transform;
+            }
+        }
+
+        private static void OnUpdateConnectors()
+        {
+            TrgGetTaggedMover();
+            if (sConnectors.Count == 0)
+            {
+                sUpdateTimer.Pause();
+                return;
+            }
             if (!sPlayerTransform)
             {
                 return;
             }
-
+            
             foreach (var connector in sConnectors)
             {
                 if (string.IsNullOrEmpty(ActiveScenePath))
@@ -118,7 +139,7 @@ namespace DeepU3.SceneConnect
             var path = ActiveScenePath;
             sCheckedAreas.Clear();
             var targetConnector = TryCheckConnectArea(ref count);
-            if (path != ActiveScenePath)
+            if (targetConnector && path != ActiveScenePath)
             {
                 OnSceneBecameActive?.Invoke(targetConnector);
                 SceneManager.SetActiveScene(targetConnector.gameObject.scene);
@@ -131,7 +152,12 @@ namespace DeepU3.SceneConnect
         {
             var playerPos = sPlayerTransform.position;
 
-            var connector = Connectors.First(m => m.gameObject.scene.path == ActiveScenePath);
+            var connector = Connectors.FirstOrDefault(m => m.gameObject.scene.path == ActiveScenePath);
+            if (!connector)
+            {
+                return null;
+            }
+
             ConnectArea transportArea = null;
             foreach (var area in connector.mConnectAreas)
             {
@@ -183,6 +209,8 @@ namespace DeepU3.SceneConnect
             sLoadingAreas.TryGetValue(gameObject.scene.path, out var v3);
             transform.position = v3;
             sLoadingAreas.Remove(gameObject.scene.path);
+
+            sUpdateTimer?.Resume();
         }
 
         private void Start()
@@ -192,11 +220,6 @@ namespace DeepU3.SceneConnect
                 var o = gameObject;
                 ActiveScenePath = o.scene.path;
                 SceneManager.SetActiveScene(o.scene);
-            }
-
-            if (sUpdateTimer == null)
-            {
-                sUpdateTimer = Timer.Register(positionCheckTime, OnUpdateConnectors, isLooped: true);
             }
 
             foreach (var entry in ConnectArea.Areas)
@@ -211,6 +234,11 @@ namespace DeepU3.SceneConnect
 
         private void OnDestroy()
         {
+            if (ActiveScenePath == gameObject.scene.path)
+            {
+                ActiveScenePath = null;
+            }
+
             sConnectors.Remove(this);
         }
 
@@ -330,7 +358,7 @@ namespace DeepU3.SceneConnect
                     connectSize.y = size.y;
                 }
             }
-            
+
             var lastArea = FindObjectsOfType<ConnectArea>().FirstOrDefault(m => m.gameObject.scene == gameObject.scene && m.connectScenePath == connectTarget.gameObject.scene.path);
             if (lastArea)
             {
@@ -352,7 +380,6 @@ namespace DeepU3.SceneConnect
 
             area.connectSceneOriginOffset = connectTarget.transform.position - area.transform.position;
             area.connectSceneSize = connectTarget.size;
-			
         }
 #endif
     }

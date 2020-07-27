@@ -5,7 +5,9 @@ using System.Collections.Generic;
 using Cysharp.Text;
 using DeepU3.Asset;
 using DeepU3.Async;
+using DeepU3.Timers;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 namespace DeepU3.SceneSplit
 {
@@ -33,21 +35,39 @@ namespace DeepU3.SceneSplit
         public SplitManager splitManager;
     }
 
+    internal class ValidPosition
+    {
+        public int Min = int.MaxValue;
+        public int Max = int.MinValue;
+        private const int ArrayMaxSize = 1024;
+        public readonly byte[] PositiveArray = new byte[ArrayMaxSize];
+        public readonly byte[] NegativeArray = new byte[ArrayMaxSize];
+
+        public bool IsValid(int index)
+        {
+            if (index >= 0)
+            {
+                return index < ArrayMaxSize && PositiveArray[index] > 0;
+            }
+
+            return -index < ArrayMaxSize && NegativeArray[-index] > 0;
+        }
+    }
 
     /// <summary>
     /// Streams async scene tiles
     /// </summary>
-    public class SplitStreamer : MonoBehaviour
+    public partial class SplitStreamer : MonoBehaviour
     {
-        public SplitStreamerManager manager;
-
         /// <summary>
         /// 简单块(没有生成prefab)
         /// </summary>
         public SplitInfo[] splits;
 
         public SplitterLayerSetting layerSetting;
-        
+
+        public LayerSettingTemplates template;
+
         /// <summary>
         /// The x position.
         /// </summary>
@@ -63,6 +83,7 @@ namespace DeepU3.SceneSplit
         /// </summary>
         public int zPos = int.MinValue;
 
+        public int SqrMagnitude { get; private set; }
         private Vector3Int mDeloadingRange;
 
 
@@ -89,8 +110,22 @@ namespace DeepU3.SceneSplit
         private readonly List<RuntimeSceneSplit> mScenesToDestroy = new List<RuntimeSceneSplit>();
 
 
-        internal bool CheckPositionTiles(in Vector3 pos)
+        private readonly ValidPosition mValidX = new ValidPosition();
+        private readonly ValidPosition mValidY = new ValidPosition();
+        private readonly ValidPosition mValidZ = new ValidPosition();
+        private int mXRange;
+        private int mYRange;
+        private int mZRange;
+        private int mCheckArrayLength;
+        private FrameScheduler mUnloadScheduler;
+
+        private bool CheckPositionTiles(in Vector3 pos)
         {
+            if (splits == null || splits.Length == 0)
+            {
+                return false;
+            }
+
             var xPosCurrent = (layerSetting.splitSize.x != 0) ? Mathf.FloorToInt(pos.x / layerSetting.splitSize.x) : 0;
             var yPosCurrent = (layerSetting.splitSize.y != 0) ? Mathf.FloorToInt(pos.y / layerSetting.splitSize.y) : 0;
             var zPosCurrent = (layerSetting.splitSize.z != 0) ? Mathf.FloorToInt(pos.z / layerSetting.splitSize.z) : 0;
@@ -103,8 +138,6 @@ namespace DeepU3.SceneSplit
             yPos = yPosCurrent;
             zPos = zPosCurrent;
 
-            SceneLoading();
-            Invoke(nameof(SceneUnloading), manager.setting.destroyTileDelay);
             return true;
         }
 
@@ -115,12 +148,12 @@ namespace DeepU3.SceneSplit
             var path = AssetManager.PathConverter.AssetPathToAddress(part.assetPath);
             if (string.IsNullOrEmpty(path))
             {
-                Debug.LogError($"not find {part.name} at {part.assetPath}");
+                Debug.LogError($"[{splitManager.name}] not find {part.name} at {part.assetPath}");
                 callback(ResultAsyncOperation<GameObject>.FromResult(null));
                 return;
             }
 
-            var assetAddress = new InstantiationAssetAddress(path, instanceParam);
+            var assetAddress = InstantiationAssetAddress.String2Address(path, instanceParam);
             SplitStreamerPriorityLoader.Instance.AddQueue(assetAddress, this, part, splitManager.splitData.posID, callback);
         }
 
@@ -144,13 +177,13 @@ namespace DeepU3.SceneSplit
                 var path = AssetManager.PathConverter.AssetPathToAddress(splitAssetAddress);
                 if (string.IsNullOrEmpty(path))
                 {
-                    Debug.LogError($"not find {splitAssetAddress}");
+                    Debug.LogError($"[{runtimeSceneSplit.path}] not find {splitAssetAddress} ");
                     OnSplitLoaded(null, runtimeSceneSplit);
                     return;
                 }
 
                 var instanceParam = new InstantiationParameters(transform, false);
-                var assetAddress = new InstantiationAssetAddress(path, instanceParam);
+                var assetAddress = InstantiationAssetAddress.String2Address(path, instanceParam);
                 SplitStreamerPriorityLoader.Instance.AddQueue(assetAddress, this, runtimeSceneSplit, runtimeSceneSplit.pos, OnSplitLoaded);
             }
         }
@@ -160,7 +193,7 @@ namespace DeepU3.SceneSplit
         /// </summary>
         void Start()
         {
-            mDeloadingRange = layerSetting.loadingRange + manager.setting.config.deloadingOffset;
+            mDeloadingRange = layerSetting.loadingRange + template.deloadingOffset;
             PrepareScenesArray();
         }
 
@@ -174,6 +207,11 @@ namespace DeepU3.SceneSplit
 
         private void TryLoading(int x, int y, int z, ICollection<RuntimeSceneSplit> splitsToLoad)
         {
+            if (!mValidX.IsValid(x) || !mValidY.IsValid(y) || !mValidZ.IsValid(z))
+            {
+                return;
+            }
+
             var hashCode = SplitUtils.GetSplitHashCode(x, y, z);
             if (!mScenesArray.TryGetValue(hashCode, out var splitList))
             {
@@ -206,17 +244,26 @@ namespace DeepU3.SceneSplit
 
         private static readonly List<RuntimeSceneSplit> sScenesToLoadBuffer = new List<RuntimeSceneSplit>();
 
+
         /// <summary>
         /// Loads tiles in range
         /// </summary>
-        private void SceneLoading()
+        private bool SceneLoading()
         {
-            var yRange = layerSetting.splitSize.y > 0 ? layerSetting.loadingRange.y : 0;
-            for (var x = -layerSetting.loadingRange.x + xPos; x <= layerSetting.loadingRange.x + xPos; x++)
+            var xOut = xPos < mValidX.Min - mXRange || xPos > mValidX.Max + mXRange;
+            var yOut = mYRange != 0 && (yPos < mValidY.Min - mYRange || yPos > mValidY.Max + mYRange);
+            var zOut = zPos < mValidZ.Min - mZRange || zPos > mValidZ.Max + mZRange;
+            if (xOut || yOut || zOut)
             {
-                for (var y = -yRange + yPos; y <= yRange + yPos; y++)
+                return false;
+            }
+
+            sScenesToLoadBuffer.Clear();
+            for (var x = -mXRange + xPos; x <= mXRange + xPos; x++)
+            {
+                for (var y = -mYRange + yPos; y <= mYRange + yPos; y++)
                 {
-                    for (var z = -layerSetting.loadingRange.z + zPos; z <= layerSetting.loadingRange.z + zPos; z++)
+                    for (var z = -mZRange + zPos; z <= mZRange + zPos; z++)
                     {
                         TryLoading(x, y, z, sScenesToLoadBuffer);
                     }
@@ -230,7 +277,7 @@ namespace DeepU3.SceneSplit
                 LoadPart(split);
             }
 
-            sScenesToLoadBuffer.Clear();
+            return sScenesToLoadBuffer.Count > 0;
         }
 
         private void OnSplitLoaded(ResultAsyncOperation<GameObject> op)
@@ -277,9 +324,47 @@ namespace DeepU3.SceneSplit
 
         private bool IsEnterDeloadingRange(int x, int y, int z)
         {
+            if (xPos == int.MinValue || yPos == int.MinValue || zPos == int.MinValue)
+            {
+                return true;
+            }
             return Mathf.Abs(x - xPos) > mDeloadingRange.x
                    || Mathf.Abs(y - yPos) > mDeloadingRange.y
                    || Mathf.Abs(z - zPos) > mDeloadingRange.z;
+        }
+
+        private void UnLoadSplit(int index)
+        {
+            if (index >= mScenesToDestroy.Count)
+            {
+                return;
+            }
+
+            var item = mScenesToDestroy[index];
+            if (!item.loaded)
+            {
+                return;
+            }
+
+            loadedScenes.Remove(item);
+            if (mSceneObjects.TryGetValue(item.path, out var obj))
+            {
+                mSceneObjects.Remove(item.path);
+            }
+
+            var splitManager = item.splitManager;
+            if (splitManager.isPrefab)
+            {
+                splitManager.Release();
+                item.splitManager = null;
+                item.sceneGo = null;
+            }
+            else
+            {
+                splitManager.ReleaseChildren();
+            }
+
+            item.loaded = false;
         }
 
         /// <summary>
@@ -287,6 +372,8 @@ namespace DeepU3.SceneSplit
         /// </summary>
         private void SceneUnloading()
         {
+            Profiler.BeginSample("SceneUnloading");
+            mUnloadScheduler.Complete();
             mScenesToDestroy.Clear();
             foreach (var item in loadedScenes)
             {
@@ -298,7 +385,7 @@ namespace DeepU3.SceneSplit
                 var needToDestroy = true;
                 for (var i = 0; i < item.pos.Length; i += 3)
                 {
-                    needToDestroy = needToDestroy && IsEnterDeloadingRange(item.pos[i], item.pos[i + 1], item.pos[i + 2]);
+                    needToDestroy = IsEnterDeloadingRange(item.pos[i], item.pos[i + 1], item.pos[i + 2]);
                     if (!needToDestroy)
                     {
                         break;
@@ -311,28 +398,9 @@ namespace DeepU3.SceneSplit
                 }
             }
 
-            foreach (var item in mScenesToDestroy)
-            {
-                loadedScenes.Remove(item);
-                if (mSceneObjects.TryGetValue(item.path, out var obj))
-                {
-                    mSceneObjects.Remove(item.path);
-                }
+            mUnloadScheduler.Schedule(mScenesToDestroy.Count);
 
-                var splitManager = item.splitManager;
-                if (splitManager.isPrefab)
-                {
-                    splitManager.Release();
-                    item.splitManager = null;
-                    item.sceneGo = null;
-                }
-                else
-                {
-                    splitManager.ReleaseChildren();
-                }
-
-                item.loaded = false;
-            }
+            Profiler.EndSample();
         }
 
 
@@ -369,19 +437,45 @@ namespace DeepU3.SceneSplit
 
         #region prepare scene
 
+        private static void AddValidPositionIndex(ValidPosition vp, int index)
+        {
+            vp.Min = Math.Min(index, vp.Min);
+            vp.Max = Math.Max(index, vp.Max);
+            if (index >= 0 && index < vp.PositiveArray.Length)
+            {
+                vp.PositiveArray[index] = 1;
+            }
+            else if (index < 0 && -index < vp.NegativeArray.Length)
+            {
+                vp.NegativeArray[-index] = 1;
+            }
+            else
+            {
+                Debug.LogError($"index out of range {index}");
+            }
+        }
+
         /// <summary>
         /// Prepares the scenes array from collection
         /// </summary>
         private void PrepareScenesArray()
         {
+            SqrMagnitude = layerSetting.splitSize.sqrMagnitude;
+
             if (splits == null)
             {
                 return;
             }
 
+            mUnloadScheduler = this.AttachFrameScheduler(3f, UnLoadSplit);
+            mXRange = layerSetting.loadingRange.x;
+            mYRange = layerSetting.splitSize.y > 0 ? layerSetting.loadingRange.y : 0;
+            mZRange = layerSetting.loadingRange.z;
+            mCheckArrayLength = (mXRange * 2 + 1) * (mYRange * 2 + 1) * (mZRange * 2 + 1);
 
-            foreach (var splitInfo in splits)
+            for (var index = 0; index < splits.Length; index++)
             {
+                var splitInfo = splits[index];
                 var posId = splitInfo.posID;
 
                 var sceneSplit = new RuntimeSceneSplit
@@ -403,6 +497,9 @@ namespace DeepU3.SceneSplit
                         mScenesArray.Add(hashCode, splitList);
                     }
 
+                    AddValidPositionIndex(mValidX, x);
+                    AddValidPositionIndex(mValidY, y);
+                    AddValidPositionIndex(mValidZ, z);
 #if CHECK_HASH_HITTING
                     if (!mHashHitCheck.TryGetValue(hashCode, out var hashList))
                     {
@@ -419,6 +516,7 @@ namespace DeepU3.SceneSplit
         }
 
         #endregion
+
 
         void OnDrawGizmosSelected()
         {

@@ -61,7 +61,7 @@ namespace DeepU3.AssetBundles
 
         public void SetBaseUrl(string url)
         {
-            this.baseUri = baseUri;
+            this.baseUri = url;
             if (!this.baseUri.EndsWith("/"))
             {
                 this.baseUri += "/";

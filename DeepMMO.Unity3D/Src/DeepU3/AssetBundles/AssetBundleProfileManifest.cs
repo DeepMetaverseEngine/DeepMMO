@@ -17,11 +17,11 @@ namespace DeepU3.AssetBundles
             public string assetBundleName;
             public string assetTypeName;
 
-            public override int GetHashCode()
-            {
-                return assetPath.GetHashCode();
-            }
-
+            /// <summary>
+            /// 该ab资源名称是否由assetPath生成
+            /// </summary>
+            public bool isLeader;
+            
             public AssetPair(string path, string ab, string t)
             {
                 assetPath = path;
@@ -77,7 +77,7 @@ namespace DeepU3.AssetBundles
 
 
         private readonly Dictionary<string, string> mSceneName2ScenePath = new Dictionary<string, string>();
-        private readonly Dictionary<string, string> mBundleName2ScenePath = new Dictionary<string, string>();
+        private readonly Dictionary<string, string> mBundleName2AssetPath = new Dictionary<string, string>();
         private readonly Dictionary<string, IgnoreDependenciesAssetPair> mBundleName2IgnoreDependsAssetPair = new Dictionary<string, IgnoreDependenciesAssetPair>();
 
         private void OnEnable()
@@ -88,10 +88,15 @@ namespace DeepU3.AssetBundles
                 {
                     if (pair.assetPath.EndsWith(".unity"))
                     {
+                        //兼容以前无isLeader字段的版本
+                        pair.isLeader = true;
+                        mBundleName2AssetPath[pair.assetBundleName] = pair.assetPath;
                         mSceneName2ScenePath.Add(Path.GetFileNameWithoutExtension(pair.assetPath), pair.assetPath);
-                        mBundleName2ScenePath.Add(pair.assetBundleName, pair.assetPath);
                     }
-
+                    if (pair.isLeader)
+                    {
+                        mBundleName2AssetPath[pair.assetBundleName] = pair.assetPath;
+                    }
                     mAssetPath2Pair.Add(pair.assetPath, pair);
                 }
             }
@@ -132,6 +137,11 @@ namespace DeepU3.AssetBundles
             return ret?.assetBundleName;
         }
 
+        public string AssetBundleNameToMainAssetPath(string bundleName)
+        {
+            return mBundleName2AssetPath.TryGetValue(bundleName, out var assetPath) ? assetPath : null;
+        }
+
         public string SceneNameToAssetBundleName(string sceneName)
         {
             return mSceneName2ScenePath.TryGetValue(sceneName, out var scenePath) ? AssetPathToAssetBundleName(scenePath) : sceneName;
@@ -142,17 +152,6 @@ namespace DeepU3.AssetBundles
         {
             mSceneName2ScenePath.TryGetValue(sceneName, out var scenePath);
             return scenePath;
-        }
-
-        public string AssetBundleNameToScenePath(string bundleName)
-        {
-            mBundleName2ScenePath.TryGetValue(bundleName, out var scenePath);
-            return scenePath;
-        }
-
-        public string AssetBundleNameToSceneName(string bundleName)
-        {
-            return mBundleName2ScenePath.TryGetValue(bundleName, out var scenePath) ? Path.GetFileNameWithoutExtension(scenePath) : null;
         }
     }
 }

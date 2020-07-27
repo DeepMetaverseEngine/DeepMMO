@@ -150,7 +150,11 @@ namespace DeepU3.Editor.Lightmap
             var count = 0;
             foreach (var r in renderers)
             {
+#if UNITY_2019_4_OR_NEWER
+                var isStatic = (GameObjectUtility.GetStaticEditorFlags(r.gameObject) & StaticEditorFlags.ContributeGI) != 0;
+#else
                 var isStatic = (GameObjectUtility.GetStaticEditorFlags(r.gameObject) & StaticEditorFlags.LightmapStatic) != 0;
+#endif
                 if (!isStatic)
                 {
                     continue;
@@ -210,7 +214,11 @@ namespace DeepU3.Editor.Lightmap
             var renderers = FindObjectsOfType<Renderer>();
             foreach (var r in renderers)
             {
+#if UNITY_2019_4_OR_NEWER
+                var isStatic = (GameObjectUtility.GetStaticEditorFlags(r.gameObject) & StaticEditorFlags.ContributeGI) != 0;
+#else
                 var isStatic = (GameObjectUtility.GetStaticEditorFlags(r.gameObject) & StaticEditorFlags.LightmapStatic) != 0;
+#endif
                 if (isStatic)
                 {
                     // Undo.RecordObject(r, r.name);

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DeepU3.Asset;
+using DeepU3.Timers;
 using UnityEngine;
 
 namespace DeepU3.SceneConnect
@@ -60,6 +61,13 @@ namespace DeepU3.SceneConnect
             }
         }
 
+        private string mScenePath;
+
+        private void OnEnable()
+        {
+            mScenePath = gameObject.scene.path;
+        }
+
         private void ResetActive(bool checkEnable)
         {
             if (checkEnable && !enabled)
@@ -77,7 +85,7 @@ namespace DeepU3.SceneConnect
                 }
                 else
                 {
-                    active = string.Compare(gameObject.scene.path, bindScenePath, StringComparison.Ordinal) < 0;
+                    active = string.Compare(mScenePath, bindScenePath, StringComparison.Ordinal) < 0;
                 }
             }
 

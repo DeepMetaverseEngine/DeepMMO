@@ -150,13 +150,12 @@ namespace DeepU3.Editor.SceneStreamer
         public void OnGUI()
         {
             GUILayout.Space(30);
+            
+            var disableCollect = !_layerSettingTemplates || (SceneSplitterSettings && SceneSplitterSettings.splitStep != SplitterSettings.SplitSteps.Prepare);
+            var disableSplit = !SceneSplitterSettings || SceneSplitterSettings.splitStep != SplitterSettings.SplitSteps.Prepare || (SceneSplitterSettings && FindSceneObjectsOfType<SplitStreamer>().Length != SceneSplitterSettings.config.layers.Count);
+            var disablePrefab = !SceneSplitterSettings || SceneSplitterSettings.splitStep != SplitterSettings.SplitSteps.Split;
 
-            var manager = SceneSplitterSettings ? SceneSplitterSettings.GetComponent<SplitStreamerManager>() : null;
-            var disableCollect = !_layerSettingTemplates || (SceneSplitterSettings && manager);
-            var disableSplit = !SceneSplitterSettings || manager || (SceneSplitterSettings && FindSceneObjectsOfType<SplitStreamer>().Length != SceneSplitterSettings.config.layers.Count);
-            var disablePrefab = !manager;
-
-            using (new EditorGUI.DisabledScope(SceneSplitterSettings && manager))
+            using (new EditorGUI.DisabledScope(SceneSplitterSettings && SceneSplitterSettings.splitStep > 0))
             {
                 var nextSettingTemplates = EditorGUILayout.ObjectField(new GUIContent("Layer Templates"), _layerSettingTemplates, typeof(LayerSettingTemplates), false) as LayerSettingTemplates;
 
@@ -287,6 +286,7 @@ namespace DeepU3.Editor.SceneStreamer
                     var streamer = obj.AddComponent<SplitStreamer>();
                     streamer.transform.position = Vector3.zero;
                     streamer.layerSetting = layer;
+                    streamer.template = setting.config;
                     layerObjects[i] = streamer.gameObject;
                 }
             }
@@ -305,13 +305,7 @@ namespace DeepU3.Editor.SceneStreamer
 
                 Undo.DestroyObjectImmediate(streamer.gameObject);
             }
-
-            var streamerManager = SceneSplitterSettings.GetComponent<SplitStreamerManager>();
-            if (streamerManager)
-            {
-                Undo.DestroyObjectImmediate(streamerManager);
-            }
-
+            
             var lastSplits = EditorUtils.FindSceneObjectsOfType<SplitManager>(setting.gameObject.scene);
             foreach (var splitManager in lastSplits)
             {
@@ -517,19 +511,12 @@ namespace DeepU3.Editor.SceneStreamer
             CleanEmptyGameObject();
             var root = EditorUtils.MergeSceneRootObjects(SceneManager.GetActiveScene());
             root.transform.position = Vector3.zero;
-            var streamerManager = SceneSplitterSettings.GetComponent<SplitStreamerManager>();
-            if (!streamerManager)
-            {
-                streamerManager = Undo.AddComponent<SplitStreamerManager>(SceneSplitterSettings.gameObject);
-                UnityEditorInternal.ComponentUtility.MoveComponentUp(streamerManager);
-                streamerManager.streamers = streamers;
-                streamerManager.setting = SceneSplitterSettings;
-            }
-
             foreach (var streamer in streamers)
             {
                 SplitScene(streamer);
             }
+
+            SceneSplitterSettings.splitStep = SplitterSettings.SplitSteps.Split;
         }
 
         private void PrefabGenerate(SplitStreamer streamer, int currentLayerID, ref bool cancel)
@@ -703,8 +690,8 @@ namespace DeepU3.Editor.SceneStreamer
             var scene = SceneManager.GetActiveScene();
             //场景动态依赖
             var assets = new HashSet<string>();
-            var manager = SceneSplitterSettings.GetComponent<SplitStreamerManager>();
-            foreach (var streamer in manager.streamers)
+            var streamers = FindSceneObjectsOfType<SplitStreamer>();
+            foreach (var streamer in streamers)
             {
                 GetAssetDependencies(streamer, assets);
             }
@@ -746,7 +733,7 @@ namespace DeepU3.Editor.SceneStreamer
 
             AssetDatabase.CreateAsset(obj, $"{dirPath}/{scene.name}_dref.asset");
 
-            foreach (var streamer in manager.streamers)
+            foreach (var streamer in streamers)
             {
                 for (var i = streamer.transform.childCount - 1; i >= 0; i--)
                 {
@@ -770,6 +757,7 @@ namespace DeepU3.Editor.SceneStreamer
             // 清理空的GameObject
             CleanEmptyGameObject();
             Selection.activeGameObject = sceneRoot;
+            SceneSplitterSettings.splitStep = SplitterSettings.SplitSteps.Clean;
         }
 
         private void CleanEmptyGameObject()

@@ -37,6 +37,7 @@ namespace DeepU3.Asset
         bool m_InstantiateInWorldPosition;
         bool m_SetPositionRotation;
 
+        public static InstantiationParameters Default = new InstantiationParameters();
         /// <summary>
         /// Position in world space to instantiate object.
         /// </summary>
@@ -186,6 +187,36 @@ namespace DeepU3.Asset
         private GameObject mAsset;
 
         internal Dictionary<InstantiationAssetAddress, string> Parts { get; private set; }
+        
+        private static readonly ObjectPool<InstantiationAssetAddress> sAddressPool = new ObjectPool<InstantiationAssetAddress>(100);
+        
+        public new static InstantiationAssetAddress String2Address(string address)
+        {
+            var ret = sAddressPool.Get() ?? new InstantiationAssetAddress();
+            ret.Address = address;
+            
+            return ret;
+        }
+
+        public static InstantiationAssetAddress String2Address(string address, InstantiationParameters parameters)
+        {
+            var ret = sAddressPool.Get() ?? new InstantiationAssetAddress();
+            ret.Address = address;
+            ret.Parameters = parameters;
+            return ret;
+        }
+
+        protected internal override void Release()
+        {
+            Address = null;
+            Key = null;
+            IsRunSynchronously = false;
+            Instance = null;
+            mAsset = null;
+            IsDone = false;
+            Parameters = InstantiationParameters.Default;
+            sAddressPool.Put(this);
+        }
 
         public void AddPart(InstantiationAssetAddress part, string bindGameObjectName)
         {
@@ -295,21 +326,12 @@ namespace DeepU3.Asset
             return Instance;
         }
 
-        public InstantiationAssetAddress(AssetAddress address, InstantiationParameters parameters) : base(address.Address, address.Key)
-        {
-            Parameters = parameters;
-        }
-
-        public InstantiationAssetAddress(string address) : this(address, new InstantiationParameters())
-        {
-        }
     }
 
     public class AssetManagerParam
     {
         public int BundleCacheCapacity;
         public int InstanceCacheCapacity = 100;
-        public string PrefixScenePath;
         public string BaseUrl;
     }
 
@@ -330,9 +352,9 @@ namespace DeepU3.Asset
 
     public interface IAssetImplInstantiate
     {
-        GameObject InstantiateImmediate(object address);
-        ResultAsyncOperation<GameObject> Instantiate(object address);
-        CollectionResultAsyncOperation<GameObject> Instantiates(IList<object> addresses);
+        GameObject InstantiateImmediate(InstantiationAssetAddress address);
+        ResultAsyncOperation<GameObject> Instantiate(InstantiationAssetAddress address);
+        CollectionResultAsyncOperation<GameObject> Instantiates(IList<InstantiationAssetAddress> addresses);
 
         bool ReleaseInstance(GameObject obj);
     }
@@ -346,7 +368,7 @@ namespace DeepU3.Asset
     public interface IAssetPathConverter
     {
         string SceneNameToScenePath(string sceneName);
-        string AddressToScenePath(string address);
+        string AddressToMainAssetPath(string address);
 
         string AssetPathToAddress(string assetPath);
     }
@@ -354,9 +376,9 @@ namespace DeepU3.Asset
     public interface IAssetImpl : IDisposable, IAssetImplInstantiate, IAssetDebug, IAssetPathConverter
     {
         int LoadingAssetCount { get; }
-        Object[] LoadAllAssetsImmediate(object address);
-        T[] LoadAllAssetsImmediate<T>(object address) where T : Object;
-        CollectionResultAsyncOperation<T> LoadAllAssets<T>(object address) where T : Object;
+        Object[] LoadAllAssetsImmediate(AssetAddress address);
+        T[] LoadAllAssetsImmediate<T>(AssetAddress address) where T : Object;
+        CollectionResultAsyncOperation<T> LoadAllAssets<T>(AssetAddress address) where T : Object;
 
         ResultAsyncOperation<AsyncOperation> LoadScene(string path, ScenePathType pathType, LoadSceneMode mode);
 
@@ -371,11 +393,11 @@ namespace DeepU3.Asset
         /// <param name="address">address or asset bundle name</param>
         /// <param name="key">can be null</param>
         /// <typeparam name="T"></typeparam>
-        ResultAsyncOperation<T> LoadAsset<T>(object address) where T : Object;
+        ResultAsyncOperation<T> LoadAsset<T>(AssetAddress address) where T : Object;
 
-        T LoadAssetImmediate<T>(object address) where T : Object;
+        T LoadAssetImmediate<T>(AssetAddress address) where T : Object;
 
-        CollectionResultAsyncOperation<T> LoadAssets<T>(IList<object> address) where T : Object;
+        CollectionResultAsyncOperation<T> LoadAssets<T>(IList<AssetAddress> address) where T : Object;
 
 
         void Release(Object asset);
@@ -383,6 +405,5 @@ namespace DeepU3.Asset
         void Release<T>(T[] assets) where T : Object;
         BaseAsyncOperation Initialize(AssetManagerParam param);
         bool Initialized { get; }
-
     }
 }

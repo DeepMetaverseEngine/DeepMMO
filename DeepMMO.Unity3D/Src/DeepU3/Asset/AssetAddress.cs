@@ -1,21 +1,15 @@
 using System;
+using DeepU3.Cache;
 using UnityEngine;
 
 namespace DeepU3.Asset
 {
-    [Serializable]
     public class AssetAddress
     {
-        public string Address => m_Address;
-        public string Key => m_Key;
+        public string Address { get; protected set; }
+        public string Key { get; protected set; }
 
         public bool IsRunSynchronously { get; set; }
-
-        [SerializeField]
-        private string m_Address;
-
-        [SerializeField]
-        private string m_Key;
 
         public static int GetHashCode(string address, string key)
         {
@@ -27,29 +21,28 @@ namespace DeepU3.Asset
             }
         }
 
-        public static AssetAddress EvaluateAddress(object address)
-        {
-            if (address is AssetAddress assetAddress)
-            {
-                return assetAddress;
-            }
+        private static readonly ObjectPool<AssetAddress> sAddressPool = new ObjectPool<AssetAddress>(100);
 
-            return address.ToString();
+        public static AssetAddress String2Address(string address)
+        {
+            var ret = sAddressPool.Get() ?? new AssetAddress();
+            ret.Address = address;
+            return ret;
         }
 
-        public static T EvaluateAs<T>(object address) where T : AssetAddress
+        public static AssetAddress String2Address(string address, string key)
         {
-            if (address is T assetAddress)
-            {
-                return assetAddress;
-            }
+            var ret = String2Address(address);
+            ret.Key = key;
+            return ret;
+        }
 
-            if (typeof(InstantiationAssetAddress).IsAssignableFrom(typeof(T)))
-            {
-                return new InstantiationAssetAddress(address.ToString()) as T;
-            }
-
-            throw new ArgumentException();
+        protected internal virtual void Release()
+        {
+            Address = null;
+            Key = null;
+            IsRunSynchronously = false;
+            sAddressPool.Put(this);
         }
 
         public override int GetHashCode()
@@ -57,28 +50,7 @@ namespace DeepU3.Asset
             return GetHashCode(Address, Key);
         }
 
-
-        public static implicit operator AssetAddress(string address)
-        {
-            return new AssetAddress(address, null);
-        }
-
-        public static explicit operator string(AssetAddress address)
-        {
-            return address.Address;
-        }
-
-        public AssetAddress(string address, string key = null)
-        {
-            m_Address = address;
-            m_Key = key;
-        }
-    }
-
-    [Serializable]
-    public class GUIDAssetAddress : AssetAddress
-    {
-        public GUIDAssetAddress(string address, string key = null) : base(address, key)
+        protected AssetAddress()
         {
         }
     }

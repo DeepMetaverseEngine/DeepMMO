@@ -45,12 +45,17 @@ namespace DeepU3.Editor.SceneStreamer
 
         private void OnEnable()
         {
-            _settingsEditor = new SplitterSettingsEditor(SceneManager.GetActiveScene());
+            var s = SceneManager.GetActiveScene();
+            if (!string.IsNullOrEmpty(s.path))
+            {
+                _settingsEditor = new SplitterSettingsEditor(SceneManager.GetActiveScene());
+            }
+            
         }
 
         private void OnGUI()
         {
-            if (Application.isPlaying || string.IsNullOrEmpty(SceneManager.GetActiveScene().path))
+            if (Application.isPlaying || _settingsEditor == null)
             {
                 return;
             }

@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace DeepU3
+namespace DeepU3.Timers
 {
     /// <summary>
     /// Contains extension methods related to <see cref="Timer"/>s.
@@ -24,6 +24,11 @@ namespace DeepU3
             Action<float> onUpdate = null, bool isLooped = false, bool useRealTime = false)
         {
             return Timer.Register(duration, onComplete, onUpdate, isLooped, useRealTime, behaviour);
+        }
+
+        public static FrameScheduler AttachFrameScheduler(this MonoBehaviour behaviour, float duration, Action<int> execute = null, Action onComplete = null)
+        {
+            return FrameScheduler.Register(duration, execute, onComplete, behaviour);
         }
     }
 }

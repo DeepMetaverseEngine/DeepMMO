@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using DeepU3.Cache;
@@ -8,6 +9,7 @@ using DeepU3.Asset;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Debug = UnityEngine.Debug;
+using Object = UnityEngine.Object;
 #if UNITY_EDITOR
 using UnityEditor;
 
@@ -33,6 +35,7 @@ namespace DeepU3.AssetBundles
         public bool IsDone;
         public AssetBundle Bundle { get; internal set; }
         public string Error;
+        public object AsyncOperationUserData;
         public uint Version;
         public event Action<AssetBundle> OnComplete;
         public event Action<AssetBundleCommand> OnInternalComplete;
@@ -176,6 +179,11 @@ namespace DeepU3.AssetBundles
 
             mAbm.mCommands.Remove(BundleName);
 
+
+            if (AsyncOperationUserData is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
 #if UNITY_EDITOR
             Statistics.Instance?.RemoveBundle(BundleName);
 #endif
@@ -194,6 +202,7 @@ namespace DeepU3.AssetBundles
             References = default;
             Bundle = default;
             Error = null;
+            AsyncOperationUserData = null;
             IsDone = false;
             mAbm = null;
             mMainAssetBundleDone = false;
@@ -534,7 +543,7 @@ namespace DeepU3.AssetBundles
                 if (Manifest == null && bundle.LoadAsset<AssetBundleManifest>("assetbundlemanifest"))
                 {
                     mHandler.SetBaseUrl(baseUri[0]);
-                    OnInitializationComplete(bundle, bundleName, manifestVersion, false);
+                    OnInitializationComplete(bundle, bundleName, manifestVersion);
                 }
                 else if (Manifest && !string.IsNullOrEmpty(bundle.name))
                 {
@@ -579,14 +588,14 @@ namespace DeepU3.AssetBundles
                 }
                 else
                 {
-                    OnInitializationComplete(manifest, manifestName, version, true);
+                    OnInitializationComplete(manifest, manifestName, version);
                 }
             };
             mHandler.Handle(this, cmd);
             return cmd;
         }
 
-        private void OnInitializationComplete(AssetBundle manifestBundle, string bundleName, uint version, bool unloadAB)
+        private void OnInitializationComplete(AssetBundle manifestBundle, string bundleName, uint version)
         {
             if (manifestBundle == null)
             {
@@ -609,12 +618,6 @@ namespace DeepU3.AssetBundles
             else
             {
                 Initialized = true;
-            }
-
-            // Need to do this after OnComplete, otherwise the bundle will always be null
-            if (manifestBundle != null && unloadAB)
-            {
-                manifestBundle.Unload(false);
             }
         }
 
@@ -758,9 +761,22 @@ namespace DeepU3.AssetBundles
         /// </summary>
         public void Dispose()
         {
+            if (Manifest)
+            {
+                Object.DestroyImmediate(Manifest, true);
+            }
+
             foreach (var entry in mCommands)
             {
-                entry.Value.Unload();
+                if (entry.Value.Bundle)
+                {
+                    entry.Value.Bundle.Unload(true);
+                }
+
+                if (entry.Value.AsyncOperationUserData is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
             }
 
             mCommands.Clear();

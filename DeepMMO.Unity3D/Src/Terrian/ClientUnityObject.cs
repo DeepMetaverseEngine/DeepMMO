@@ -460,21 +460,21 @@ namespace DeepMMO.Unity3D.Terrain
             
            
            
-            if(!mInitPos)
-            {
-                if (mInitVector3 == UnityEngine.Vector3.zero && currentUnityPos != UnityEngine.Vector3.zero)
-                {
-                    mInitVector3 = currentUnityPos;
-                }
-                else
-                {
-                    if (!mInitVector3.Equals(currentUnityPos))
-                    {
-                        mInitPos = true;
-                    }
-                }
-                
-            }
+            // if(!mInitPos)
+            // {
+            //     if (mInitVector3 == UnityEngine.Vector3.zero && currentUnityPos != UnityEngine.Vector3.zero)
+            //     {
+            //         mInitVector3 = currentUnityPos;
+            //     }
+            //     else
+            //     {
+            //         if (!mInitVector3.Equals(currentUnityPos))
+            //         {
+            //             mInitPos = true;
+            //         }
+            //     }
+            //     
+            // }
            
             LastPosition = currentUnityPos;
 
@@ -492,11 +492,14 @@ namespace DeepMMO.Unity3D.Terrain
                 Upward = float.NegativeInfinity;
                 
             }
-            if (bottomHeight < unit.LayerUpward - StepIntercept)
+
+            if (Mathf.Abs(unit.LayerUpward - bottomHeight) < StepIntercept && bottomHeight < unit.LayerUpward)
             {
                 bottomHeight = unit.LayerUpward;
                 Upward = unit.LayerUpward;
             }
+            
+            
                        
             Physics.queriesHitBackfaces = true;
             var toprayhit = mCheckBoxTouchComponent.RayHit(currentUnityPos + UnityEngine.Vector3.up * height, UnityEngine.Vector3.up, 100);

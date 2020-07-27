@@ -49,6 +49,12 @@ namespace DeepU3.Editor.Asset
 
             EditorGUILayout.Separator();
 
+            Statistics.Instance.enableStatistics = EditorGUILayout.Toggle("Enable", Statistics.Instance.enableStatistics);
+            if (!Statistics.Instance.enableStatistics)
+            {
+                return;
+            }
+
             var txtLoading = $"正在加载中Assets: <color=#ffff00ff>{AssetManager.LoadingAssetCount}</color>";
             // GUILayout.Label(txtLoading);
 

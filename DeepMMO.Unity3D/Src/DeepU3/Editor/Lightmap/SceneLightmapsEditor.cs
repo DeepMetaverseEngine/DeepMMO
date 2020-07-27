@@ -85,6 +85,7 @@ namespace DeepU3.Editor.Lightmap
 
             lm.lightmapSetting.mode = LightmapSettings.lightmapsMode;
             lm.renderSetting.skybox = RenderSettings.skybox;
+            lm.renderSetting.lightProbes = LightmapSettings.lightProbes;
 
             //环境反射
             lm.renderSetting.defaultReflectionMode = RenderSettings.defaultReflectionMode;
@@ -97,7 +98,11 @@ namespace DeepU3.Editor.Lightmap
 
             foreach (var r in rs)
             {
+#if UNITY_2019_4_OR_NEWER
+                var isStatic = (GameObjectUtility.GetStaticEditorFlags(r.gameObject) & StaticEditorFlags.ContributeGI) != 0;
+#else
                 var isStatic = (GameObjectUtility.GetStaticEditorFlags(r.gameObject) & StaticEditorFlags.LightmapStatic) != 0;
+#endif
 
                 //先全删掉
                 var lps = r.gameObject.GetComponents<LightmapPart>();

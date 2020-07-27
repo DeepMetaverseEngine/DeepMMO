@@ -16,8 +16,30 @@ using Object = UnityEngine.Object;
 
 namespace DeepU3.Editor
 {
-    public static class EditorUtils
+    public class EditorUtils
     {
+        private static readonly EditorUtils Instance = new EditorUtils();
+
+        static EditorUtils()
+        {
+            CollectUnityObjectTypes();
+        }
+
+        private EditorUtils()
+        {
+            EditorApplication.update += Update;
+        }
+
+        ~EditorUtils()
+        {
+            EditorApplication.update -= Update;
+        }
+
+        private void Update()
+        {
+            
+        }
+        #region public static method
         public static List<FileInfo> ListAllFiles(DirectoryInfo dir)
         {
             List<FileInfo> list = new List<FileInfo>();
@@ -65,16 +87,6 @@ namespace DeepU3.Editor
             Process.Start(startInfo);
         }
 
-        public static TComponent GetOrAddComponent<TComponent>(this GameObject go) where TComponent : Component
-        {
-            var comp = go.GetComponent<TComponent>();
-            if (!comp)
-            {
-                comp = Undo.AddComponent<TComponent>(go);
-            }
-
-            return comp;
-        }
 
         public static string PathToAssetPath(string path)
         {
@@ -270,12 +282,35 @@ namespace DeepU3.Editor
         }
 
         private static readonly Dictionary<Type, MethodInfo[]> sCacheStaticMethods = new Dictionary<Type, MethodInfo[]>();
+        private static readonly Dictionary<Type, MethodInfo[]> sCacheInstanceMethods = new Dictionary<Type, MethodInfo[]>();
+
+        public static object InvokeInstanceMethod(object o, string methodName, params object[] args)
+        {
+            var t = o.GetType();
+            if (!sCacheInstanceMethods.TryGetValue(t, out var methodInfos))
+            {
+                methodInfos = o.GetType().GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
+                sCacheInstanceMethods.Add(t, methodInfos);
+            }
+
+            var ms = methodInfos.FirstOrDefault(m =>
+            {
+                if (m.Name != methodName)
+                {
+                    return false;
+                }
+
+                var ps = m.GetParameters();
+                return !ps.Where((t1, i) => !t1.ParameterType.IsAssignableFrom(args[i]?.GetType())).Any();
+            });
+            return ms?.Invoke(o, args);
+        }
 
         public static object InvokeStaticMethod(Type t, string methodName, params object[] args)
         {
             if (!sCacheStaticMethods.TryGetValue(t, out var methodInfos))
             {
-                methodInfos = t.GetMethods(BindingFlags.NonPublic | BindingFlags.Static);
+                methodInfos = t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
                 sCacheStaticMethods.Add(t, methodInfos);
             }
 
@@ -393,12 +428,19 @@ namespace DeepU3.Editor
                 var newLightingDataPath = PathToAssetPath($"{dirPath}/LightingData.asset");
                 Assert.IsTrue(AssetDatabase.CopyAsset(lightingDataPath, newLightingDataPath));
 
+
                 var newLightingDataAsset = AssetDatabase.LoadAssetAtPath<LightingDataAsset>(newLightingDataPath);
                 var so = new SerializedObject(newLightingDataAsset);
                 var sp = so.FindProperty("m_Scene");
                 sp.objectReferenceValue = AssetDatabase.LoadAssetAtPath<SceneAsset>(newScenePath);
                 so.ApplyModifiedProperties();
                 Lightmapping.lightingDataAsset = newLightingDataAsset;
+
+                var lightProbes = AssetDatabase.LoadAllAssetsAtPath(newLightingDataPath).FirstOrDefault(m => m is LightProbes) as LightProbes;
+                if (lightProbes)
+                {
+                    LightmapSettings.lightProbes = lightProbes;
+                }
             }
 
             foreach (var o in s.GetRootGameObjects())
@@ -407,8 +449,11 @@ namespace DeepU3.Editor
                 {
                     o.name = s.name;
                 }
+
+                EditorUtility.SetDirty(o);
             }
 
+            AssetDatabase.SaveAssets();
             EditorSceneManager.SaveScene(s);
         }
 
@@ -416,44 +461,7 @@ namespace DeepU3.Editor
         public static void SaveActiveSceneAs(string newScenePath)
         {
             var activeScene = SceneManager.GetActiveScene();
-            //拷贝场景
-            EditorSceneManager.SaveScene(activeScene, newScenePath, true);
-
-            string newLightingDataPath = null;
-            // LightmapData[] newLightmaps = null;
-            //拷贝LightingData
-            if (Lightmapping.lightingDataAsset)
-            {
-                var dirPath = Path.Combine(Path.GetDirectoryName(newScenePath), Path.GetFileNameWithoutExtension(newScenePath));
-                if (!Directory.Exists(dirPath))
-                {
-                    Directory.CreateDirectory(dirPath);
-                }
-
-                var ldPath = AssetDatabase.GetAssetPath(Lightmapping.lightingDataAsset);
-                newLightingDataPath = PathToAssetPath($"{dirPath}/LightingData.asset");
-                AssetDatabase.CopyAsset(ldPath, newLightingDataPath);
-            }
-
-            var s = EditorSceneManager.OpenScene(newScenePath, OpenSceneMode.Single);
-            if (newLightingDataPath != null)
-            {
-                Lightmapping.lightingDataAsset = AssetDatabase.LoadAssetAtPath<LightingDataAsset>(newLightingDataPath);
-                var so = new SerializedObject(Lightmapping.lightingDataAsset);
-                var sp = so.FindProperty("m_Scene");
-                sp.objectReferenceValue = AssetDatabase.LoadAssetAtPath<SceneAsset>(newScenePath);
-                so.ApplyModifiedProperties();
-            }
-
-            foreach (var o in s.GetRootGameObjects())
-            {
-                if (o.name == activeScene.name)
-                {
-                    o.name = s.name;
-                }
-            }
-
-            EditorSceneManager.SaveScene(s);
+            CopySceneTo(activeScene.path, newScenePath);
         }
 
 
@@ -469,6 +477,10 @@ namespace DeepU3.Editor
         }
 
         private static readonly HashSet<Type> sAllUnityObjects = new HashSet<Type>();
+        private static readonly Dictionary<string, Type> sAssetsExtension = new Dictionary<string, Type>();
+        private static readonly Dictionary<string, Type> sAssetsType = new Dictionary<string, Type>();
+
+        private static DateTime sCacheTime = DateTime.MinValue;
 
         private static void CollectUnityObjectTypes()
         {
@@ -488,12 +500,83 @@ namespace DeepU3.Editor
                     }
                 }
             }
+
+            // Task.Factory.StartNew(CollectAssetsType);
         }
 
-        static EditorUtils()
+        public static Type GetUnityObjectTypeByFullName(string typeFullName)
         {
-            CollectUnityObjectTypes();
+            return sAllUnityObjects.FirstOrDefault(t => t.FullName == typeFullName);
         }
+
+        private static void PreCacheMainAssetType()
+        {
+            var t = DateTime.Now;
+            if (t - sCacheTime < TimeSpan.FromSeconds(300))
+            {
+                return;
+            }
+
+            sCacheTime = DateTime.Now;
+            sAssetsType.Clear();
+            var all = AssetDatabase.FindAssets("t:LightingDataAsset");
+            foreach (var s in all)
+            {
+                sAssetsType[AssetDatabase.GUIDToAssetPath(s)] = typeof(LightingDataAsset);
+            }
+
+            var sceneDynamics = AssetDatabase.FindAssets("t:SceneDynamicReference");
+            foreach (var s in sceneDynamics)
+            {
+                sAssetsType[AssetDatabase.GUIDToAssetPath(s)] = typeof(LightingDataAsset);
+            }
+        }
+
+        public static Type GetMainAssetTypeAtPath(string assetPath)
+        {
+            PreCacheMainAssetType();
+            var ext = Path.GetExtension(assetPath);
+            if (string.IsNullOrEmpty(ext) || ext == ".asset")
+            {
+                if (!sAssetsType.TryGetValue(assetPath, out var type))
+                {
+                    type = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
+                    sAssetsType[assetPath] = type;
+                }
+
+                return type;
+            }
+
+            if (!sAssetsExtension.TryGetValue(ext, out var t))
+            {
+                t = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
+                if (typeof(Texture).IsAssignableFrom(t))
+                {
+                    t = typeof(Texture);
+                }
+
+                sAssetsExtension[ext] = t;
+            }
+
+            return t;
+        }
+
+
+
+        public static void ShowObjectsInProjectBrowser(ICollection<Object> objs)
+        {
+            var obj = InvokeStaticMethod(typeof(ProjectWindowUtil), "GetProjectBrowserIfExists");
+            if (obj == null)
+            {
+                return;
+            }
+
+            var ids = objs.Select(o => o.GetInstanceID()).ToArray();
+            InvokeInstanceMethod(obj, "Focus");
+            InvokeInstanceMethod(obj, "ShowObjectsInList", ids);
+            // InvokeInstanceMethod(obj, "Repaint");
+        }
+        #endregion
 
         #region Unity MenuItem
 
@@ -591,6 +674,72 @@ namespace DeepU3.Editor
         private static void CountSceneGameObject()
         {
             Debug.Log($"scene game objects: {Object.FindObjectsOfType<GameObject>().Length}");
+        }
+
+        private static Vector3 sLastPrintWorldPosition;
+
+        [MenuItem("DU3/Print WorldPosition")]
+        private static void PrintSelectWorldPosition()
+        {
+            var wp = Selection.activeGameObject.transform.position;
+            sLastPrintWorldPosition = wp;
+            Debug.Log($"world position: {wp}", Selection.activeGameObject);
+        }
+
+        [MenuItem("DU3/Set Printed WorldPosition")]
+        private static void SetCachedWorldPosition()
+        {
+            Selection.activeGameObject.transform.position = sLastPrintWorldPosition;
+        }
+
+        [MenuItem("DU3/Print Missing Prefab GameObject")]
+        private static void PrintMissingPrefabGameObject()
+        {
+            var objs = Object.FindObjectsOfType<GameObject>();
+            foreach (var o in objs)
+            {
+                if (PrefabUtility.IsPrefabAssetMissing(o))
+                {
+                    Debug.Log($"{o}", o);
+                }
+            }
+        }
+
+        [MenuItem("DU3/Print MeshCollider With MeshRenderer")]
+        private static void PrintMeshCol()
+        {
+            var objs = Object.FindObjectsOfType<MeshCollider>();
+            Array.Sort(objs, (x, y) => string.Compare(x.name, y.name, StringComparison.Ordinal));
+            foreach (var o in objs)
+            {
+                var r = o.GetComponent<MeshRenderer>();
+                if (r)
+                {
+                    Debug.Log($"{o}", o.gameObject);
+                }
+            }
+        }
+
+        [MenuItem("DU3/Print MeshCollider Without MeshRenderer")]
+        private static void PrintMeshColWithoutMeshRenderer()
+        {
+            var objs = Object.FindObjectsOfType<MeshCollider>();
+            Array.Sort(objs, (x, y) => string.Compare(x.name, y.name, StringComparison.Ordinal));
+            foreach (var o in objs)
+            {
+                if (!o.GetComponent<MeshRenderer>())
+                {
+                    Debug.Log($"{o}", o.gameObject);
+                }
+            }
+        }
+
+        [MenuItem("DU3/Jump To MainAsset")]
+        private static void JumpToMainAsset()
+        {
+            var asset = Selection.activeObject;
+            var assetPath = AssetDatabase.GetAssetPath(asset);
+            Selection.activeObject = AssetDatabase.LoadMainAssetAtPath(assetPath);
         }
 
         //[MenuItem("DU3/Start New Custom Profiler")]

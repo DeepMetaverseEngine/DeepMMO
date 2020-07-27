@@ -11,7 +11,7 @@ using JetBrains.Annotations;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace DeepU3
+namespace DeepU3.Timers
 {
     /// <summary>
     /// Allows you to run events on a delay without the use of <see cref="Coroutine"/>s
@@ -94,23 +94,8 @@ namespace DeepU3
             bool isLooped = false, bool useRealTime = false, MonoBehaviour autoDestroyOwner = null)
         {
             // create a manager object to update all the timers if one does not already exist.
-            if (Timer._manager == null)
-            {
-                TimerManager managerInScene = Object.FindObjectOfType<TimerManager>();
-                if (managerInScene != null)
-                {
-                    Timer._manager = managerInScene;
-                }
-                else
-                {
-                    GameObject managerObject = new GameObject {name = "TimerManager"};
-                    GameObject.DontDestroyOnLoad(managerObject);
-                    Timer._manager = managerObject.AddComponent<TimerManager>();
-                }
-            }
-
             Timer timer = new Timer(duration, onComplete, onUpdate, isLooped, useRealTime, autoDestroyOwner);
-            Timer._manager.RegisterTimer(timer);
+            Manager.RegisterTimer(timer);
             return timer;
         }
 
@@ -155,9 +140,9 @@ namespace DeepU3
 
         public static void CancelAllRegisteredTimers()
         {
-            if (Timer._manager != null)
+            if (Manager != null)
             {
-                Timer._manager.CancelAllTimers();
+                Manager.CancelAllTimers();
             }
 
             // if the manager doesn't exist, we don't have any registered timers yet, so don't
@@ -166,9 +151,9 @@ namespace DeepU3
 
         public static void PauseAllRegisteredTimers()
         {
-            if (Timer._manager != null)
+            if (Manager != null)
             {
-                Timer._manager.PauseAllTimers();
+                Manager.PauseAllTimers();
             }
 
             // if the manager doesn't exist, we don't have any registered timers yet, so don't
@@ -177,9 +162,9 @@ namespace DeepU3
 
         public static void ResumeAllRegisteredTimers()
         {
-            if (Timer._manager != null)
+            if (Manager != null)
             {
-                Timer._manager.ResumeAllTimers();
+                Manager.ResumeAllTimers();
             }
 
             // if the manager doesn't exist, we don't have any registered timers yet, so don't
@@ -228,6 +213,25 @@ namespace DeepU3
             }
 
             this._timeElapsedBeforePause = null;
+        }
+
+        public void Reset()
+        {
+            _timeElapsedBeforeCancel = null;
+            _timeElapsedBeforePause = null;
+            isCompleted = false;
+            _lastUpdateTime = 0;
+            ResetStartTime();
+            Resume();
+        }
+
+
+        public void Reset(float newDuration, Action onComplete, Action<float> onUpdate)
+        {
+            Reset();
+            duration = newDuration;
+            _onComplete = onComplete;
+            _onUpdate = onUpdate;
         }
 
         public void ResetStartTime()
@@ -291,7 +295,31 @@ namespace DeepU3
         #region Private Static Properties/Fields
 
         // responsible for updating all registered timers
-        private static TimerManager _manager;
+
+        private static TimerManager sManager;
+
+        internal static TimerManager Manager
+        {
+            get
+            {
+                if (sManager == null)
+                {
+                    var managerInScene = Object.FindObjectOfType<TimerManager>();
+                    if (managerInScene != null)
+                    {
+                        sManager = managerInScene;
+                    }
+                    else
+                    {
+                        var managerObject = new GameObject {name = "TimerManager"};
+                        GameObject.DontDestroyOnLoad(managerObject);
+                        sManager = managerObject.AddComponent<TimerManager>();
+                    }
+                }
+
+                return sManager;
+            }
+        }
 
         #endregion
 
@@ -302,8 +330,8 @@ namespace DeepU3
             get { return this._hasAutoDestroyOwner && this._autoDestroyOwner == null; }
         }
 
-        private readonly Action _onComplete;
-        private readonly Action<float> _onUpdate;
+        private Action _onComplete;
+        private Action<float> _onUpdate;
         private float _startTime;
         private float _lastUpdateTime;
 
@@ -322,9 +350,9 @@ namespace DeepU3
 
         #endregion
 
-        #region Private Constructor (use static Register method to create new timer)
+        #region Constructor (use static Register method to create new timer)
 
-        private Timer(float duration, Action onComplete, Action<float> onUpdate,
+        internal Timer(float duration, Action onComplete, Action<float> onUpdate,
             bool isLooped, bool usesRealTime, MonoBehaviour autoDestroyOwner)
         {
             this.duration = duration;
@@ -360,7 +388,15 @@ namespace DeepU3
             return this.GetWorldTime() - this._lastUpdateTime;
         }
 
-        private void Update()
+        protected virtual void OnUpdate(float timeElapsed)
+        {
+        }
+
+        protected virtual void OnComplete()
+        {
+        }
+
+        protected internal void Update()
         {
             if (this.isDone)
             {
@@ -376,17 +412,14 @@ namespace DeepU3
 
             this._lastUpdateTime = this.GetWorldTime();
 
-            if (this._onUpdate != null)
-            {
-                this._onUpdate(this.GetTimeElapsed());
-            }
+            var timeElapsed = this.GetTimeElapsed();
+            OnUpdate(timeElapsed);
+            _onUpdate?.Invoke(timeElapsed);
 
             if (this.GetWorldTime() >= this.GetFireTime())
             {
-                if (this._onComplete != null)
-                {
-                    this._onComplete();
-                }
+                OnComplete();
+                _onComplete?.Invoke();
 
                 if (this.isLooped)
                 {
@@ -396,78 +429,6 @@ namespace DeepU3
                 {
                     this.isCompleted = true;
                 }
-            }
-        }
-
-        #endregion
-
-        #region Manager Class (implementation detail, spawned automatically and updates all registered timers)
-
-        /// <summary>
-        /// Manages updating all the <see cref="Timer"/>s that are running in the application.
-        /// This will be instantiated the first time you create a timer -- you do not need to add it into the
-        /// scene manually.
-        /// </summary>
-        private class TimerManager : MonoBehaviour
-        {
-            private List<Timer> _timers = new List<Timer>();
-
-            // buffer adding timers so we don't edit a collection during iteration
-            private List<Timer> _timersToAdd = new List<Timer>();
-
-            public void RegisterTimer(Timer timer)
-            {
-                this._timersToAdd.Add(timer);
-            }
-
-            public void CancelAllTimers()
-            {
-                foreach (Timer timer in this._timers)
-                {
-                    timer.Cancel();
-                }
-
-                this._timers = new List<Timer>();
-                this._timersToAdd = new List<Timer>();
-            }
-
-            public void PauseAllTimers()
-            {
-                foreach (Timer timer in this._timers)
-                {
-                    timer.Pause();
-                }
-            }
-
-            public void ResumeAllTimers()
-            {
-                foreach (Timer timer in this._timers)
-                {
-                    timer.Resume();
-                }
-            }
-
-            // update all the registered timers on every frame
-            [UsedImplicitly]
-            private void Update()
-            {
-                this.UpdateAllTimers();
-            }
-
-            private void UpdateAllTimers()
-            {
-                if (this._timersToAdd.Count > 0)
-                {
-                    this._timers.AddRange(this._timersToAdd);
-                    this._timersToAdd.Clear();
-                }
-
-                foreach (Timer timer in this._timers)
-                {
-                    timer.Update();
-                }
-
-                this._timers.RemoveAll(t => t.isDone);
             }
         }
 

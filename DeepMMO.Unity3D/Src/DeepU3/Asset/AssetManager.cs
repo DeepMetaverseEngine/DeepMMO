@@ -16,21 +16,21 @@ namespace DeepU3.Asset
     internal class AsyncOperationUpdater : MonoBehaviour
     {
         [NonSerialized]
-        internal static readonly List<BaseAsyncOperation> IOperations = new List<BaseAsyncOperation>();
+        internal static readonly List<BaseAsyncOperation> Operations = new List<BaseAsyncOperation>();
 
         private void LateUpdate()
         {
-            for (var i = IOperations.Count - 1; i >= 0; i--)
+            for (var i = Operations.Count - 1; i >= 0; i--)
             {
-                var op = IOperations[i];
+                var op = Operations[i];
                 if (op.InvokeNextFrame)
                 {
                     op.InvokeCompleteEvent();
-                    IOperations.RemoveAt(i);
+                    Operations.RemoveAt(i);
                 }
                 else if (op.IsDone)
                 {
-                    IOperations.RemoveAt(i);
+                    Operations.RemoveAt(i);
                 }
                 else
                 {
@@ -115,7 +115,11 @@ namespace DeepU3.Asset
             {
                 //bundle path
                 type = ScenePathType.Address;
-                scenePath = mImpl.AddressToScenePath(path);
+                scenePath = mImpl.AddressToMainAssetPath(path);
+                if (scenePath != null && !scenePath.EndsWith(".unity"))
+                {
+                    scenePath = null;
+                }
             }
 
             sourcePathType = type;
@@ -183,23 +187,51 @@ namespace DeepU3.Asset
 
         public bool IsAnySceneLoading => mSceneList.Any(IsSceneLoading);
 
-        public void UnloadScene(Scene scene)
+        private void UnloadScene(Scene scene, bool immediate)
         {
             mSceneList.Remove(scene.path);
-            var asyncOperation = SceneManager.UnloadSceneAsync(scene, UnloadSceneOptions.UnloadAllEmbeddedSceneObjects);
-            mUnloadOperations[scene.path] = asyncOperation;
             mImpl.UnloadScene(scene);
+            if (!immediate)
+            {
+                var asyncOperation = SceneManager.UnloadSceneAsync(scene, UnloadSceneOptions.UnloadAllEmbeddedSceneObjects);
+                mUnloadOperations[scene.path] = asyncOperation;
+            }
+            else
+            {
+                throw new NotSupportedException();
+                // SceneManager.UnloadScene(scene);
+            }
         }
 
 
+        // public void UnloadSceneImmediate(Scene scene)
+        // {
+        //     UnloadScene(scene, true);
+        // }
+        //
+        // public void UnloadSceneImmediate(string path)
+        // {
+        //     UnloadScene(path, true);
+        // }
+
+        public void UnloadScene(Scene scene)
+        {
+            UnloadScene(scene, false);
+        }
+
         public void UnloadScene(string path)
+        {
+            UnloadScene(path, false);
+        }
+
+        private void UnloadScene(string path, bool immediate)
         {
             var scenePath = GetSceneAssetPath(path, out _);
 
             var s = SceneManager.GetSceneByPath(scenePath);
             if (s.isLoaded)
             {
-                UnloadScene(s);
+                UnloadScene(s, immediate);
             }
             else if (mSceneList.Contains(scenePath))
             {
@@ -246,14 +278,13 @@ namespace DeepU3.Asset
             };
         }
 
-        public T LoadAssetImmediate<T>(object address) where T : Object
+        public T LoadAssetImmediate<T>(AssetAddress address) where T : Object
         {
             return mImpl.LoadAssetImmediate<T>(address);
         }
 
-        public GameObject InstantiateImmediate(object address)
+        public GameObject InstantiateImmediate(InstantiationAssetAddress assetAddress)
         {
-            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
             var hash = assetAddress.GetHashCode();
             var cacheGameObject = GetGameObjectFromPool(hash);
             if (cacheGameObject)
@@ -264,7 +295,7 @@ namespace DeepU3.Asset
                 return cacheGameObject;
             }
 
-            var go = mImpl.InstantiateImmediate(address);
+            var go = mImpl.InstantiateImmediate(assetAddress);
             if (go)
             {
                 OnLoadedGameObject(go, hash);
@@ -273,7 +304,7 @@ namespace DeepU3.Asset
             return go;
         }
 
-        public ResultAsyncOperation<T> LoadAsset<T>(object address) where T : Object
+        public ResultAsyncOperation<T> LoadAsset<T>(AssetAddress address) where T : Object
         {
             ResultAsyncOperation<T> ret;
             if (IsLoadPaused)
@@ -290,23 +321,23 @@ namespace DeepU3.Asset
         }
 
 
-        public Object[] LoadAllAssetsImmediate(object address)
+        public Object[] LoadAllAssetsImmediate(AssetAddress address)
         {
             return mImpl.LoadAllAssetsImmediate(address);
         }
 
-        public T[] LoadAllAssetsImmediate<T>(object address) where T : Object
+        public T[] LoadAllAssetsImmediate<T>(AssetAddress address) where T : Object
         {
             return mImpl.LoadAllAssetsImmediate<T>(address);
         }
 
-        public CollectionResultAsyncOperation<T> LoadAllAssets<T>(object address) where T : Object
+        public CollectionResultAsyncOperation<T> LoadAllAssets<T>(AssetAddress address) where T : Object
         {
             return mImpl.LoadAllAssets<T>(address);
         }
 
 
-        public CollectionResultAsyncOperation<T> LoadAssets<T>(IList<object> addresses) where T : Object
+        public CollectionResultAsyncOperation<T> LoadAssets<T>(IList<AssetAddress> addresses) where T : Object
         {
             CollectionResultAsyncOperation<T> ret;
             if (IsLoadPaused)
@@ -339,9 +370,8 @@ namespace DeepU3.Asset
             mActiveGameObject.Add(go.GetInstanceID(), hash);
         }
 
-        public ResultAsyncOperation<GameObject> Instantiate(object address)
+        public ResultAsyncOperation<GameObject> Instantiate(InstantiationAssetAddress assetAddress)
         {
-            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
             var hash = assetAddress.GetHashCode();
             var cacheGameObject = GetGameObjectFromPool(hash);
             if (cacheGameObject)
@@ -384,17 +414,16 @@ namespace DeepU3.Asset
         }
 
 
-        public CollectionResultAsyncOperation<GameObject> Instantiates(IList<object> addresses)
+        public CollectionResultAsyncOperation<GameObject> Instantiates(IList<InstantiationAssetAddress> addresses)
         {
             throw new NotImplementedException();
             foreach (var address in addresses)
             {
-                var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
-                var hash = assetAddress.GetHashCode();
+                var hash = address.GetHashCode();
                 var cacheGameObject = GetGameObjectFromPool(hash);
                 if (cacheGameObject)
                 {
-                    assetAddress.PreSetInstance(cacheGameObject);
+                    address.PreSetInstance(cacheGameObject);
                 }
             }
 
@@ -507,6 +536,11 @@ namespace DeepU3.Asset
             Statistics.Instance.destroyed++;
         }
 
+        public void Dispose()
+        {
+            mImpl?.Dispose();
+        }
+
         public BaseAsyncOperation Initialize<T>(AssetManagerParam param) where T : IAssetImpl, new()
         {
             mImpl?.Dispose();
@@ -603,135 +637,174 @@ namespace DeepU3.Asset
             sAssetManager.UnloadScene(sceneName);
         }
 
-        public static CollectionResultAsyncOperation<T> LoadAssets<T>(IList<object> addresses) where T : Object
+        public static CollectionResultAsyncOperation<T> LoadAssets<T>(IList<string> addresses) where T : Object
         {
-            foreach (var address in addresses)
+            var assetAddresses = addresses.Select(AssetAddress.String2Address).ToList();
+            foreach (var address in assetAddresses)
             {
-                var assetAddress = AssetAddress.EvaluateAddress(address);
                 if (IsRunSynchronouslyAsSoonAsPossible)
                 {
-                    assetAddress.IsRunSynchronously = true;
+                    address.IsRunSynchronously = true;
                 }
             }
 
-            return sAssetManager.LoadAssets<T>(addresses);
+            return sAssetManager.LoadAssets<T>(assetAddresses);
         }
 
-        public static CollectionResultAsyncOperation<GameObject> Instantiates(IList<object> addresses)
+        public static CollectionResultAsyncOperation<GameObject> Instantiates(IList<string> addresses)
         {
-            foreach (var address in addresses)
+            var instanceAddresses = addresses.Select(InstantiationAssetAddress.String2Address).ToList();
+            return sAssetManager.Instantiates(instanceAddresses);
+        }
+
+        public static CollectionResultAsyncOperation<GameObject> Instantiates(IList<InstantiationAssetAddress> addresses)
+        {
+            for (var i = 0; i < addresses.Count; i++)
             {
-                var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
+                var address = addresses[i];
                 if (IsRunSynchronouslyAsSoonAsPossible)
                 {
-                    assetAddress.IsRunSynchronously = true;
+                    address.IsRunSynchronously = true;
                 }
             }
 
             return sAssetManager.Instantiates(addresses);
         }
 
-        public static T LoadAssetImmediate<T>(object address) where T : Object
+        public static T LoadAssetImmediate<T>(string address) where T : Object
+        {
+            return LoadAssetImmediate<T>(AssetAddress.String2Address(address));
+        }
+
+        public static T LoadAssetImmediate<T>(AssetAddress address) where T : Object
         {
             return sAssetManager.LoadAssetImmediate<T>(address);
         }
 
-        public static GameObject InstantiateImmediate(object address)
+        public static GameObject InstantiateImmediate(string address)
+        {
+            return InstantiateImmediate(InstantiationAssetAddress.String2Address(address));
+        }
+
+        public static GameObject InstantiateImmediate(InstantiationAssetAddress address)
         {
             return sAssetManager.InstantiateImmediate(address);
         }
 
-        public static GameObject InstantiateImmediate(object address, Vector3 position, Quaternion rotation, Transform parent = null, bool worldPositionStays = true)
+        public static GameObject InstantiateImmediate(string address, Vector3 position, Quaternion rotation, Transform parent = null, bool worldPositionStays = true)
         {
-            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
+            var assetAddress = InstantiationAssetAddress.String2Address(address);
             assetAddress.Parameters = new InstantiationParameters(position, rotation, parent, worldPositionStays);
             return InstantiateImmediate(assetAddress);
         }
 
-        public static ResultAsyncOperation<T> LoadAsset<T>(object address) where T : Object
+        public static ResultAsyncOperation<T> LoadAsset<T>(AssetAddress address) where T : Object
         {
-            var assetAddress = AssetAddress.EvaluateAddress(address);
             if (IsRunSynchronouslyAsSoonAsPossible)
             {
-                assetAddress.IsRunSynchronously = true;
+                address.IsRunSynchronously = true;
             }
 
             return sAssetManager.LoadAsset<T>(address);
         }
 
-
-        public static Object[] LoadAllAssetsImmediate(object address)
+        public static ResultAsyncOperation<T> LoadAsset<T>(string address) where T : Object
         {
-            return sAssetManager.LoadAllAssetsImmediate(address);
+            return LoadAsset<T>(AssetAddress.String2Address(address));
         }
 
-        public static T[] LoadAllAssetsImmediate<T>(object address) where T : Object
+
+        public static T[] LoadAllAssetsImmediate<T>(AssetAddress address) where T : Object
         {
+            if (IsRunSynchronouslyAsSoonAsPossible)
+            {
+                address.IsRunSynchronously = true;
+            }
+
             return sAssetManager.LoadAllAssetsImmediate<T>(address);
         }
 
-        public static CollectionResultAsyncOperation<T> LoadAllAssets<T>(object address) where T : Object
+        public static T[] LoadAllAssetsImmediate<T>(string address) where T : Object
         {
-            var assetAddress = AssetAddress.EvaluateAddress(address);
+            return LoadAllAssetsImmediate<T>(AssetAddress.String2Address(address));
+        }
+
+        public static CollectionResultAsyncOperation<T> LoadAllAssets<T>(string address) where T : Object
+        {
+            return LoadAllAssets<T>(AssetAddress.String2Address(address));
+        }
+
+        public static CollectionResultAsyncOperation<T> LoadAllAssets<T>(AssetAddress address) where T : UnityEngine.Object
+        {
             if (IsRunSynchronouslyAsSoonAsPossible)
             {
-                assetAddress.IsRunSynchronously = true;
+                address.IsRunSynchronously = true;
             }
 
             return sAssetManager.LoadAllAssets<T>(address);
         }
 
-        public static CollectionResultAsyncOperation<Object> LoadAllAssets(object address)
-        {
-            return LoadAllAssets<Object>(address);
-        }
-
-        public static void LoadAsset<T>(object address, Action<T> cb) where T : Object
+        public static void LoadAsset<T>(string address, Action<T> cb) where T : Object
         {
             LoadAsset<T>(address).Subscribe(cb);
         }
 
-        public static ResultAsyncOperation<GameObject> Instantiate(object address)
+        public static ResultAsyncOperation<GameObject> Instantiate(string address)
         {
-            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
+            return Instantiate(InstantiationAssetAddress.String2Address(address));
+        }
+
+        public static ResultAsyncOperation<GameObject> Instantiate(InstantiationAssetAddress address)
+        {
             if (IsRunSynchronouslyAsSoonAsPossible)
             {
-                assetAddress.IsRunSynchronously = true;
+                address.IsRunSynchronously = true;
             }
 
             return sAssetManager.Instantiate(address);
         }
 
-        public static ResultAsyncOperation<GameObject> Instantiate(object address, Vector3 position, Quaternion rotation, Transform parent, bool worldPosition)
+        public static ResultAsyncOperation<GameObject> Instantiate(string address, Vector3 position, Quaternion rotation, Transform parent, bool worldPosition)
         {
-            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
+            var assetAddress = InstantiationAssetAddress.String2Address(address);
             assetAddress.Parameters = new InstantiationParameters(position, rotation, parent, worldPosition);
             return Instantiate(assetAddress);
         }
 
-        public static ResultAsyncOperation<GameObject> Instantiate(object address, Transform parent, bool worldPositionStays)
+        public static ResultAsyncOperation<GameObject> Instantiate(string address, Transform parent, bool worldPositionStays)
         {
-            var assetAddress = AssetAddress.EvaluateAs<InstantiationAssetAddress>(address);
+            var assetAddress = InstantiationAssetAddress.String2Address(address);
             assetAddress.Parameters = new InstantiationParameters(parent, worldPositionStays);
             return Instantiate(assetAddress);
         }
 
-        public static void Instantiate(object address, Action<GameObject> cb)
+        public static ResultAsyncOperation<GameObject> Instantiate(InstantiationAssetAddress address, Transform parent, bool worldPositionStays)
+        {
+            address.Parameters = new InstantiationParameters(parent, worldPositionStays);
+            return Instantiate(address);
+        }
+
+        public static void Instantiate(string address, Action<GameObject> cb)
         {
             Instantiate(address).Subscribe(cb);
         }
 
-        public static void Instantiate(object address, Transform parent, bool worldPositionStays, Action<GameObject> cb)
+        public static void Instantiate(InstantiationAssetAddress address, Action<GameObject> cb)
+        {
+            Instantiate(address).Subscribe(cb);
+        }
+
+        public static void Instantiate(string address, Transform parent, bool worldPositionStays, Action<GameObject> cb)
         {
             Instantiate(address, parent, worldPositionStays).Subscribe(cb);
         }
 
-        public static void Instantiate(object address, Vector3 position, Quaternion rotation, Transform parent, bool worldPosition, Action<GameObject> cb)
+        public static void Instantiate(string address, Vector3 position, Quaternion rotation, Transform parent, bool worldPosition, Action<GameObject> cb)
         {
             Instantiate(address, position, rotation, parent, worldPosition).Subscribe(cb);
         }
 
-        public static void Instantiate(object address, Vector3 position, Quaternion rotation, Action<GameObject> cb)
+        public static void Instantiate(string address, Vector3 position, Quaternion rotation, Action<GameObject> cb)
         {
             Instantiate(address, position, rotation, null, true).Subscribe(cb);
         }
@@ -745,6 +818,7 @@ namespace DeepU3.Asset
         {
             sAssetManager.MarkInstanceDontCache(obj);
         }
+
         public static void MarkInstanceDestroyed(GameObject obj)
         {
             sAssetManager.MarkInstanceDestroyed(obj);
@@ -762,11 +836,20 @@ namespace DeepU3.Asset
             return sAssetManager.Initialize<T>(param);
         }
 
+
+        public static void Cleanup()
+        {
+            sAssetManager.Dispose();
+        }
+
         public static void UnloadUnusedAssets()
         {
             sAssetManager.UnloadUnusedAssets();
         }
 
+        // public static void UnloadSceneImmediate(Scene scene) => sAssetManager.UnloadSceneImmediate(scene);
+        //
+        // public static void UnloadSceneImmediate(string path) => sAssetManager.UnloadSceneImmediate(path);
         public static IObjectPoolControl GameObjectPool => sAssetManager.GameObjectPool;
         public static int LoadingAssetCount => sAssetManager.LoadingAssetCount;
 

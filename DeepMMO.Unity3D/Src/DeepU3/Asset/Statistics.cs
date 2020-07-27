@@ -26,8 +26,16 @@ namespace DeepU3.Asset
                 AssetManager.UnloadUnusedAssets();
             }
         }
+        private void OnDestroy()
+        {
+            AssetManager.Cleanup();
+        }
+
+
+
 
 #if UNITY_EDITOR
+        public bool enableStatistics;
         [Serializable]
         public class AssetNode
         {
@@ -90,6 +98,10 @@ namespace DeepU3.Asset
 
         public void AddBundle(string bundleName, string[] senders, StackTrace trace, long ms = 0)
         {
+            if (!enableStatistics)
+            {
+                return;
+            }
             var node = GetBundleNode(bundleName);
             foreach (var s in senders)
             {
@@ -105,6 +117,10 @@ namespace DeepU3.Asset
 
         public void PreAddBundle(string bundleName, StackTrace trace)
         {
+            if (!enableStatistics)
+            {
+                return;
+            }
             var node = GetBundleNode(bundleName);
             node.LoadTrace = trace;
         }
@@ -115,6 +131,10 @@ namespace DeepU3.Asset
         }
         public void RemoveBundle(string bundleName)
         {
+            if (!enableStatistics)
+            {
+                return;
+            }
             var node = GetBundleNode(bundleName, false);
             BundleNodes.Remove(node);
         }
@@ -127,6 +147,10 @@ namespace DeepU3.Asset
 
         public void AddAsset(Object asset, string bundleName, StackTrace trace)
         {
+            if (!enableStatistics)
+            {
+                return;
+            }
             var node = GetBundleNode(bundleName);
             var assetNode = new AssetNode(node, asset, trace?.ToString());
             node.Assets.Add(assetNode);
@@ -135,6 +159,10 @@ namespace DeepU3.Asset
 
         public void RemoveAsset(Object asset, string bundleName)
         {
+            if (!enableStatistics)
+            {
+                return;
+            }
             var node = GetBundleNode(bundleName);
             node.Assets.RemoveAll(m => m.Asset == asset);
             AssetNodes.RemoveAll(m => m.Asset == asset);

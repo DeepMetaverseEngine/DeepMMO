@@ -101,7 +101,32 @@ namespace DeepU3.Editor
                 retVal[counter].autoResize = true;
                 return new MultiColumnHeader(new MultiColumnHeaderState(retVal));
             }
+            
+            private TreeViewItem FindItemInVisibleRows(int id)
+            {
+                var rows = GetRows();
+                foreach (var r in rows)
+                {
+                    if (r.id == id)
+                    {
+                        return r;
+                    }
+                }
 
+                return null;
+            }
+
+
+            protected override void DoubleClickedItem(int id)
+            {
+                var r = FindItemInVisibleRows(id);
+                if (r != null)
+                {
+                    var o = AssetDatabase.LoadMainAssetAtPath(r.displayName);
+                    EditorGUIUtility.PingObject(o);
+                    Selection.activeObject = o;
+                }
+            }
 
             public MultiSceneExportTreeViewState ViewState => (MultiSceneExportTreeViewState) state;
 
@@ -182,6 +207,7 @@ namespace DeepU3.Editor
                 outPath = EditorUtility.SaveFolderPanel("目标目录", outPath, null);
                 if (!string.IsNullOrEmpty(outPath))
                 {
+                    outPath = EditorUtils.PathToAssetPath(outPath);
                     EditorPrefs.SetString(key, outPath);
                     var splitSceneKey = $"{this.GetType().Name}_{nameof(SplitScene)}";
                     EditorPrefs.SetBool(splitSceneKey, SplitScene);
