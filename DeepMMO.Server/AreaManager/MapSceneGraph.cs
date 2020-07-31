@@ -152,8 +152,8 @@ namespace DeepMMO.Server.AreaManager
             {
                 return nexts.ContainsKey((other as SceneGraphNode).MapID);
             }
-            public override float GetG(IMapNode target) { return 1; }
-            public override float GetH(IMapNode father) { return 1; }
+            public override float GetFatherG(IMapNode father) { return 1; }
+            public override float GetTargetH(IMapNode target ) { return 1; }
             internal void InitNexts(SceneGraphMap map)
             {
                 nexts.Clear();

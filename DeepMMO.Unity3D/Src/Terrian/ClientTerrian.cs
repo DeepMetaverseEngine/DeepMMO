@@ -33,13 +33,13 @@ namespace DeepMMO.Unity3D.Terrain
             return true;
         }
 
-        public override float GetG(IMapNode target)
+        public override float GetFatherG(IMapNode target)
         {
             var tt = target as ClientMapNode;
             return Vector3.Distance(Position, tt.Position);
         }
 
-        public override float GetH(IMapNode father)
+        public override float GetTargetH(IMapNode father)
         {
             var ft = father as ClientMapNode;
             return Vector3.Distance(Position, ft.Position);
