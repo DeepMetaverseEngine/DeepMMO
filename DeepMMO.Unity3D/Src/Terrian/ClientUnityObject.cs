@@ -71,6 +71,7 @@ namespace DeepMMO.Unity3D.Terrain
         public float StepIntercept { get; set; }
         private bool mIsInAir;
 
+        public float SlopeAngle { get; set; }
         /// <summary>
         /// 是否在空中
         /// </summary>
@@ -82,7 +83,7 @@ namespace DeepMMO.Unity3D.Terrain
 
         public ClientUnityObject(SceneData sceneData,
             float stepIntercept, float height,float TerrainGridCellSize,
-            float radius = 0.5f,float gravity = 9.8f )
+            float radius = 0.5f,float gravity = 9.8f,float slopeAngle = 55)
         {
             TotalWidth = sceneData.VoxelXCount;
             TotalHeight = sceneData.VoxelYCount;
@@ -93,6 +94,7 @@ namespace DeepMMO.Unity3D.Terrain
             mCheckBoxTouchComponent.radius = radius;
             GridCellSize = TerrainGridCellSize;
             Gravity = gravity; //TLEditorConfig.Instance.OBJECT_SPRINT_WATERSTANDDISTANCE;
+            SlopeAngle = slopeAngle;
             //LayerMasks = LayerMask.GetMask(LayerName);
         }
 
@@ -490,11 +492,12 @@ namespace DeepMMO.Unity3D.Terrain
             else
             {
                 Upward = float.NegativeInfinity;
-                
             }
-
-            if (Mathf.Abs(unit.LayerUpward - bottomHeight) < StepIntercept && bottomHeight < unit.LayerUpward)
+            
+            var slopeHeight = StepIntercept / Mathf.Cos(SlopeAngle);//坡度修正
+            if (Mathf.Abs(unit.LayerUpward - bottomHeight) > slopeHeight  && bottomHeight < unit.LayerUpward)
             {
+                //Debug.Log("slopeHeight=" + slopeHeight +" StepIntercept ="+StepIntercept +" stepheight ="+Mathf.Abs(unit.LayerUpward - bottomHeight) );
                 bottomHeight = unit.LayerUpward;
                 Upward = unit.LayerUpward;
             }
