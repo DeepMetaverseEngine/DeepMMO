@@ -99,9 +99,9 @@ namespace DeepMMO.Unity3D.Terrain
         //        public GameObject cubeobj;
         public NavMeshClientTerrain3D(byte[] PathFindData, SceneData sceneData, float stepIntercept, float findPathDistance = 3f)
         {
-            TerrainWidth = sceneData.VoxelXCount;
-            TerrainHeight = sceneData.VoxelYCount;
-            TerrainGridCellSize = sceneData.VoxelGridCellW;
+            TerrainWidth = sceneData.Voxel.VoxelXCount;
+            TerrainHeight = sceneData.Voxel.VoxelYCount;
+            TerrainGridCellSize = sceneData.Voxel.VoxelGridCellW;
             mStepIntercept = stepIntercept;
             layMasks = CreateLayerMask(laymaskNames);
             if (preUnitObj == null)

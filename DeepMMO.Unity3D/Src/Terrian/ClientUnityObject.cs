@@ -85,8 +85,8 @@ namespace DeepMMO.Unity3D.Terrain
             float stepIntercept, float height,float TerrainGridCellSize,
             float radius = 0.5f,float gravity = 9.8f,float slopeAngle = 55)
         {
-            TotalWidth = sceneData.VoxelXCount;
-            TotalHeight = sceneData.VoxelYCount;
+            TotalWidth = sceneData.Voxel.VoxelXCount * sceneData.Voxel.VoxelGridCellW;
+            TotalHeight = sceneData.Voxel.VoxelYCount * sceneData.Voxel.VoxelGridCellH;
             StepIntercept = stepIntercept;
             Height = 2f;//height;
             mCheckBoxTouchComponent = BoxColliderFactory.Factory.CreateBoxTouchComponent(stepIntercept);//
