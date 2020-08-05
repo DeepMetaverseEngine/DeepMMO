@@ -14,6 +14,7 @@ using System.Threading.Tasks.Dataflow;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using DeepCore;
+using System.Diagnostics;
 
 namespace DeepMMO.Server
 {
@@ -115,17 +116,16 @@ namespace DeepMMO.Server
 
                     if (CACHE_ALL_VOXEL)
                     {
+                        GC.Collect();
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                        GC.WaitForFullGCApproach();
+                        GC.WaitForFullGCComplete();
                         log.Info("********************************************************");
                         log.Info("# 缓存体素");
                         log.Info("********************************************************");
                         var list = new HashMap<string, SceneData>();
                         var caches = new ConcurrentDictionary<string, VoxelWorld>();
-                        var cacheTasks = new ActionBlock<KeyValuePair<string, SceneData>>(run_CacheScene, new ExecutionDataflowBlockOptions()
-                        {
-                            MaxDegreeOfParallelism = Environment.ProcessorCount - 1,
-                            SingleProducerConstrained = false,
-
-                        });
                         foreach (var sd in DataRoot.CacheAllScenes())
                         {
                             if (string.IsNullOrEmpty(sd.VoxelFileName) is false)
@@ -133,6 +133,12 @@ namespace DeepMMO.Server
                                 list.TryAdd(GlobalConfig.GameEditorRoot + sd.VoxelFileName, sd);
                             }
                         }
+                        var cacheTasks = new ActionBlock<KeyValuePair<string, SceneData>>(run_CacheScene, new ExecutionDataflowBlockOptions()
+                        {
+                            MaxDegreeOfParallelism = Environment.ProcessorCount - 1,
+                            SingleProducerConstrained = false,
+                        });
+                        var watch = Stopwatch.StartNew();
                         foreach (var path in list)
                         {
                             cacheTasks.Post(path);
@@ -154,6 +160,8 @@ namespace DeepMMO.Server
                         }
                         cacheTasks.Complete();
                         cacheTasks.Completion.Wait();
+                        watch.Stop();
+                        log.Error($"Load Voxel Complete Use : {watch.Elapsed}");
                         VoxelWorldManager.Instance.CacheAll(caches);
                     }
 
