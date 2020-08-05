@@ -161,7 +161,7 @@ namespace DeepMMO.Server
                         cacheTasks.Complete();
                         cacheTasks.Completion.Wait();
                         watch.Stop();
-                        log.Error($"Load Voxel Complete Use : {watch.Elapsed}");
+                        log.Warn($"Load Voxel Complete Use : {watch.Elapsed}");
                         VoxelWorldManager.Instance.CacheAll(caches);
                     }
 
