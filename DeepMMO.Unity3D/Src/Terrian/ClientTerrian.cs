@@ -740,13 +740,14 @@ namespace DeepMMO.Unity3D.Terrain
                 //Debug.Log("result========="+result);
                 switch (result)
                 {
-                    case VoxelObject.MoveResult.Cross:
-                    case VoxelObject.MoveResult.Arrive:
+                    case VoxelObject.MoveResult.MoveSmooth:
+                    case VoxelObject.MoveResult.MoveCross:
+                    case VoxelObject.MoveResult.MoveArrived:
                         return TryMoveToMapBorderResult.ARRIVE;
                     case VoxelObject.MoveResult.Blocked:
                         return TryMoveToMapBorderResult.BLOCK;
-                    case VoxelObject.MoveResult.TouchX:
-                    case VoxelObject.MoveResult.TouchY:
+                    case VoxelObject.MoveResult.MoveTouchX:
+                    case VoxelObject.MoveResult.MoveTouchY:
                         return TryMoveToMapBorderResult.TOUCH;
                 }
                 return TryMoveToMapBorderResult.ARRIVE;

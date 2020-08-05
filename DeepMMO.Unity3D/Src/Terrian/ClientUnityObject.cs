@@ -256,7 +256,7 @@ namespace DeepMMO.Unity3D.Terrain
                 FixPosHeight(orgPos,ref currentPos);
                 if (isDebug)
                 UnityEngine.Debug.Log("Arrive======"+currentPos);
-                return VoxelObject.MoveResult.Arrive;
+                return VoxelObject.MoveResult.MoveArrived;
             }
             //var step = StepIntercept;
             if (IsMidair) { land = false; }
@@ -302,7 +302,7 @@ namespace DeepMMO.Unity3D.Terrain
                     FixPosHeight(orgPos,ref currentPos);
                     if (isDebug)
                         UnityEngine.Debug.Log("land======"+currentPos);
-                    return VoxelObject.MoveResult.Arrive;
+                    return VoxelObject.MoveResult.MoveArrived;
                 }
              
             }
@@ -314,7 +314,7 @@ namespace DeepMMO.Unity3D.Terrain
                     currentPos.Y = target.Y;
                     if (isDebug)
                         UnityEngine.Debug.Log("Cross======"+currentPos);
-                    return VoxelObject.MoveResult.Cross;
+                    return VoxelObject.MoveResult.MoveCross;
                 }
                 else
                 {
