@@ -122,7 +122,9 @@ namespace DeepMMO.Server
                         var caches = new ConcurrentDictionary<string, VoxelWorld>();
                         var cacheTasks = new ActionBlock<KeyValuePair<string, SceneData>>(run_CacheScene, new ExecutionDataflowBlockOptions()
                         {
-                            MaxDegreeOfParallelism = Environment.ProcessorCount - 1
+                            MaxDegreeOfParallelism = Environment.ProcessorCount - 1,
+                            SingleProducerConstrained = false,
+
                         });
                         foreach (var sd in DataRoot.CacheAllScenes())
                         {
