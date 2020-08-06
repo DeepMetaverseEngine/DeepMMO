@@ -60,7 +60,11 @@ namespace DeepMMO.Server.AreaManager
             if (snode == null) return null;
             var dnode = terrain.GetNode(dstMapID);
             if (dnode == null) return null;
-            var path = base.FindPath(snode, dnode, null);
+            SceneGraphPath path;
+            lock (this)
+            {
+                path = base.FindPath(snode, dnode, null);
+            }
             if (path != null)
             {
                 var ret = new ArrayList<SceneNextLink>();
