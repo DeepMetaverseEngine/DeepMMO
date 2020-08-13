@@ -494,7 +494,7 @@ namespace DeepMMO.Unity3D.Terrain
                 Upward = float.NegativeInfinity;
             }
             
-            var slopeHeight = StepIntercept / Mathf.Cos(SlopeAngle);//坡度修正
+            var slopeHeight = StepIntercept / Mathf.Cos(SlopeAngle*Mathf.Deg2Rad);//坡度修正
             if (Mathf.Abs(unit.LayerUpward - bottomHeight) > slopeHeight  && bottomHeight < unit.LayerUpward)
             {
                 //Debug.Log("slopeHeight=" + slopeHeight +" StepIntercept ="+StepIntercept +" stepheight ="+Mathf.Abs(unit.LayerUpward - bottomHeight) );
